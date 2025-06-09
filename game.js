@@ -4,112 +4,56 @@ const ctx = canvas.getContext('2d');
 const borderWidth = 8; // matches CSS border
 let cubeSize = 60; // will be set responsively
 
-// Blue cube (Player 1 - WASD)
-let cube1 = {
-  x: 0,
-  y: 0,
-  vx: 0,
-  vy: 0,
-  color: '#2196f3',
-  moveLeft: false,
-  moveRight: false,
-  isOnGround: true
-};
-
-// Red cube (Player 2 - Arrows)
-let cube2 = {
-  x: 0,
-  y: 0,
-  vx: 0,
-  vy: 0,
-  color: '#e53935',
-  moveLeft: false,
-  moveRight: false,
-  isOnGround: true
-};
-
-const moveSpeed = 8; // max velocity in px/frame
+// Movement and physics constants
+const moveSpeed = 8;
 const friction = 0.85;
 const gravity = 1.2;
 const jumpStrength = 22;
+
+// Player factory
+function createPlayer({ x, y, color, facing }) {
+  return {
+    x,
+    y,
+    vx: 0,
+    vy: 0,
+    color,
+    moveLeft: false,
+    moveRight: false,
+    isOnGround: true,
+    facing,
+    activeHitbox: null
+  };
+}
+
+let cube1;
+let cube2;
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   cubeSize = Math.min(100, canvas.width * 0.15, canvas.height * 0.15);
-  // Blue cube starts left of center, red right of center
-  cube1.x = canvas.width / 2 - cubeSize * 1.5;
-  cube2.x = canvas.width / 2 + cubeSize * 0.5;
-  cube1.y = cube2.y = canvas.height - borderWidth - cubeSize;
-  cube1.vx = cube2.vx = 0;
-  cube1.vy = cube2.vy = 0;
-  cube1.isOnGround = cube2.isOnGround = true;
+  cube1 = createPlayer({ x: canvas.width / 2 - cubeSize * 1.5, y: canvas.height - borderWidth - cubeSize, color: '#2196f3', facing: 1 });
+  cube2 = createPlayer({ x: canvas.width / 2 + cubeSize * 0.5, y: canvas.height - borderWidth - cubeSize, color: '#e53935', facing: -1 });
   drawStage();
 }
 
-function drawStage() {
-  // Fill background
-  ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw cubes
-  [cube1, cube2].forEach(cube => {
-    ctx.fillStyle = cube.color;
-    ctx.fillRect(cube.x, cube.y, cubeSize, cubeSize);
-  });
-}
-
-function checkCubeCollision(c1, c2) {
-  // Axis-Aligned Bounding Box (AABB) collision
-  return (
-    c1.x < c2.x + cubeSize &&
-    c1.x + cubeSize > c2.x &&
-    c1.y < c2.y + cubeSize &&
-    c1.y + cubeSize > c2.y
-  );
-}
-
-function resolveCubeCollision(c1, c2) {
-  // Only resolve horizontal overlap (side bumping)
-  if (!checkCubeCollision(c1, c2)) return;
-  // Find the overlap
-  const overlapLeft = c1.x + cubeSize - c2.x;
-  const overlapRight = c2.x + cubeSize - c1.x;
-  // Push cubes apart only horizontally
-  if (overlapLeft > 0 && c1.x < c2.x) {
-    // c1 is left of c2
-    const push = overlapLeft / 2;
-    c1.x -= push;
-    c2.x += push;
-    // Stop their velocities toward each other
-    if (c1.vx > 0) c1.vx = 0;
-    if (c2.vx < 0) c2.vx = 0;
-  } else if (overlapRight > 0 && c2.x < c1.x) {
-    // c2 is left of c1
-    const push = overlapRight / 2;
-    c1.x += push;
-    c2.x -= push;
-    if (c1.vx < 0) c1.vx = 0;
-    if (c2.vx > 0) c2.vx = 0;
-  }
-}
-
 function updateCube(cube) {
-  // Handle input
-  if (cube.moveLeft) cube.vx = Math.max(cube.vx - 2, -moveSpeed);
-  else if (cube.moveRight) cube.vx = Math.min(cube.vx + 2, moveSpeed);
-  else cube.vx *= friction;
+  if (cube.moveLeft) {
+    cube.vx = Math.max(cube.vx - 2, -moveSpeed);
+    cube.facing = -1;
+  } else if (cube.moveRight) {
+    cube.vx = Math.min(cube.vx + 2, moveSpeed);
+    cube.facing = 1;
+  } else cube.vx *= friction;
 
-  // Stop tiny velocities
   if (Math.abs(cube.vx) < 0.5) cube.vx = 0;
 
-  // Gravity and jumping
   if (!cube.isOnGround) {
     cube.vy += gravity;
     cube.y += cube.vy;
   }
 
-  // Ground collision
   const groundY = canvas.height - borderWidth - cubeSize;
   if (cube.y >= groundY) {
     cube.y = groundY;
@@ -119,9 +63,7 @@ function updateCube(cube) {
     cube.isOnGround = false;
   }
 
-  // Update position X
   cube.x += cube.vx;
-  // Clamp so cube stays inside border
   const minX = borderWidth;
   const maxX = canvas.width - borderWidth - cubeSize;
   if (cube.x < minX) {
@@ -134,10 +76,76 @@ function updateCube(cube) {
   }
 }
 
+function checkCubeCollision(c1, c2) {
+  return (
+    c1.x < c2.x + cubeSize &&
+    c1.x + cubeSize > c2.x &&
+    c1.y < c2.y + cubeSize &&
+    c1.y + cubeSize > c2.y
+  );
+}
+
+function resolveCubeCollision(c1, c2) {
+  if (!checkCubeCollision(c1, c2)) return;
+  const overlapLeft = c1.x + cubeSize - c2.x;
+  const overlapRight = c2.x + cubeSize - c1.x;
+  if (overlapLeft > 0 && c1.x < c2.x) {
+    const push = overlapLeft / 2;
+    c1.x -= push;
+    c2.x += push;
+    if (c1.vx > 0) c1.vx = 0;
+    if (c2.vx < 0) c2.vx = 0;
+  } else if (overlapRight > 0 && c2.x < c1.x) {
+    const push = overlapRight / 2;
+    c1.x += push;
+    c2.x -= push;
+    if (c1.vx < 0) c1.vx = 0;
+    if (c2.vx > 0) c2.vx = 0;
+  }
+}
+
+function spawnHitbox(cube, type) {
+  // type: 'light' or 'heavy'
+  const size = type === 'light' ? cubeSize * 0.4 : cubeSize * 0.7;
+  const color = type === 'light' ? 'yellow' : 'red';
+  let x;
+  if (cube.facing === 1) {
+    // Facing right: hitbox to the right of the cube
+    x = cube.x + cubeSize;
+  } else {
+    // Facing left: hitbox flush with the left edge of the cube
+    x = cube.x - size;
+  }
+  const y = cube.y + cubeSize * 0.2;
+  cube.activeHitbox = { x, y, size, color, facing: cube.facing };
+  setTimeout(() => { cube.activeHitbox = null; }, 200);
+}
+
+function drawHitbox(ctx, hitbox) {
+  ctx.fillStyle = hitbox.color;
+  ctx.fillRect(
+    hitbox.x,
+    hitbox.y,
+    hitbox.size,
+    hitbox.size
+  );
+}
+
+function drawStage() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  [cube1, cube2].forEach(cube => {
+    ctx.fillStyle = cube.color;
+    ctx.fillRect(cube.x, cube.y, cubeSize, cubeSize);
+    if (cube.activeHitbox) {
+      drawHitbox(ctx, cube.activeHitbox);
+    }
+  });
+}
+
 function update() {
   updateCube(cube1);
   updateCube(cube2);
-  // Resolve collision after both cubes move
   resolveCubeCollision(cube1, cube2);
   drawStage();
   requestAnimationFrame(update);
@@ -158,6 +166,12 @@ window.addEventListener('keydown', (e) => {
     cube2.vy = -jumpStrength;
     cube2.isOnGround = false;
   }
+  // Player 1 attacks
+  if (e.key === 'q' || e.key === 'Q') spawnHitbox(cube1, 'light');
+  if (e.key === 'e' || e.key === 'E') spawnHitbox(cube1, 'heavy');
+  // Player 2 attacks
+  if (e.key === '.') spawnHitbox(cube2, 'light');
+  if (e.key === '/') spawnHitbox(cube2, 'heavy');
 });
 window.addEventListener('keyup', (e) => {
   // Blue cube (WASD)
