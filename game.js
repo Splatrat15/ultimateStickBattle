@@ -15,8 +15,8 @@ let platform = {
 // Movement and physics constants
 const moveSpeed = 8;
 const friction = 0.85;
-const gravity = 0.5;
-const jumpStrength = 16;
+const gravity = 0.2;
+const jumpStrength = 10;
 
 // Player factory
 function createPlayer({ x, y, color, facing }) {
