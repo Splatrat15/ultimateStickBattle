@@ -91,13 +91,32 @@ window.addEventListener('DOMContentLoaded', () => {
         if (nameToShow) {
           showCharacterName(nameToShow, element.getAttribute('data-player'));
         } else {
-          hideCharacterName(); // Hide name if not over any character box
+          // Hide the name only for the specific player
+          hideCharacterName(element.getAttribute('data-player'));
         }
       };
 
       const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+
+        // Check if the token is off-screen
+        const tokenRect = element.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        if (
+          tokenRect.right < 0 || 
+          tokenRect.left > viewportWidth || 
+          tokenRect.bottom < 0 || 
+          tokenRect.top > viewportHeight
+        ) {
+          // Reset to original position on top of the player box
+          const playerNumber = element.getAttribute('data-player');
+          const box = playerNumber === '1' ? player1Box : player2Box;
+          element.style.left = `${box.offsetLeft + (box.offsetWidth / 2) - 25}px`; // Center on player box
+          element.style.top = `${box.offsetTop}px`; // On top of player box
+        }
       };
 
       document.addEventListener('mousemove', onMouseMove);
@@ -139,10 +158,12 @@ window.addEventListener('DOMContentLoaded', () => {
     nameDisplay.innerText = name;
   }
 
-  // Function to hide character name
-  function hideCharacterName() {
-    const nameDisplays = document.querySelectorAll('.characterNameDisplay');
-    nameDisplays.forEach(display => display.remove());
+  // Function to hide character name for a specific player
+  function hideCharacterName(playerNumber) {
+    const nameDisplay = document.querySelector(`.characterNameDisplay[data-player="${playerNumber}"]`);
+    if (nameDisplay) {
+      nameDisplay.remove(); // Remove only the name display for the specific player
+    }
   }
 
   // Make both player tokens draggable
@@ -158,7 +179,8 @@ window.addEventListener('DOMContentLoaded', () => {
     player1Token.remove();
     player2Token.remove();
 
-    hideCharacterName(); // Hide any displayed character names
+    hideCharacterName(1); // Hide Player 1's name
+    hideCharacterName(2); // Hide Player 2's name
 
     menu.style.display = 'none';
     canvas.style.display = '';

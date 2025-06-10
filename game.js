@@ -349,8 +349,8 @@ window.addEventListener('keydown', (e) => {
     }
   }
   // Player 1 attacks
-  if (e.key === 'q' || e.key === 'Q') spawnHitbox(cube1, 'light');
-  if (e.key === 'e' || e.key === 'E') spawnHitbox(cube1, 'heavy');
+  if (e.key === 'f' || e.key === 'F') spawnHitbox(cube1, 'light');
+  if (e.key === 'g' || e.key === 'G') spawnHitbox(cube1, 'heavy');
   // Player 2 attacks
   if (e.key === '.') spawnHitbox(cube2, 'light');
   if (e.key === '/') spawnHitbox(cube2, 'heavy');
