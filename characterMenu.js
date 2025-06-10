@@ -35,9 +35,9 @@ window.addEventListener('DOMContentLoaded', () => {
   player2Box.appendChild(player2Image);
   player2Box.appendChild(player2Name);
 
-  // Append player boxes to the character menu
-  menu.appendChild(player1Box);
-  menu.appendChild(player2Box);
+  // Append player boxes to the character menu in the correct order
+  menu.appendChild(player2Box); // Append Player 2 first
+  menu.appendChild(player1Box); // Append Player 1 second
 
   // Show menu, hide game by default
   menu.style.display = '';
