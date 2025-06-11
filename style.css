@@ -23,7 +23,7 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   height: 100vh;
   width: 100vw;
   position: absolute;
@@ -77,22 +77,25 @@ canvas {
 
 #characterGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 0;
   margin: 1rem 0;
-  justify-items: center;
+  justify-items: stretch;
+  width: 80%;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .characterBox {
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid #fff;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0;
   text-align: center;
   transition: transform 0.2s;
-  width: 100px;
-  height: 120px;
+  width: 100%;
+  height: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -100,24 +103,27 @@ canvas {
 }
 
 .characterBox p {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: #fff;
   font-family: 'Impact', 'Arial Black', Arial, sans-serif;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  text-shadow: none;
   margin: 0;
+  padding: 5px 0;
 }
 
-.characterBox:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-}
-
-.questionMark {
-  font-size: 5rem;
+.characterBox .questionMark {
+  font-size: 8rem;
   color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
-  display: block;
-  margin-bottom: 0.5rem;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.7),
+    0 0 10px rgba(255, 255, 0, 0.8);
+  margin: 0;
+  transition: transform 0.2s;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50%;
 }
 
 .playerBox {
@@ -138,7 +144,7 @@ canvas {
 
 .playerImage {
   width: 100%;
-  height: 80%;
+  height: 55%;
   border-radius: 10px 10px 0 0;
   background-size: cover;
   background-position: center;
@@ -152,17 +158,20 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: white;
+  font-size: 2rem;
 }
 
 #player1Box {
   left: 5%;
   background: rgba(0, 0, 255, 0.2);
+  bottom: 5%;
 }
 
 #player2Box {
   right: 5%;
   background: rgba(255, 0, 0, 0.2);
+  bottom: 5%;
 }
 
 #player1Box .playerName {
@@ -194,12 +203,11 @@ canvas {
   position: absolute;
   width: 50px;
   height: 50px;
-  color: white;
-  font-size: 1rem;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   cursor: pointer;
   z-index: 20;
 }
@@ -212,11 +220,74 @@ canvas {
   background-color: red;
 }
 
+.playerNameBox {
+  position: absolute;
+  color: #fff;
+  font-size: 2rem;
+  text-align: center;
+  justify-content: center;
+  width: 100%;
+  bottom: 1.5%;
+  z-index: 2;
+  background-color: blue;
+  height: 5rem;
+  display: flex;
+  align-items: center;
+}
+
+#player2Box .playerNameBox {
+  background-color: red;
+}
+
 .characterNameDisplay {
   position: absolute;
-  color: white;
-  font-size: 3rem;
-  z-index: 100;
-  margin-top: 25rem;
-  font-family: 'Press Start 2P', cursive;
+  color: #fff;
+  font-size: 1.5rem;
+  text-align: center;
+  width: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tokenLabel {
+  color: white; /* Text color */
+  font-size: 1.2rem; /* Adjust size as needed */
+  font-weight: bold; /* Make the text bold */
+  text-align: center; /* Center the text */
+  width: 100%; /* Make the label take full width of the token */
+}
+
+.playerChoice {
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Center vertically */
+  justify-content: space-between; /* Space out the elements */
+  margin: 2rem 0; /* Add some margin for spacing */
+}
+
+.choiceText {
+  font-size: 2rem; /* Increase font size for better visibility */
+  color: #fff; /* Text color */
+  flex: 1; /* Allow the text to take available space */
+  text-align: center; /* Center the text */
+  padding: 1rem; /* Add some padding for spacing */
+  border-radius: 10px; /* Rounded corners */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* Add shadow for depth */
+  transition: background 0.3s; /* Smooth transition for hover effect */
+}
+
+.player1Choice {
+  background: rgba(0, 0, 255, 0.5); /* Semi-transparent blue background */
+}
+
+.player2Choice {
+  background: rgba(255, 0, 0, 0.5); /* Semi-transparent red background */
+}
+
+.choiceText:hover {
+  background: rgba(255, 255, 255, 0.3); /* Change background on hover */
+}
+
+.scoreText {
+  color: white; /* Ensure score text is visible */
+  font-size: 1.5rem; /* Adjust font size for better visibility */
 }

@@ -1,5 +1,19 @@
+import { spawnHitbox, checkHitAndApplyDamage } from './modules/attacks.js';
+import { updateCube, resetPlayerToPlatform } from './modules/movement.js';
+import { createPlayer } from './modules/player.js';
+import { characters } from './modules/characters.js';
+import { resolveCubeCollision } from './modules/collisions.js';
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// Access selected characters
+const player1Character = window.selectedCharacter1 || characters.kaon.name;
+const player2Character = window.selectedCharacter2 || characters.rakka.name;
+
+// Use player1Character and player2Character in your game logic
+console.log(`Player 1 selected: ${player1Character}`);
+console.log(`Player 2 selected: ${player2Character}`);
 
 const borderWidth = 8; // matches CSS border
 let cubeSize = 60; // will be set responsively
@@ -18,41 +32,9 @@ const friction = 0.85;
 const gravity = 0.2;
 const jumpStrength = 10;
 
-// Player factory
-function createPlayer({ x, y, color, facing }) {
-  return {
-    x,
-    y,
-    vx: 0,
-    vy: 0,
-    color,
-    moveLeft: false,
-    moveRight: false,
-    isOnGround: true,
-    facing,
-    activeHitbox: null,
-    jumpCount: 0, // for double jump
-    damage: 0, // percentage
-    wasHitByAttack: false, // to prevent multiple hits per attack
-    score: 0 // player score
-  };
-}
-
-let cube1;
-let cube2;
-
-function resetPlayerToPlatform(cube, side) {
-  // side: 'left' or 'right'
-  const margin = 20;
-  if (side === 'left') {
-    cube.x = platform.x + margin;
-  } else {
-    cube.x = platform.x + platform.width - cubeSize - margin;
-  }
-  cube.y = platform.y - cubeSize;
-  cube.vx = 0;
-  cube.vy = 0;
-}
+// Initialize players
+let cube1 = createPlayer({ x: 0, y: 0, color: '#2196f3', facing: 1 });
+let cube2 = createPlayer({ x: 0, y: 0, color: '#e53935', facing: -1 });
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -69,221 +51,6 @@ function resizeCanvas() {
   drawStage();
 }
 
-function updateCube(cube, opponent) {
-  // Prevent movement and jumping if attacking, but allow falling
-  if (cube.activeHitbox) {
-    // Update hitbox position to follow the cube
-    const size = cube.activeHitbox.size;
-    if (cube.facing === 1) {
-      cube.activeHitbox.x = cube.x + cubeSize;
-    } else {
-      cube.activeHitbox.x = cube.x - size;
-    }
-    cube.activeHitbox.y = cube.y + cubeSize * 0.2;
-    cube.vx = 0;
-    // Still apply gravity and vertical movement
-    if (!cube.isOnGround) {
-      cube.vy += gravity;
-      cube.y += cube.vy;
-    }
-    // Platform collision
-    const onPlatform =
-      cube.y + cubeSize <= platform.y + platform.height &&
-      cube.y + cubeSize + cube.vy >= platform.y &&
-      cube.x + cubeSize > platform.x &&
-      cube.x < platform.x + platform.width;
-
-    if (onPlatform && cube.vy >= 0) {
-      cube.y = platform.y - cubeSize;
-      cube.vy = 0;
-      if (!cube.isOnGround) cube.jumpCount = 0;
-      cube.isOnGround = true;
-    } else {
-      cube.isOnGround = false;
-    }
-
-    cube.x += cube.vx;
-    const minX = borderWidth;
-    const maxX = canvas.width - borderWidth - cubeSize;
-    if (cube.x < minX) {
-      cube.x = minX;
-      cube.vx = 0;
-    }
-    if (cube.x > maxX) {
-      cube.x = maxX;
-      cube.vx = 0;
-    }
-
-    // If cube falls below the screen, reset to platform, reset damage, and increment opponent's score
-    if (cube.y > canvas.height) {
-      if (cube === cube1) {
-        resetPlayerToPlatform(cube, 'left');
-        cube.damage = 0;
-        cube2.score += 1;
-      } else {
-        resetPlayerToPlatform(cube, 'right');
-        cube.damage = 0;
-        cube1.score += 1;
-      }
-    }
-    return;
-  }
-  if (cube.moveLeft) {
-    cube.vx = Math.max(cube.vx - 2, -moveSpeed);
-    cube.facing = -1;
-  } else if (cube.moveRight) {
-    cube.vx = Math.min(cube.vx + 2, moveSpeed);
-    cube.facing = 1;
-  } else cube.vx *= friction;
-
-  if (Math.abs(cube.vx) < 0.5) cube.vx = 0;
-
-  if (!cube.isOnGround) {
-    cube.vy += gravity;
-    cube.y += cube.vy;
-  }
-
-  // Platform collision
-  const onPlatform =
-    cube.y + cubeSize <= platform.y + platform.height &&
-    cube.y + cubeSize + cube.vy >= platform.y &&
-    cube.x + cubeSize > platform.x &&
-    cube.x < platform.x + platform.width;
-
-  if (onPlatform && cube.vy >= 0) {
-    cube.y = platform.y - cubeSize;
-    cube.vy = 0;
-    if (!cube.isOnGround) cube.jumpCount = 0;
-    cube.isOnGround = true;
-  } else {
-    cube.isOnGround = false;
-  }
-
-  cube.x += cube.vx;
-  const minX = borderWidth;
-  const maxX = canvas.width - borderWidth - cubeSize;
-  if (cube.x < minX) {
-    cube.x = minX;
-    cube.vx = 0;
-  }
-  if (cube.x > maxX) {
-    cube.x = maxX;
-    cube.vx = 0;
-  }
-
-  // If cube falls below the screen, reset to platform, reset damage, and increment opponent's score
-  if (cube.y > canvas.height) {
-    if (cube === cube1) {
-      resetPlayerToPlatform(cube, 'left');
-      cube.damage = 0;
-      cube2.score += 1;
-    } else {
-      resetPlayerToPlatform(cube, 'right');
-      cube.damage = 0;
-      cube1.score += 1;
-    }
-  }
-}
-
-function checkCubeCollision(c1, c2) {
-  return (
-    c1.x < c2.x + cubeSize &&
-    c1.x + cubeSize > c2.x &&
-    c1.y < c2.y + cubeSize &&
-    c1.y + cubeSize > c2.y
-  );
-}
-
-function resolveCubeCollision(c1, c2) {
-  if (!checkCubeCollision(c1, c2)) return;
-  const overlapLeft = c1.x + cubeSize - c2.x;
-  const overlapRight = c2.x + cubeSize - c1.x;
-  if (overlapLeft > 0 && c1.x < c2.x) {
-    const push = overlapLeft / 2;
-    c1.x -= push;
-    c2.x += push;
-    if (c1.vx > 0) c1.vx = 0;
-    if (c2.vx < 0) c2.vx = 0;
-  } else if (overlapRight > 0 && c2.x < c1.x) {
-    const push = overlapRight / 2;
-    c1.x += push;
-    c2.x -= push;
-    if (c1.vx < 0) c1.vx = 0;
-    if (c2.vx > 0) c2.vx = 0;
-  }
-}
-
-function checkHitAndApplyDamage(attacker, defender, type) {
-  if (!attacker.activeHitbox) return;
-  // Only allow one hit per attack
-  if (defender.wasHitByAttack) return;
-  // AABB collision
-  const h = attacker.activeHitbox;
-  if (
-    h.x < defender.x + cubeSize &&
-    h.x + h.size > defender.x &&
-    h.y < defender.y + cubeSize &&
-    h.y + h.size > defender.y
-  ) {
-    defender.wasHitByAttack = true;
-    defender.damage += type === 'light' ? 6 : 15;
-    // Knockback calculation
-    const baseKnockback = type === 'light' ? 6 : 13;
-    const knockbackScale = type === 'light' ? 0.18 : 0.32;
-    const totalKnockback = baseKnockback + defender.damage * knockbackScale;
-    // Knockback direction based on relative position
-    const defenderCenterY = defender.y + cubeSize / 2;
-    const hitboxCenterY = h.y + h.size / 2;
-    let knockbackX = (attacker.facing === 1 ? 1 : -1) * totalKnockback;
-    let knockbackY = 0;
-    if (defender.isOnGround && attacker.isOnGround) {
-      // Both on ground: mostly horizontal, slight up
-      knockbackY = -totalKnockback * 0.18;
-    } else if (defenderCenterY < hitboxCenterY - h.size * 0.2) {
-      // Defender is above the hitbox: knock up and away
-      knockbackY = -totalKnockback * 0.9;
-    } else if (defenderCenterY > hitboxCenterY + h.size * 0.2) {
-      // Defender is below the hitbox: knock down and away
-      knockbackY = totalKnockback * 0.9;
-    } else {
-      // Side/center: knock slightly up and away
-      knockbackY = -totalKnockback * 0.5;
-    }
-    defender.vx = knockbackX;
-    defender.vy = knockbackY;
-  }
-}
-
-function spawnHitbox(cube, type) {
-  // type: 'light' or 'heavy'
-  const size = type === 'light' ? cubeSize * 0.4 : cubeSize * 0.7;
-  const color = type === 'light' ? 'yellow' : 'red';
-  let x;
-  if (cube.facing === 1) {
-    // Facing right: hitbox to the right of the cube
-    x = cube.x + cubeSize;
-  } else {
-    // Facing left: hitbox flush with the left edge of the cube
-    x = cube.x - size;
-  }
-  const y = cube.y + cubeSize * 0.2;
-  cube.activeHitbox = { x, y, size, color, facing: cube.facing, type };
-  setTimeout(() => { cube.activeHitbox = null; }, 200);
-  // Reset wasHitByAttack for the other player
-  if (cube === cube1) cube2.wasHitByAttack = false;
-  if (cube === cube2) cube1.wasHitByAttack = false;
-}
-
-function drawHitbox(ctx, hitbox) {
-  ctx.fillStyle = hitbox.color;
-  ctx.fillRect(
-    hitbox.x,
-    hitbox.y,
-    hitbox.size,
-    hitbox.size
-  );
-}
-
 function drawStage() {
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -298,28 +65,28 @@ function drawStage() {
       drawHitbox(ctx, cube.activeHitbox);
     }
   });
-  // Draw player labels, percentages, and scores
+  
+  // Draw player names
   ctx.font = 'bold 32px Arial';
   ctx.fillStyle = 'white';
   ctx.textAlign = 'left';
-  ctx.fillText('Player 1', 24, 40);
-  ctx.font = 'bold 28px Arial';
-  ctx.fillText(cube1.damage + '%', 24, 75);
-  ctx.font = 'bold 24px Arial';
-  ctx.fillText('Score: ' + cube1.score, 24, 110);
+  ctx.fillText(window.selectedCharacter1, 24, 40); // Display Player 1's character name
   ctx.textAlign = 'right';
-  ctx.font = 'bold 32px Arial';
-  ctx.fillText('Player 2', canvas.width - 24, 40);
+  ctx.fillText(window.selectedCharacter2, canvas.width - 24, 40); // Display Player 2's character name
+
+  // Draw damage percentages and scores
   ctx.font = 'bold 28px Arial';
-  ctx.fillText(cube2.damage + '%', canvas.width - 24, 75);
-  ctx.font = 'bold 24px Arial';
-  ctx.fillText('Score: ' + cube2.score, canvas.width - 24, 110);
+  ctx.fillText(cube1.damage + '%', 80, 75); // Adjusted x position for Player 1's damage percentage
+  ctx.fillText('Score: ' + cube1.score, 115, 110); // Adjusted x position for Player 1's score
+  ctx.textAlign = 'right';
+  ctx.fillText(cube2.damage + '%', canvas.width - 24, 75); // Display Player 2's damage percentage
+  ctx.fillText('Score: ' + cube2.score, canvas.width - 24, 110); // Display Player 2's score
 }
 
 function update() {
   updateCube(cube1, cube2);
   updateCube(cube2, cube1);
-  resolveCubeCollision(cube1, cube2);
+  resolveCubeCollision(cube1, cube2, cubeSize);
   // Check for attack hits
   checkHitAndApplyDamage(cube1, cube2, cube1.activeHitbox ? cube1.activeHitbox.type : null);
   checkHitAndApplyDamage(cube2, cube1, cube2.activeHitbox ? cube2.activeHitbox.type : null);

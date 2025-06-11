@@ -1,192 +1,90 @@
 // characterMenu.js
+import { showCharacterName, hideCharacterName } from './modules/playerPresentation.js';
+import { characters } from './modules/characters.js';
+
 window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('characterMenu');
   const canvas = document.getElementById('gameCanvas');
   const startButton = document.getElementById('startButton');
+  const characterGrid = document.getElementById('characterGrid');
 
   // Create player boxes
   const player1Box = document.createElement('div');
   player1Box.id = 'player1Box';
   player1Box.className = 'playerBox';
-
-  const player1Image = document.createElement('div');
-  player1Image.className = 'playerImage';
-  player1Image.style.backgroundImage = 'url(path/to/player1/image.png)'; // Replace with actual image path
-
-  const player1Name = document.createElement('div');
-  player1Name.className = 'playerName';
-  player1Name.innerHTML = '<p>Player 1</p>';
-
-  player1Box.appendChild(player1Image);
-  player1Box.appendChild(player1Name);
+  player1Box.style.background = 'rgba(0, 0, 255, 0.2)'; // Player 1 color
 
   const player2Box = document.createElement('div');
   player2Box.id = 'player2Box';
   player2Box.className = 'playerBox';
-
-  const player2Image = document.createElement('div');
-  player2Image.className = 'playerImage';
-  player2Image.style.backgroundImage = 'url(path/to/player2/image.png)'; // Replace with actual image path
-
-  const player2Name = document.createElement('div');
-  player2Name.className = 'playerName';
-  player2Name.innerHTML = '<p>Player 2</p>';
-
-  player2Box.appendChild(player2Image);
-  player2Box.appendChild(player2Name);
+  player2Box.style.background = 'rgba(255, 0, 0, 0.2)'; // Player 2 color
 
   // Append player boxes to the character menu
-  menu.appendChild(player2Box);
   menu.appendChild(player1Box);
+  menu.appendChild(player2Box);
 
-  // Function to create player tokens
-  function createPlayerToken(playerNumber) {
-    const token = document.createElement('div');
-    token.className = 'playerToken';
-    token.setAttribute('data-player', playerNumber); // Add data attribute for identification
-    token.innerText = `P${playerNumber}`;
-    
-    document.body.appendChild(token);
-    return token;
-  }
+  // Store selected characters
+  let selectedCharacter1 = null; // Set to null initially
+  let selectedCharacter2 = null; // Set to null initially
 
-  // Create player tokens
-  const player1Token = createPlayerToken(1);
-  const player2Token = createPlayerToken(2);
+  // Create character boxes
+  function createCharacterBoxes() {
+    for (const key in characters) {
+      const characterBox = document.createElement('div');
+      characterBox.className = 'characterBox';
+      characterBox.id = `${key}Box`;
 
-  // Function to position tokens after player boxes are rendered
-  function positionTokens() {
-    player1Token.style.left = `${player1Box.offsetLeft + player1Box.offsetWidth / 2 - 25}px`; // Center on player box
-    player1Token.style.top = `${player1Box.offsetTop}px`; // On top of player box
+      const characterName = document.createElement('p');
+      characterName.textContent = characters[key].name;
+      characterName.className = 'characterName';
 
-    player2Token.style.left = `${player2Box.offsetLeft + player2Box.offsetWidth / 2 - 25}px`; // Center on player box
-    player2Token.style.top = `${player2Box.offsetTop}px`; // On top of player box
-  }
+      characterBox.appendChild(characterName);
+      characterGrid.appendChild(characterBox);
+      console.log(`Character box created for: ${characters[key].name}`);
 
-  // Call positionTokens after appending player boxes
-  positionTokens();
-
-  // Function to make an element draggable
-  function makeDraggable(element) {
-    let offsetX, offsetY;
-
-    element.addEventListener('mousedown', (e) => {
-      offsetX = e.clientX - element.getBoundingClientRect().left;
-      offsetY = e.clientY - element.getBoundingClientRect().top;
-
-      const onMouseMove = (e) => {
-        element.style.left = `${e.clientX - offsetX}px`;
-        element.style.top = `${e.clientY - offsetY}px`;
-
-        // Check for collision with character boxes
-        const characterBoxes = document.querySelectorAll('.characterBox');
-        let nameToShow = '';
-
-        characterBoxes.forEach(box => {
-          if (isOverlapping(element, box)) {
-            nameToShow = box.querySelector('p').innerText; // Get the character name
-          }
-        });
-
-        if (nameToShow) {
-          showCharacterName(nameToShow, element.getAttribute('data-player'));
-        } else {
-          // Hide the name only for the specific player
-          hideCharacterName(element.getAttribute('data-player'));
+      // Add click event listener to each character box
+      characterBox.addEventListener('click', () => {
+        if (!selectedCharacter1) {
+          // If Player 1 is not selected, set this character
+          selectedCharacter1 = characters[key].name;
+          showCharacterName(selectedCharacter1, '1');
+          player1Box.innerHTML = `<span class="playerName">${selectedCharacter1}</span>`; // Update Player 1 box with name
+          document.getElementById('player1Choice').style.display = 'none'; // Hide Player 1 Choose text
+          document.getElementById('player2Choice').style.display = 'block'; // Show Player 2 Choose text
+        } else if (!selectedCharacter2) {
+          // If Player 2 is not selected, set this character
+          selectedCharacter2 = characters[key].name;
+          showCharacterName(selectedCharacter2, '2');
+          player2Box.innerHTML = `<span class="playerName">${selectedCharacter2}</span>`; // Update Player 2 box with name
+          document.getElementById('player2Choice').style.display = 'none'; // Hide Player 2 Choose text
+          document.getElementById('startButton').style.display = 'block'; // Show Start Game button
         }
-      };
-
-      const onMouseUp = () => {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-
-        // Check if the token is off-screen
-        const tokenRect = element.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        if (
-          tokenRect.right < 0 || 
-          tokenRect.left > viewportWidth || 
-          tokenRect.bottom < 0 || 
-          tokenRect.top > viewportHeight
-        ) {
-          // Reset to original position on top of the player box
-          const playerNumber = element.getAttribute('data-player');
-          const box = playerNumber === '1' ? player1Box : player2Box;
-          element.style.left = `${box.offsetLeft + (box.offsetWidth / 2) - 25}px`; // Center on player box
-          element.style.top = `${box.offsetTop}px`; // On top of player box
-        }
-      };
-
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
-  }
-
-  // Function to check if two elements are overlapping
-  function isOverlapping(token, box) {
-    const tokenRect = token.getBoundingClientRect();
-    const boxRect = box.getBoundingClientRect();
-
-    return !(
-      tokenRect.right < boxRect.left ||
-      tokenRect.left > boxRect.right ||
-      tokenRect.bottom < boxRect.top ||
-      tokenRect.top > boxRect.bottom
-    );
-  }
-
-  // Function to show character name in the respective player box
-  function showCharacterName(name, playerNumber) {
-    const box = playerNumber === '1' ? player1Box : player2Box;
-    let nameDisplay = document.querySelector(`.characterNameDisplay[data-player="${playerNumber}"]`);
-
-    // If the name display doesn't exist, create it
-    if (!nameDisplay) {
-      nameDisplay = document.createElement('h1');
-      nameDisplay.className = 'characterNameDisplay';
-      nameDisplay.setAttribute('data-player', playerNumber); // Add data attribute for identification
-      document.body.appendChild(nameDisplay);
-    }
-
-    // Position the name just above the player box
-    nameDisplay.style.left = `${box.offsetLeft + (box.offsetWidth / 2) - (nameDisplay.offsetWidth / 2)}px`; // Center above player box
-    nameDisplay.style.top = `${box.offsetTop - 50}px`; // Adjusted position above
-
-    // Update the text of the existing name display
-    nameDisplay.innerText = name;
-  }
-
-  // Function to hide character name for a specific player
-  function hideCharacterName(playerNumber) {
-    const nameDisplay = document.querySelector(`.characterNameDisplay[data-player="${playerNumber}"]`);
-    if (nameDisplay) {
-      nameDisplay.remove(); // Remove only the name display for the specific player
+      });
     }
   }
 
-  // Make both player tokens draggable
-  makeDraggable(player1Token);
-  makeDraggable(player2Token);
-
-  // Show menu, hide game by default
-  menu.style.display = '';
-  canvas.style.display = 'none';
+  createCharacterBoxes();
 
   startButton.addEventListener('click', () => {
-    // Remove player tokens before starting the game
-    player1Token.remove();
-    player2Token.remove();
+    hideCharacterName(1);
+    hideCharacterName(2);
 
-    hideCharacterName(1); // Hide Player 1's name
-    hideCharacterName(2); // Hide Player 2's name
+    // Store selected characters in the window object
+    window.selectedCharacter1 = selectedCharacter1;
+    window.selectedCharacter2 = selectedCharacter2;
+
+    // Show player names in the game
+    showCharacterName(selectedCharacter1, '1');
+    showCharacterName(selectedCharacter2, '2');
 
     menu.style.display = 'none';
     canvas.style.display = '';
-    // Start the game
     if (typeof resizeCanvas === 'function') resizeCanvas();
     if (typeof update === 'function') update();
     window.addEventListener('resize', resizeCanvas);
   });
-}); 
+
+  // Show initial character names
+  showCharacterName(selectedCharacter1, '1');
+  showCharacterName(selectedCharacter2, '2');
+});
