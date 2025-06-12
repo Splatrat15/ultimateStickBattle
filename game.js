@@ -33,8 +33,8 @@ const gravity = 0.2;
 const jumpStrength = 10;
 
 // Initialize players
-let cube1 = createPlayer({ x: 0, y: 0, color: '#2196f3', facing: 1 });
-let cube2 = createPlayer({ x: 0, y: 0, color: '#e53935', facing: -1 });
+let cube1 = createPlayer({ x: 100, y: 100, color: '#2196f3', facing: 1 });
+let cube2 = createPlayer({ x: 200, y: 100, color: '#e53935', facing: -1 });
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -84,49 +84,44 @@ function drawStage() {
 }
 
 function update() {
-  updateCube(cube1, cube2);
-  updateCube(cube2, cube1);
+  // Move Player 1 (WASD)
+  if (cube1.moveLeft) {
+    cube1.moveBackward();
+  }
+  if (cube1.moveRight) {
+    cube1.moveForward();
+  }
+
+  // Move Player 2 (Arrow keys)
+  if (cube2.moveLeft) {
+    cube2.moveBackward();
+  }
+  if (cube2.moveRight) {
+    cube2.moveForward();
+  }
+
+  // Update positions and check collisions
   resolveCubeCollision(cube1, cube2, cubeSize);
-  // Check for attack hits
-  checkHitAndApplyDamage(cube1, cube2, cube1.activeHitbox ? cube1.activeHitbox.type : null);
-  checkHitAndApplyDamage(cube2, cube1, cube2.activeHitbox ? cube2.activeHitbox.type : null);
   drawStage();
   requestAnimationFrame(update);
 }
 
 window.addEventListener('keydown', (e) => {
-  // Blue cube (WASD)
-  if (!(cube1.activeHitbox)) {
-    if (e.key === 'a' || e.key === 'A') cube1.moveLeft = true;
-    if (e.key === 'd' || e.key === 'D') cube1.moveRight = true;
-    if ((e.key === 'w' || e.key === 'W') && cube1.jumpCount < 2) {
-      cube1.vy = -jumpStrength;
-      cube1.isOnGround = false;
-      cube1.jumpCount++;
-    }
-  }
-  // Red cube (Arrows)
-  if (!(cube2.activeHitbox)) {
-    if (e.key === 'ArrowLeft') cube2.moveLeft = true;
-    if (e.key === 'ArrowRight') cube2.moveRight = true;
-    if (e.key === 'ArrowUp' && cube2.jumpCount < 2) {
-      cube2.vy = -jumpStrength;
-      cube2.isOnGround = false;
-      cube2.jumpCount++;
-    }
-  }
-  // Player 1 attacks
-  if (e.key === 'f' || e.key === 'F') spawnHitbox(cube1, 'light');
-  if (e.key === 'g' || e.key === 'G') spawnHitbox(cube1, 'heavy');
-  // Player 2 attacks
-  if (e.key === '.') spawnHitbox(cube2, 'light');
-  if (e.key === '/') spawnHitbox(cube2, 'heavy');
+  // Player 1 controls (WASD)
+  if (e.key === 'a' || e.key === 'A') cube1.moveLeft = true;
+  if (e.key === 'd' || e.key === 'D') cube1.moveRight = true;
+
+  // Player 2 controls (Arrow keys)
+  if (e.key === 'ArrowLeft') cube2.moveLeft = true;
+  if (e.key === 'ArrowRight') cube2.moveRight = true;
 });
+
 window.addEventListener('keyup', (e) => {
-  // Blue cube (WASD)
+  // Player 1 controls (WASD)
   if (e.key === 'a' || e.key === 'A') cube1.moveLeft = false;
   if (e.key === 'd' || e.key === 'D') cube1.moveRight = false;
-  // Red cube (Arrows)
+
+  // Player 2 controls (Arrow keys)
   if (e.key === 'ArrowLeft') cube2.moveLeft = false;
   if (e.key === 'ArrowRight') cube2.moveRight = false;
 });

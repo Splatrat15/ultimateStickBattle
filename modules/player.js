@@ -13,6 +13,19 @@ export function createPlayer({ x, y, color, facing }) {
     jumpCount: 0,
     damage: 0,
     wasHitByAttack: false,
-    score: 0
+    score: 0,
+    moveForward() {
+      this.x += 8; // Move forward by 8 units
+    },
+    moveBackward() {
+      this.x -= 8; // Move backward by 8 units
+    },
+    jump() {
+      if (this.isOnGround) {
+        this.vy = -jumpStrength; // Set vertical velocity for jumping
+        this.isOnGround = false; // Set to false until the player lands
+        this.jumpCount++;
+      }
+    }
   };
 }
