@@ -1,68 +1,116 @@
-import { spawnHitbox, checkHitAndApplyDamage } from './modules/attacks.js';
-import { updateCube, resetPlayerToPlatform } from './modules/movement.js';
-import { createPlayer } from './modules/player.js';
+import { Player } from './modules/player.js';
 import { characters } from './modules/characters.js';
-import { resolveCubeCollision } from './modules/collisions.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const debugOverlay = document.getElementById('debugOverlay');
+
+// Debug logging
+console.log('Game.js loaded');
+console.log('Canvas element:', canvas);
+console.log('Canvas context:', ctx);
+console.log('Canvas style:', window.getComputedStyle(canvas));
+
+// Game state
+let gameStarted = false;
+let frameCount = 0;
+let lastResetFrame = 0;
+const RESET_COOLDOWN = 30; // Frames to wait between resets
 
 // Access selected characters
 const player1Character = window.selectedCharacter1 || characters.kaon.name;
 const player2Character = window.selectedCharacter2 || characters.rakka.name;
 
-// Use player1Character and player2Character in your game logic
-console.log(`Player 1 selected: ${player1Character}`);
-console.log(`Player 2 selected: ${player2Character}`);
-
-const borderWidth = 8; // matches CSS border
-let cubeSize = 60; // will be set responsively
+console.log('Player 1 character:', player1Character);
+console.log('Player 2 character:', player2Character);
 
 // Platform properties
-let platform = {
+const platform = {
   x: 0,
   y: 0,
   width: 0,
-  height: 0
+  height: 32
 };
 
-// Movement and physics constants
-const moveSpeed = 8;
-const friction = 0.85;
-const gravity = 0.2;
-const jumpStrength = 10;
+// Initialize players with explicit positions
+let player1 = new Player(100, 100, '#2196f3', 1);  // Blue for player1
+let player2 = new Player(400, 100, '#e53935', -1); // Red for player2
 
-// Initialize players
-let cube1 = createPlayer({ x: 100, y: 100, color: '#2196f3', facing: 1 });
-let cube2 = createPlayer({ x: 200, y: 100, color: '#e53935', facing: -1 });
+console.log('Players initialized:', { player1, player2 });
+
+// Input states
+const keys = {
+  // Player 1 (WASD) - Blue cube
+  w: false,
+  a: false,
+  d: false,
+  // Player 2 (Arrow keys) - Red cube
+  ArrowUp: false,
+  ArrowLeft: false,
+  ArrowRight: false
+};
+
+function updateDebugInfo() {
+  debugOverlay.innerHTML = `
+    Game Started: ${gameStarted}<br>
+    Frame: ${frameCount}<br>
+    Canvas: ${canvas.width}x${canvas.height}<br>
+    Platform: x=${platform.x}, y=${platform.y}, w=${platform.width}, h=${platform.height}<br>
+    Player1: x=${Math.round(player1.x)}, y=${Math.round(player1.y)}, vy=${player1.vy.toFixed(2)}, grounded=${player1.isGrounded}<br>
+    Player2: x=${Math.round(player2.x)}, y=${Math.round(player2.y)}, vy=${player2.vy.toFixed(2)}, grounded=${player2.isGrounded}<br>
+    Scores: P1=${player1.score}, P2=${player2.score}<br>
+    Last Reset: ${lastResetFrame}<br>
+    Frame Diff: ${frameCount - lastResetFrame}
+  `;
+}
 
 function resizeCanvas() {
+  console.log('Resizing canvas');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  cubeSize = Math.min(60, canvas.width * 0.15, canvas.height * 0.15);
+  
   // Platform: centered, 60% width, 40px tall, 1/3 from top
   platform.width = Math.max(300, canvas.width * 0.6);
   platform.height = 32;
   platform.x = (canvas.width - platform.width) / 2;
   platform.y = canvas.height * 0.6;
-  // Place cubes on platform
-  cube1 = createPlayer({ x: platform.x + 20, y: platform.y - cubeSize, color: '#2196f3', facing: 1 });
-  cube2 = createPlayer({ x: platform.x + platform.width - cubeSize - 20, y: platform.y - cubeSize, color: '#e53935', facing: -1 });
-  drawStage();
+
+  // Set player positions on opposite sides of the platform
+  player1.resetPosition(platform.x + 50, platform.y - player1.height);
+  player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
+  
+  console.log('Canvas resized:', { width: canvas.width, height: canvas.height });
+  console.log('Platform position:', platform);
+  console.log('Player positions:', { 
+    player1: { x: player1.x, y: player1.y },
+    player2: { x: player2.x, y: player2.y }
+  });
 }
 
 function drawStage() {
+  // Clear canvas
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
   // Draw platform
   ctx.fillStyle = '#888';
   ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-  // Draw cubes
-  [cube1, cube2].forEach(cube => {
-    ctx.fillStyle = cube.color;
-    ctx.fillRect(cube.x, cube.y, cubeSize, cubeSize);
-    if (cube.activeHitbox) {
-      drawHitbox(ctx, cube.activeHitbox);
+  
+  // Draw players
+  [player1, player2].forEach(player => {
+    // Draw player
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    
+    // Draw attack hitbox if attacking
+    if (player.isAttacking && player.attackHitbox) {
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+      ctx.fillRect(
+        player.attackHitbox.x,
+        player.attackHitbox.y,
+        player.attackHitbox.width,
+        player.attackHitbox.height
+      );
     }
   });
   
@@ -70,62 +118,170 @@ function drawStage() {
   ctx.font = 'bold 32px Arial';
   ctx.fillStyle = 'white';
   ctx.textAlign = 'left';
-  ctx.fillText(window.selectedCharacter1, 24, 40); // Display Player 1's character name
+  ctx.fillText(window.selectedCharacter1 || 'Player 1', 24, 40);
   ctx.textAlign = 'right';
-  ctx.fillText(window.selectedCharacter2, canvas.width - 24, 40); // Display Player 2's character name
+  ctx.fillText(window.selectedCharacter2 || 'Player 2', canvas.width - 24, 40);
 
   // Draw damage percentages and scores
   ctx.font = 'bold 28px Arial';
-  ctx.fillText(cube1.damage + '%', 80, 75); // Adjusted x position for Player 1's damage percentage
-  ctx.fillText('Score: ' + cube1.score, 115, 110); // Adjusted x position for Player 1's score
+  ctx.textAlign = 'left';
+  ctx.fillText(player1.damage + '%', 80, 75);
+  ctx.fillText('Score: ' + player1.score, 115, 110);
   ctx.textAlign = 'right';
-  ctx.fillText(cube2.damage + '%', canvas.width - 24, 75); // Display Player 2's damage percentage
-  ctx.fillText('Score: ' + cube2.score, canvas.width - 24, 110); // Display Player 2's score
+  ctx.fillText(player2.damage + '%', canvas.width - 24, 75);
+  ctx.fillText('Score: ' + player2.score, canvas.width - 24, 110);
+
+  // Update debug info
+  updateDebugInfo();
 }
 
 function update() {
-  // Move Player 1 (WASD)
-  if (cube1.moveLeft) {
-    cube1.moveBackward();
-  }
-  if (cube1.moveRight) {
-    cube1.moveForward();
-  }
-
-  // Move Player 2 (Arrow keys)
-  if (cube2.moveLeft) {
-    cube2.moveBackward();
-  }
-  if (cube2.moveRight) {
-    cube2.moveForward();
+  frameCount++;
+  
+  if (!gameStarted) {
+    requestAnimationFrame(update);
+    return;
   }
 
-  // Update positions and check collisions
-  resolveCubeCollision(cube1, cube2, cubeSize);
+  // Log physics state every 30 frames
+  if (frameCount % 30 === 0) {
+    window.debugLog('Physics State', {
+      frameCount,
+      lastResetFrame,
+      frameDiff: frameCount - lastResetFrame,
+      player1: {
+        x: Math.round(player1.x),
+        y: Math.round(player1.y),
+        vy: player1.vy.toFixed(2),
+        isGrounded: player1.isGrounded,
+        lastY: Math.round(player1.lastY)
+      },
+      player2: {
+        x: Math.round(player2.x),
+        y: Math.round(player2.y),
+        vy: player2.vy.toFixed(2),
+        isGrounded: player2.isGrounded,
+        lastY: Math.round(player2.lastY)
+      },
+      platform: {
+        x: platform.x,
+        y: platform.y,
+        width: platform.width,
+        height: platform.height
+      }
+    });
+  }
+
+  // Handle Player 1 movement (WASD) - Blue cube
+  if (keys.a) player1.move(-1);
+  if (keys.d) player1.move(1);
+  if (keys.w) player1.jump();
+
+  // Handle Player 2 movement (Arrow keys) - Red cube
+  if (keys.ArrowLeft) player2.move(-1);
+  if (keys.ArrowRight) player2.move(1);
+  if (keys.ArrowUp) player2.jump();
+
+  // Update players
+  player1.update([platform], player2);
+  player2.update([platform], player1);
+
+  // Check for attacks
+  if (player1.checkAttackHit(player2)) {
+    player2.takeDamage(10);
+  }
+  if (player2.checkAttackHit(player1)) {
+    player1.takeDamage(10);
+  }
+
+  // Check if players hit the bottom of the screen
+  if (player1.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
+    window.debugLog('Player 1 hit bottom', { 
+      y: Math.round(player1.y), 
+      canvasHeight: canvas.height,
+      frameCount,
+      lastResetFrame,
+      frameDiff: frameCount - lastResetFrame
+    });
+    player1.resetPosition(platform.x + 50, platform.y - player1.height);
+    player2.score++;
+    lastResetFrame = frameCount;
+  }
+  
+  if (player2.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
+    window.debugLog('Player 2 hit bottom', { 
+      y: Math.round(player2.y), 
+      canvasHeight: canvas.height,
+      frameCount,
+      lastResetFrame,
+      frameDiff: frameCount - lastResetFrame
+    });
+    player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
+    player1.score++;
+    lastResetFrame = frameCount;
+  }
+
+  // Keep players within platform bounds
+  if (player1.x < platform.x) {
+    window.debugLog('Player 1 hit left edge', { x: player1.x, platformX: platform.x });
+    player1.x = platform.x;
+    player1.vx = 0;
+  }
+  if (player1.x + player1.width > platform.x + platform.width) {
+    window.debugLog('Player 1 hit right edge', { 
+      x: player1.x + player1.width, 
+      platformRight: platform.x + platform.width 
+    });
+    player1.x = platform.x + platform.width - player1.width;
+    player1.vx = 0;
+  }
+  if (player2.x < platform.x) {
+    window.debugLog('Player 2 hit left edge', { x: player2.x, platformX: platform.x });
+    player2.x = platform.x;
+    player2.vx = 0;
+  }
+  if (player2.x + player2.width > platform.x + platform.width) {
+    window.debugLog('Player 2 hit right edge', { 
+      x: player2.x + player2.width, 
+      platformRight: platform.x + platform.width 
+    });
+    player2.x = platform.x + platform.width - player2.width;
+    player2.vx = 0;
+  }
+
   drawStage();
   requestAnimationFrame(update);
 }
 
+// Input handling
 window.addEventListener('keydown', (e) => {
-  // Player 1 controls (WASD)
-  if (e.key === 'a' || e.key === 'A') cube1.moveLeft = true;
-  if (e.key === 'd' || e.key === 'D') cube1.moveRight = true;
-
-  // Player 2 controls (Arrow keys)
-  if (e.key === 'ArrowLeft') cube2.moveLeft = true;
-  if (e.key === 'ArrowRight') cube2.moveRight = true;
+  if (!gameStarted) return;
+  if (e.key in keys) {
+    keys[e.key] = true;
+  }
+  // Attack controls
+  if (e.key === 'f') player1.attack(); // Player 1 (red) attacks with F
+  if (e.key === 'l') player2.attack(); // Player 2 (blue) attacks with L
 });
 
 window.addEventListener('keyup', (e) => {
-  // Player 1 controls (WASD)
-  if (e.key === 'a' || e.key === 'A') cube1.moveLeft = false;
-  if (e.key === 'd' || e.key === 'D') cube1.moveRight = false;
-
-  // Player 2 controls (Arrow keys)
-  if (e.key === 'ArrowLeft') cube2.moveLeft = false;
-  if (e.key === 'ArrowRight') cube2.moveRight = false;
+  if (!gameStarted) return;
+  if (e.key in keys) {
+    keys[e.key] = false;
+  }
 });
 
+// Initialize game
+console.log('Initializing game...');
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+
+// Start game when start button is clicked
+document.getElementById('startButton').addEventListener('click', () => {
+  gameStarted = true;
+  console.log('Game started!');
+});
+
+// Start game loop
 update();
+console.log('Game loop initialized');

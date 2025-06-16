@@ -7,6 +7,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('gameCanvas');
   const startButton = document.getElementById('startButton');
   const characterGrid = document.getElementById('characterGrid');
+  const player1Choice = document.getElementById('player1Choice');
+  const player2Choice = document.getElementById('player2Choice');
 
   // Create player boxes
   const player1Box = document.createElement('div');
@@ -26,6 +28,17 @@ window.addEventListener('DOMContentLoaded', () => {
   // Store selected characters
   let selectedCharacter1 = null; // Set to null initially
   let selectedCharacter2 = null; // Set to null initially
+
+  // Initialize character selection state
+  let player1Selected = false;
+  let player2Selected = false;
+
+  // Show start button when both players have selected
+  function checkGameStart() {
+    if (player1Selected && player2Selected) {
+      startButton.style.display = 'block';
+    }
+  }
 
   // Create character boxes
   function createCharacterBoxes() {
@@ -51,13 +64,16 @@ window.addEventListener('DOMContentLoaded', () => {
           player1Box.innerHTML = `<span class="playerName">${selectedCharacter1}</span>`; // Update Player 1 box with name
           document.getElementById('player1Choice').style.display = 'none'; // Hide Player 1 Choose text
           document.getElementById('player2Choice').style.display = 'block'; // Show Player 2 Choose text
+          player1Selected = true;
+          checkGameStart();
         } else if (!selectedCharacter2) {
           // If Player 2 is not selected, set this character
           selectedCharacter2 = characters[key].name;
           showCharacterName(selectedCharacter2, '2');
           player2Box.innerHTML = `<span class="playerName">${selectedCharacter2}</span>`; // Update Player 2 box with name
           document.getElementById('player2Choice').style.display = 'none'; // Hide Player 2 Choose text
-          document.getElementById('startButton').style.display = 'block'; // Show Start Game button
+          player2Selected = true;
+          checkGameStart();
         }
       });
     }
@@ -78,10 +94,14 @@ window.addEventListener('DOMContentLoaded', () => {
     showCharacterName(selectedCharacter2, '2');
 
     menu.style.display = 'none';
-    canvas.style.display = '';
-    if (typeof resizeCanvas === 'function') resizeCanvas();
-    if (typeof update === 'function') update();
-    window.addEventListener('resize', resizeCanvas);
+    canvas.style.display = 'block';
+    window.dispatchEvent(new Event('resize'));
+    window.gameStarted = true;
+
+    // Log to verify game start
+    console.log('Game started!');
+    console.log('Canvas visible:', canvas.style.display);
+    console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
   });
 
   // Show initial character names
