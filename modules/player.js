@@ -13,6 +13,7 @@ export class Player extends PhysicsBody {
     this.width = 60;  // Explicitly set width
     this.height = 60; // Explicitly set height
     this.vy = 0;      // Initialize vertical velocity
+    this.attackType = null; // 'light' or 'heavy'
   }
 
   update(platforms, otherPlayer) {
@@ -29,6 +30,7 @@ export class Player extends PhysicsBody {
       if (this.attackCooldown === 0) {
         this.isAttacking = false;
         this.attackHitbox = null;
+        this.attackType = null;
       }
     }
     
@@ -38,16 +40,18 @@ export class Player extends PhysicsBody {
     }
   }
 
-  attack() {
+  attack(type) {
     if (this.attackCooldown <= 0) {
       this.isAttacking = true;
-      this.attackCooldown = 20; // 20 frames cooldown
+      this.attackType = type;
+      this.attackCooldown = type === 'heavy' ? 40 : 20; // Heavy attacks have longer cooldown
       this.createAttackHitbox();
     }
   }
 
   createAttackHitbox() {
-    const hitboxSize = 40;
+    const isHeavy = this.attackType === 'heavy';
+    const hitboxSize = isHeavy ? 60 : 40; // Heavy attacks are larger
     const offset = this.facing > 0 ? this.width : -hitboxSize;
     this.attackHitbox = {
       x: this.x + offset,

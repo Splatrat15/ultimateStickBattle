@@ -38,20 +38,6 @@ const keys = {
   ArrowRight: false
 };
 
-function updateDebugInfo() {
-  debugOverlay.innerHTML = `
-    Game Started: ${gameStarted}<br>
-    Frame: ${frameCount}<br>
-    Canvas: ${canvas.width}x${canvas.height}<br>
-    Platform: x=${platform.x}, y=${platform.y}, w=${platform.width}, h=${platform.height}<br>
-    Player1: x=${Math.round(player1.x)}, y=${Math.round(player1.y)}, vy=${player1.vy.toFixed(2)}, grounded=${player1.isGrounded}<br>
-    Player2: x=${Math.round(player2.x)}, y=${Math.round(player2.y)}, vy=${player2.vy.toFixed(2)}, grounded=${player2.isGrounded}<br>
-    Scores: P1=${player1.score}, P2=${player2.score}<br>
-    Last Reset: ${lastResetFrame}<br>
-    Frame Diff: ${frameCount - lastResetFrame}
-  `;
-}
-
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -84,7 +70,10 @@ function drawStage() {
     
     // Draw attack hitbox if attacking
     if (player.isAttacking && player.attackHitbox) {
-      ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+      // Set color based on attack type
+      ctx.fillStyle = player.attackType === 'heavy' ? 
+        'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
+        'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
       ctx.fillRect(
         player.attackHitbox.x,
         player.attackHitbox.y,
@@ -98,18 +87,18 @@ function drawStage() {
   ctx.font = 'bold 32px Arial';
   ctx.fillStyle = 'white';
   ctx.textAlign = 'left';
-  ctx.fillText(window.selectedCharacter1 || 'Player 1', 24, 40);
+  ctx.fillText(window.selectedCharacter1 || 'Player 1', 20, 40);
   ctx.textAlign = 'right';
-  ctx.fillText(window.selectedCharacter2 || 'Player 2', canvas.width - 24, 40);
+  ctx.fillText(window.selectedCharacter2 || 'Player 2', canvas.width - 20, 40);
 
   // Draw damage percentages and scores
   ctx.font = 'bold 28px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText(player1.damage + '%', 80, 75);
-  ctx.fillText('Score: ' + player1.score, 115, 110);
+  ctx.fillText(player1.damage + '%', 20, 75);
+  ctx.fillText('Score: ' + player1.score, 20, 110);
   ctx.textAlign = 'right';
-  ctx.fillText(player2.damage + '%', canvas.width - 24, 75);
-  ctx.fillText('Score: ' + player2.score, canvas.width - 24, 110);
+  ctx.fillText(player2.damage + '%', canvas.width - 20, 75);
+  ctx.fillText('Score: ' + player2.score, canvas.width - 20, 110);
 }
 
 function update() {
@@ -136,26 +125,30 @@ function update() {
 
   // Check for attacks
   if (player1.checkAttackHit(player2)) {
-    player2.takeDamage(10);
+    const damage = player1.attackType === 'heavy' ? 5 : 2;
+    player2.takeDamage(damage);
   }
   if (player2.checkAttackHit(player1)) {
-    player1.takeDamage(10);
+    const damage = player2.attackType === 'heavy' ? 5 : 2;
+    player1.takeDamage(damage);
   }
 
-  // Check if players hit the bottom of the screen
-  if (player1.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
+  // Check if players fall off the platform
+  if (player1.y > platform.y + platform.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
     player1.resetPosition(platform.x + 50, platform.y - player1.height);
+    player1.damage = 0; // Reset damage
     player2.score++;
     lastResetFrame = frameCount;
   }
   
-  if (player2.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
+  if (player2.y > platform.y + platform.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
     player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
+    player2.damage = 0; // Reset damage
     player1.score++;
     lastResetFrame = frameCount;
   }
 
-  // Keep players within platform bounds
+  // Keep players within platform bounds horizontally
   if (player1.x < platform.x) {
     player1.x = platform.x;
     player1.vx = 0;
@@ -184,8 +177,10 @@ window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
   }
   // Attack controls
-  if (e.key === 'f') player1.attack(); // Player 1 (blue) attacks with F
-  if (e.key === 'l') player2.attack(); // Player 2 (red) attacks with L
+  if (e.key === 'f') player1.attack('heavy'); // Player 1 (blue) heavy attack with F
+  if (e.key === 'g') player1.attack('light'); // Player 1 (blue) light attack with G
+  if (e.key === 'l') player2.attack('heavy'); // Player 2 (red) heavy attack with L
+  if (e.key === 'k') player2.attack('light'); // Player 2 (red) light attack with K
 });
 
 window.addEventListener('keyup', (e) => {
