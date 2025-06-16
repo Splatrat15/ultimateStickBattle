@@ -3,13 +3,6 @@ import { characters } from './modules/characters.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const debugOverlay = document.getElementById('debugOverlay');
-
-// Debug logging
-console.log('Game.js loaded');
-console.log('Canvas element:', canvas);
-console.log('Canvas context:', ctx);
-console.log('Canvas style:', window.getComputedStyle(canvas));
 
 // Game state
 let gameStarted = false;
@@ -20,9 +13,6 @@ const RESET_COOLDOWN = 30; // Frames to wait between resets
 // Access selected characters
 const player1Character = window.selectedCharacter1 || characters.kaon.name;
 const player2Character = window.selectedCharacter2 || characters.rakka.name;
-
-console.log('Player 1 character:', player1Character);
-console.log('Player 2 character:', player2Character);
 
 // Platform properties
 const platform = {
@@ -35,8 +25,6 @@ const platform = {
 // Initialize players with explicit positions
 let player1 = new Player(100, 100, '#2196f3', 1);  // Blue for player1
 let player2 = new Player(400, 100, '#e53935', -1); // Red for player2
-
-console.log('Players initialized:', { player1, player2 });
 
 // Input states
 const keys = {
@@ -65,7 +53,6 @@ function updateDebugInfo() {
 }
 
 function resizeCanvas() {
-  console.log('Resizing canvas');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   
@@ -78,13 +65,6 @@ function resizeCanvas() {
   // Set player positions on opposite sides of the platform
   player1.resetPosition(platform.x + 50, platform.y - player1.height);
   player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
-  
-  console.log('Canvas resized:', { width: canvas.width, height: canvas.height });
-  console.log('Platform position:', platform);
-  console.log('Player positions:', { 
-    player1: { x: player1.x, y: player1.y },
-    player2: { x: player2.x, y: player2.y }
-  });
 }
 
 function drawStage() {
@@ -130,9 +110,6 @@ function drawStage() {
   ctx.textAlign = 'right';
   ctx.fillText(player2.damage + '%', canvas.width - 24, 75);
   ctx.fillText('Score: ' + player2.score, canvas.width - 24, 110);
-
-  // Update debug info
-  updateDebugInfo();
 }
 
 function update() {
@@ -141,35 +118,6 @@ function update() {
   if (!gameStarted) {
     requestAnimationFrame(update);
     return;
-  }
-
-  // Log physics state every 30 frames
-  if (frameCount % 30 === 0) {
-    window.debugLog('Physics State', {
-      frameCount,
-      lastResetFrame,
-      frameDiff: frameCount - lastResetFrame,
-      player1: {
-        x: Math.round(player1.x),
-        y: Math.round(player1.y),
-        vy: player1.vy.toFixed(2),
-        isGrounded: player1.isGrounded,
-        lastY: Math.round(player1.lastY)
-      },
-      player2: {
-        x: Math.round(player2.x),
-        y: Math.round(player2.y),
-        vy: player2.vy.toFixed(2),
-        isGrounded: player2.isGrounded,
-        lastY: Math.round(player2.lastY)
-      },
-      platform: {
-        x: platform.x,
-        y: platform.y,
-        width: platform.width,
-        height: platform.height
-      }
-    });
   }
 
   // Handle Player 1 movement (WASD) - Blue cube
@@ -196,26 +144,12 @@ function update() {
 
   // Check if players hit the bottom of the screen
   if (player1.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
-    window.debugLog('Player 1 hit bottom', { 
-      y: Math.round(player1.y), 
-      canvasHeight: canvas.height,
-      frameCount,
-      lastResetFrame,
-      frameDiff: frameCount - lastResetFrame
-    });
     player1.resetPosition(platform.x + 50, platform.y - player1.height);
     player2.score++;
     lastResetFrame = frameCount;
   }
   
   if (player2.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
-    window.debugLog('Player 2 hit bottom', { 
-      y: Math.round(player2.y), 
-      canvasHeight: canvas.height,
-      frameCount,
-      lastResetFrame,
-      frameDiff: frameCount - lastResetFrame
-    });
     player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
     player1.score++;
     lastResetFrame = frameCount;
@@ -223,28 +157,18 @@ function update() {
 
   // Keep players within platform bounds
   if (player1.x < platform.x) {
-    window.debugLog('Player 1 hit left edge', { x: player1.x, platformX: platform.x });
     player1.x = platform.x;
     player1.vx = 0;
   }
   if (player1.x + player1.width > platform.x + platform.width) {
-    window.debugLog('Player 1 hit right edge', { 
-      x: player1.x + player1.width, 
-      platformRight: platform.x + platform.width 
-    });
     player1.x = platform.x + platform.width - player1.width;
     player1.vx = 0;
   }
   if (player2.x < platform.x) {
-    window.debugLog('Player 2 hit left edge', { x: player2.x, platformX: platform.x });
     player2.x = platform.x;
     player2.vx = 0;
   }
   if (player2.x + player2.width > platform.x + platform.width) {
-    window.debugLog('Player 2 hit right edge', { 
-      x: player2.x + player2.width, 
-      platformRight: platform.x + platform.width 
-    });
     player2.x = platform.x + platform.width - player2.width;
     player2.vx = 0;
   }
@@ -260,8 +184,8 @@ window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
   }
   // Attack controls
-  if (e.key === 'f') player1.attack(); // Player 1 (red) attacks with F
-  if (e.key === 'l') player2.attack(); // Player 2 (blue) attacks with L
+  if (e.key === 'f') player1.attack(); // Player 1 (blue) attacks with F
+  if (e.key === 'l') player2.attack(); // Player 2 (red) attacks with L
 });
 
 window.addEventListener('keyup', (e) => {
@@ -272,16 +196,13 @@ window.addEventListener('keyup', (e) => {
 });
 
 // Initialize game
-console.log('Initializing game...');
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // Start game when start button is clicked
 document.getElementById('startButton').addEventListener('click', () => {
   gameStarted = true;
-  console.log('Game started!');
 });
 
 // Start game loop
 update();
-console.log('Game loop initialized');
