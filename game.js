@@ -169,6 +169,9 @@ window.addEventListener('keyup', (e) => {
   if (!gameStarted) return;
   if (e.key in keys) {
     keys[e.key] = false;
+    // Reset jump key state when key is released
+    if (e.key === 'w') player1.isJumpKeyPressed = false;
+    if (e.key === 'ArrowUp') player2.isJumpKeyPressed = false;
   }
 });
 

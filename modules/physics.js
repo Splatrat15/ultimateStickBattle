@@ -1,9 +1,10 @@
 // Physics constants
 export const MOVE_SPEED = 5;
 export const FRICTION = 0.9;
-export const GRAVITY = 0.8;
-export const JUMP_FORCE = -15;
-export const MAX_FALL_SPEED = 15;
+export const GRAVITY = 0.5;
+export const JUMP_FORCE = -18;
+export const SECOND_JUMP_FORCE = -15;
+export const MAX_FALL_SPEED = 12;
 export const COLLISION_DAMPING = 0.1;
 export const CONTROL_SWITCH_COOLDOWN = 10; // Frames to wait after switching controls
 
@@ -70,18 +71,20 @@ export class PhysicsBody {
     // Check platform collisions
     this.isGrounded = false;
     for (const platform of platforms) {
-      // Only check collision if player is above the platform
+      // Check if player is above platform
       if (this.x + this.width > platform.x && 
-          this.x < platform.x + platform.width &&
-          this.y + this.height > platform.y &&
-          this.y < platform.y) {
+          this.x < platform.x + platform.width) {
         // Check if player is falling and would land on platform
         if (this.vy > 0 && 
             oldY + this.height <= platform.y && 
             this.y + this.height >= platform.y) {
-          this.y = platform.y - this.height;
-          this.vy = 0;
-          this.isGrounded = true;
+          // Only ground the player if they're not trying to jump off
+          if (!(this.vy < 0 && this.y + this.height > platform.y + 5)) {
+            this.y = platform.y - this.height;
+            this.vy = 0;
+            this.isGrounded = true;
+            console.log('Player landed on platform');
+          }
           break;
         }
       }
@@ -105,9 +108,7 @@ export class PhysicsBody {
     if (this.isGrounded) {
       this.vy = JUMP_FORCE;
       this.isGrounded = false;
-      window.debugLog('Player jumped', {
-        vy: this.vy.toFixed(2)
-      });
+      console.log('PhysicsBody jump executed');
     }
   }
 

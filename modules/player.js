@@ -1,4 +1,4 @@
-import { PhysicsBody } from './physics.js';
+import { PhysicsBody, JUMP_FORCE, SECOND_JUMP_FORCE } from './physics.js';
 
 export class Player extends PhysicsBody {
   constructor(x, y, color, facing) {
@@ -16,6 +16,7 @@ export class Player extends PhysicsBody {
     this.vy = 0;      // Initialize vertical velocity
     this.attackType = null; // 'light' or 'heavy'
     this.jumpsRemaining = 2; // Track number of jumps available
+    this.isJumpKeyPressed = false; // Track if jump key is currently pressed
   }
 
   update(platforms, otherPlayer) {
@@ -50,8 +51,11 @@ export class Player extends PhysicsBody {
     }
 
     // Reset jumps when landing on ground
-    if (this.isGrounded) {
+    if (this.isGrounded && this.jumpsRemaining !== 2) {
+      console.log('=== RESETTING JUMPS ===');
+      console.log('Previous jumps remaining:', this.jumpsRemaining);
       this.jumpsRemaining = 2;
+      console.log('New jumps remaining:', this.jumpsRemaining);
     }
   }
 
@@ -121,16 +125,31 @@ export class Player extends PhysicsBody {
   }
 
   jump() {
-    if (this.jumpsRemaining > 0) {
-      this.vy = JUMP_FORCE;
+    console.log('=== JUMP ATTEMPT ===');
+    console.log('Jumps remaining:', this.jumpsRemaining);
+    console.log('Is grounded:', this.isGrounded);
+    console.log('Is jump key pressed:', this.isJumpKeyPressed);
+    
+    // If this is a new jump press (key wasn't pressed before)
+    if (!this.isJumpKeyPressed && this.jumpsRemaining > 0) {
+      // Use different jump forces for first and second jump
+      const jumpForce = this.jumpsRemaining === 2 ? JUMP_FORCE : SECOND_JUMP_FORCE;
+      this.vy = jumpForce;
       this.isGrounded = false;
       this.jumpsRemaining--;
+      console.log('Jump successful!');
+      console.log('Used force:', jumpForce);
+      console.log('Jumps remaining after jump:', this.jumpsRemaining);
     }
+    
+    this.isJumpKeyPressed = true;
   }
 
   resetPosition(x, y) {
     super.resetPosition(x, y);  // Call parent class's resetPosition
     this.damage = 0;  // Reset damage when position is reset
     this.jumpsRemaining = 2; // Reset jumps when position is reset
+    this.isGrounded = true; // Ensure grounded state is set
+    this.isJumpKeyPressed = false; // Reset jump key state
   }
 }
