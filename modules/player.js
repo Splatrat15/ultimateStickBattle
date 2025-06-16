@@ -8,12 +8,14 @@ export class Player extends PhysicsBody {
     this.damage = 0;
     this.score = 0;
     this.isAttacking = false;
-    this.attackCooldown = 0;
+    this.lightAttackCooldown = 0;
+    this.heavyAttackCooldown = 0;
     this.attackHitbox = null;
     this.width = 60;  // Explicitly set width
     this.height = 60; // Explicitly set height
     this.vy = 0;      // Initialize vertical velocity
     this.attackType = null; // 'light' or 'heavy'
+    this.jumpsRemaining = 2; // Track number of jumps available
   }
 
   update(platforms, otherPlayer) {
@@ -24,8 +26,16 @@ export class Player extends PhysicsBody {
       this.checkPlayerCollision(otherPlayer);
     }
     
-    // Update attack cooldown
-    if (this.attackCooldown > 0) {
+    // Update attack cooldowns
+    if (this.lightAttackCooldown > 0) {
+      this.lightAttackCooldown--;
+    }
+    if (this.heavyAttackCooldown > 0) {
+      this.heavyAttackCooldown--;
+    }
+    
+    // Update attack state
+    if (this.isAttacking) {
       this.attackCooldown--;
       if (this.attackCooldown === 0) {
         this.isAttacking = false;
@@ -38,15 +48,35 @@ export class Player extends PhysicsBody {
     if (this.isAttacking) {
       this.updateAttackHitbox();
     }
+
+    // Reset jumps when landing on ground
+    if (this.isGrounded) {
+      this.jumpsRemaining = 2;
+    }
   }
 
   attack(type) {
-    if (this.attackCooldown <= 0) {
-      this.isAttacking = true;
-      this.attackType = type;
-      this.attackCooldown = type === 'heavy' ? 40 : 20; // Heavy attacks have longer cooldown
-      this.createAttackHitbox();
+    // Check if the specific attack type is on cooldown
+    if (type === 'light' && this.lightAttackCooldown > 0) {
+      return; // Can't use light attack yet
     }
+    if (type === 'heavy' && this.heavyAttackCooldown > 0) {
+      return; // Can't use heavy attack yet
+    }
+
+    this.isAttacking = true;
+    this.attackType = type;
+    
+    // Set cooldowns based on attack type
+    if (type === 'heavy') {
+      this.attackCooldown = 30; // Duration of heavy attack
+      this.heavyAttackCooldown = 60; // Cooldown before next heavy attack
+    } else {
+      this.attackCooldown = 15; // Duration of light attack
+      this.lightAttackCooldown = 20; // Cooldown before next light attack
+    }
+    
+    this.createAttackHitbox();
   }
 
   createAttackHitbox() {
@@ -80,13 +110,27 @@ export class Player extends PhysicsBody {
     );
   }
 
-  takeDamage(amount) {
-    this.damage += amount;
+  takeDamage(amount, attacker) {
+    // Add damage but cap at 999%
+    this.damage = Math.min(this.damage + amount, 999);
     this.invincibilityFrames = 30; // 30 frames of invincibility after being hit
+    
+    // Calculate knockback direction based on attacker's position
+    const knockbackDirection = attacker.x < this.x ? 1 : -1;
+    this.applyKnockback(knockbackDirection, this.damage);
+  }
+
+  jump() {
+    if (this.jumpsRemaining > 0) {
+      this.vy = JUMP_FORCE;
+      this.isGrounded = false;
+      this.jumpsRemaining--;
+    }
   }
 
   resetPosition(x, y) {
     super.resetPosition(x, y);  // Call parent class's resetPosition
     this.damage = 0;  // Reset damage when position is reset
+    this.jumpsRemaining = 2; // Reset jumps when position is reset
   }
 }

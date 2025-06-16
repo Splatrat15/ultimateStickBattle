@@ -126,11 +126,11 @@ function update() {
   // Check for attacks
   if (player1.checkAttackHit(player2)) {
     const damage = player1.attackType === 'heavy' ? 5 : 2;
-    player2.takeDamage(damage);
+    player2.takeDamage(damage, player1);
   }
   if (player2.checkAttackHit(player1)) {
     const damage = player2.attackType === 'heavy' ? 5 : 2;
-    player1.takeDamage(damage);
+    player1.takeDamage(damage, player2);
   }
 
   // Check if players hit the bottom of the screen
