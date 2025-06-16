@@ -7,6 +7,11 @@ export const MAX_FALL_SPEED = 15;
 export const COLLISION_DAMPING = 0.1;
 export const CONTROL_SWITCH_COOLDOWN = 10; // Frames to wait after switching controls
 
+// Knockback constants
+export const BASE_KNOCKBACK = 10;
+export const KNOCKBACK_SCALING = 0.5; // How much damage affects knockback
+export const VERTICAL_KNOCKBACK = 0.7; // Vertical component of knockback
+
 export class PhysicsBody {
   constructor(x, y, width, height) {
     this.x = x;
@@ -19,7 +24,22 @@ export class PhysicsBody {
     this.facing = 1;
     this.invincibilityFrames = 0;
     this.controlSwitchCooldown = 0;
+    this.damage = 0; // Add damage property for knockback calculation
     window.debugLog('PhysicsBody created', { x, y, width, height });
+  }
+
+  applyKnockback(direction, damage) {
+    // Calculate knockback based on damage
+    const knockbackForce = BASE_KNOCKBACK + (damage * KNOCKBACK_SCALING);
+    
+    // Apply horizontal knockback
+    this.vx = direction * knockbackForce;
+    
+    // Apply vertical knockback
+    this.vy = -knockbackForce * VERTICAL_KNOCKBACK;
+    
+    // Ensure the player is not grounded when knocked back
+    this.isGrounded = false;
   }
 
   update(platforms) {
@@ -50,9 +70,11 @@ export class PhysicsBody {
     // Check platform collisions
     this.isGrounded = false;
     for (const platform of platforms) {
-      // Check if player is above platform
+      // Only check collision if player is above the platform
       if (this.x + this.width > platform.x && 
-          this.x < platform.x + platform.width) {
+          this.x < platform.x + platform.width &&
+          this.y + this.height > platform.y &&
+          this.y < platform.y) {
         // Check if player is falling and would land on platform
         if (this.vy > 0 && 
             oldY + this.height <= platform.y && 

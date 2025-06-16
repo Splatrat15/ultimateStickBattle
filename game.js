@@ -133,37 +133,19 @@ function update() {
     player1.takeDamage(damage);
   }
 
-  // Check if players fall off the platform
-  if (player1.y > platform.y + platform.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
+  // Check if players hit the bottom of the screen
+  if (player1.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
     player1.resetPosition(platform.x + 50, platform.y - player1.height);
     player1.damage = 0; // Reset damage
     player2.score++;
     lastResetFrame = frameCount;
   }
   
-  if (player2.y > platform.y + platform.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
+  if (player2.y > canvas.height && frameCount - lastResetFrame > RESET_COOLDOWN) {
     player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
     player2.damage = 0; // Reset damage
     player1.score++;
     lastResetFrame = frameCount;
-  }
-
-  // Keep players within platform bounds horizontally
-  if (player1.x < platform.x) {
-    player1.x = platform.x;
-    player1.vx = 0;
-  }
-  if (player1.x + player1.width > platform.x + platform.width) {
-    player1.x = platform.x + platform.width - player1.width;
-    player1.vx = 0;
-  }
-  if (player2.x < platform.x) {
-    player2.x = platform.x;
-    player2.vx = 0;
-  }
-  if (player2.x + player2.width > platform.x + platform.width) {
-    player2.x = platform.x + platform.width - player2.width;
-    player2.vx = 0;
   }
 
   drawStage();
