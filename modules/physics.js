@@ -109,14 +109,48 @@ export class PhysicsBody {
       return;
     }
 
-    // Only check horizontal collision if players are at similar heights
-    // This allows jumping over each other
+    // Calculate overlaps
     const verticalOverlap = Math.min(this.y + this.height, other.y + other.height) - Math.max(this.y, other.y);
-    if (verticalOverlap <= 0) {
-      return; // No vertical overlap, can't collide
+    const horizontalOverlap = Math.min(this.x + this.width, other.x + other.width) - Math.max(this.x, other.x);
+
+    // If no overlap at all, no collision
+    if (verticalOverlap <= 0 || horizontalOverlap <= 0) {
+      return;
     }
 
-    // Check if players are overlapping horizontally
+    // If falling onto the other player
+    if (this.vy > 0 && this.y + this.height > other.y && this.y < other.y) {
+      // Calculate center points
+      const thisCenter = this.x + (this.width / 2);
+      const otherCenter = other.x + (other.width / 2);
+      
+      // Slide to the side based on center points
+      if (thisCenter < otherCenter) {
+        this.x = other.x - this.width;
+      } else {
+        this.x = other.x + other.width;
+      }
+      this.vy = 0; // Stop falling
+      return;
+    }
+
+    // If the other player is falling onto this player
+    if (other.vy > 0 && other.y + other.height > this.y && other.y < this.y) {
+      // Calculate center points
+      const thisCenter = this.x + (this.width / 2);
+      const otherCenter = other.x + (other.width / 2);
+      
+      // Slide to the side based on center points
+      if (otherCenter < thisCenter) {
+        other.x = this.x - other.width;
+      } else {
+        other.x = this.x + this.width;
+      }
+      other.vy = 0; // Stop falling
+      return;
+    }
+
+    // Regular horizontal collision
     if (this.x + this.width > other.x && this.x < other.x + other.width) {
       // If moving right and hitting other player's left side
       if (this.vx > 0) {
