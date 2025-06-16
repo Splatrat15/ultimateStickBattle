@@ -109,7 +109,14 @@ export class PhysicsBody {
       return;
     }
 
-    // Check if players are overlapping
+    // Only check horizontal collision if players are at similar heights
+    // This allows jumping over each other
+    const verticalOverlap = Math.min(this.y + this.height, other.y + other.height) - Math.max(this.y, other.y);
+    if (verticalOverlap <= 0) {
+      return; // No vertical overlap, can't collide
+    }
+
+    // Check if players are overlapping horizontally
     if (this.x + this.width > other.x && this.x < other.x + other.width) {
       // If moving right and hitting other player's left side
       if (this.vx > 0) {
