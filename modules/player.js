@@ -22,11 +22,6 @@ export class Player extends PhysicsBody {
   update(platforms, otherPlayer) {
     super.update(platforms);
     
-    // Only check collision if this player is moving
-    if (this.vx !== 0) {
-      this.checkPlayerCollision(otherPlayer);
-    }
-    
     // Update attack cooldowns
     if (this.lightAttackCooldown > 0) {
       this.lightAttackCooldown--;
@@ -56,6 +51,11 @@ export class Player extends PhysicsBody {
       console.log('Previous jumps remaining:', this.jumpsRemaining);
       this.jumpsRemaining = 2;
       console.log('New jumps remaining:', this.jumpsRemaining);
+    }
+
+    // Only check collision if this player is moving
+    if (this.vx !== 0) {
+      this.checkPlayerCollision(otherPlayer);
     }
   }
 

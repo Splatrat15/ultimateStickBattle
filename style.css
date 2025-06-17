@@ -17,6 +17,7 @@ canvas {
   width: 100vw;
   height: 100vh;
   box-sizing: border-box;
+  position: relative;
 }
 
 #debugOverlay {
@@ -312,4 +313,23 @@ canvas {
 .scoreText {
   color: white; /* Ensure score text is visible */
   font-size: 1.5rem; /* Adjust font size for better visibility */
+}
+
+/* Add styles for player elements */
+.player {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  pointer-events: none;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.player1 {
+  background-color: #2196f3;
+}
+
+.player2 {
+  background-color: #e53935;
 }

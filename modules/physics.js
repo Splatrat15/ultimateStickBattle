@@ -83,7 +83,6 @@ export class PhysicsBody {
             this.y = platform.y - this.height;
             this.vy = 0;
             this.isGrounded = true;
-            console.log('Player landed on platform');
           }
           break;
         }
@@ -141,49 +140,43 @@ export class PhysicsBody {
       return;
     }
 
-    // If falling onto the other player
-    if (this.vy > 0 && this.y + this.height > other.y && this.y < other.y) {
-      // Calculate center points
-      const thisCenter = this.x + (this.width / 2);
-      const otherCenter = other.x + (other.width / 2);
-      
-      // Slide to the side based on center points
-      if (thisCenter < otherCenter) {
-        this.x = other.x - this.width;
-      } else {
-        this.x = other.x + other.width;
-      }
-      this.vy = 0; // Stop falling
-      return;
-    }
+    // Calculate center points
+    const thisCenterX = this.x + this.width / 2;
+    const otherCenterX = other.x + other.width / 2;
+    const thisCenterY = this.y + this.height / 2;
+    const otherCenterY = other.y + other.height / 2;
 
-    // If the other player is falling onto this player
-    if (other.vy > 0 && other.y + other.height > this.y && other.y < this.y) {
-      // Calculate center points
-      const thisCenter = this.x + (this.width / 2);
-      const otherCenter = other.x + (other.width / 2);
-      
-      // Slide to the side based on center points
-      if (otherCenter < thisCenter) {
-        other.x = this.x - other.width;
+    // Determine which direction has the smaller overlap
+    if (verticalOverlap < horizontalOverlap) {
+      // Resolve vertical overlap
+      if (thisCenterY < otherCenterY) {
+        // This player is above
+        this.y = other.y - this.height;
+        if (this.vy > 0) {
+          this.vy = 0;
+          this.isGrounded = true;
+        }
       } else {
-        other.x = this.x + this.width;
+        // This player is below
+        this.y = other.y + other.height;
+        if (this.vy < 0) {
+          this.vy = 0;
+        }
       }
-      other.vy = 0; // Stop falling
-      return;
-    }
-
-    // Regular horizontal collision
-    if (this.x + this.width > other.x && this.x < other.x + other.width) {
-      // If moving right and hitting other player's left side
-      if (this.vx > 0) {
+    } else {
+      // Resolve horizontal overlap
+      if (thisCenterX < otherCenterX) {
+        // This player is to the left
         this.x = other.x - this.width;
-        this.vx = 0;
-      }
-      // If moving left and hitting other player's right side
-      else if (this.vx < 0) {
+        if (this.vx > 0) {
+          this.vx = 0;
+        }
+      } else {
+        // This player is to the right
         this.x = other.x + other.width;
-        this.vx = 0;
+        if (this.vx < 0) {
+          this.vx = 0;
+        }
       }
     }
   }
