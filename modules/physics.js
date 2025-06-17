@@ -152,16 +152,32 @@ export class PhysicsBody {
       if (thisCenterY < otherCenterY) {
         // This player is above
         this.y = other.y - this.height;
-        if (this.vy > 0) {
-          this.vy = 0;
-          this.isGrounded = true;
+        // Always push both players apart horizontally
+        const pushForce = 8; // Increased push force
+        if (thisCenterX < otherCenterX) {
+          this.vx = -pushForce;
+          other.vx = pushForce;
+        } else {
+          this.vx = pushForce;
+          other.vx = -pushForce;
         }
+        // Reset vertical velocity and prevent grounding
+        this.vy = 0;
+        this.isGrounded = false;
       } else {
         // This player is below
         this.y = other.y + other.height;
-        if (this.vy < 0) {
-          this.vy = 0;
+        // Always push both players apart horizontally
+        const pushForce = 8; // Increased push force
+        if (thisCenterX < otherCenterX) {
+          this.vx = -pushForce;
+          other.vx = pushForce;
+        } else {
+          this.vx = pushForce;
+          other.vx = -pushForce;
         }
+        // Reset vertical velocity
+        this.vy = 0;
       }
     } else {
       // Resolve horizontal overlap
