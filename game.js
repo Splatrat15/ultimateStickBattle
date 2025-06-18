@@ -82,40 +82,6 @@ function drawStage() {
       );
     }
   });
-
-  // Prevent player overlap by adjusting positions
-  if (player1 && player2) {
-    const overlap = {
-      x: Math.min(player1.x + player1.width, player2.x + player2.width) - Math.max(player1.x, player2.x),
-      y: Math.min(player1.y + player1.height, player2.y + player2.height) - Math.max(player1.y, player2.y)
-    };
-
-    if (overlap.x > 0 && overlap.y > 0) {
-      // If there's overlap, push players apart
-      if (overlap.x < overlap.y) {
-        // Resolve horizontal overlap
-        if (player1.x < player2.x) {
-          player1.x = player2.x - player1.width;
-        } else {
-          player1.x = player2.x + player2.width;
-        }
-      } else {
-        // Resolve vertical overlap
-        if (player1.y < player2.y) {
-          player1.y = player2.y - player1.height;
-          if (player1.vy > 0) {
-            player1.vy = 0;
-            player1.isGrounded = true;
-          }
-        } else {
-          player1.y = player2.y + player2.height;
-          if (player1.vy < 0) {
-            player1.vy = 0;
-          }
-        }
-      }
-    }
-  }
   
   // Draw player names
   ctx.font = 'bold 32px Arial';

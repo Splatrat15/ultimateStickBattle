@@ -11,7 +11,7 @@ export const CONTROL_SWITCH_COOLDOWN = 10; // Frames to wait after switching con
 // Knockback constants
 export const BASE_KNOCKBACK = 15;
 export const KNOCKBACK_SCALING = 0.5; // How much damage affects knockback
-export const VERTICAL_KNOCKBACK = 0.3; // Reduced vertical component of knockback
+export const VERTICAL_KNOCKBACK = 0.1; // Much reduced vertical component of knockback
 
 export class PhysicsBody {
   constructor(x, y, width, height) {
@@ -33,14 +33,22 @@ export class PhysicsBody {
     // Calculate knockback based on damage
     const knockbackForce = BASE_KNOCKBACK + (damage * KNOCKBACK_SCALING);
     
-    // Apply horizontal knockback (increased)
-    this.vx = direction * knockbackForce * 1.5;
+    // Apply strong horizontal knockback (increased for better horizontal movement)
+    this.vx = direction * knockbackForce * 2.5;
     
-    // Apply vertical knockback (reduced)
+    // Apply minimal vertical knockback (just a tiny upward boost)
     this.vy = -knockbackForce * VERTICAL_KNOCKBACK;
     
     // Ensure the player is not grounded when knocked back
     this.isGrounded = false;
+    
+    console.log('Knockback applied:', {
+      direction: direction,
+      damage: damage,
+      knockbackForce: knockbackForce,
+      vx: this.vx,
+      vy: this.vy
+    });
   }
 
   update(platforms) {
@@ -95,11 +103,25 @@ export class PhysicsBody {
     if (this.vx === 0 && direction !== 0) {
       this.controlSwitchCooldown = CONTROL_SWITCH_COOLDOWN;
     }
-    this.vx = direction * MOVE_SPEED;
+    
+    // Only allow movement if not being knocked back (invincibility frames indicate recent hit)
+    if (this.invincibilityFrames === 0) {
+      this.vx = direction * MOVE_SPEED;
+    } else {
+      // If being knocked back, only allow movement in the same direction as knockback
+      // This prevents players from fighting against the knockback
+      if ((direction > 0 && this.vx > 0) || (direction < 0 && this.vx < 0)) {
+        // Allow movement in the same direction as knockback (slight boost)
+        this.vx += direction * MOVE_SPEED * 0.5;
+      }
+      // If trying to move against knockback direction, ignore the input
+    }
+    
     this.facing = direction;
     window.debugLog('Player moved', {
       direction,
-      vx: this.vx.toFixed(2)
+      vx: this.vx.toFixed(2),
+      invincibilityFrames: this.invincibilityFrames
     });
   }
 
@@ -152,8 +174,8 @@ export class PhysicsBody {
       if (thisCenterY < otherCenterY) {
         // This player is above
         this.y = other.y - this.height;
-        // Always push both players apart horizontally
-        const pushForce = 8; // Increased push force
+        // Push both players apart horizontally with reduced force
+        const pushForce = 4; // Reduced push force to prevent excessive movement
         if (thisCenterX < otherCenterX) {
           this.vx = -pushForce;
           other.vx = pushForce;
@@ -161,14 +183,13 @@ export class PhysicsBody {
           this.vx = pushForce;
           other.vx = -pushForce;
         }
-        // Reset vertical velocity and prevent grounding
-        this.vy = 0;
-        this.isGrounded = false;
+        // Don't reset vertical velocity or grounding state here
+        // Let the physics system handle it naturally
       } else {
         // This player is below
         this.y = other.y + other.height;
-        // Always push both players apart horizontally
-        const pushForce = 8; // Increased push force
+        // Push both players apart horizontally with reduced force
+        const pushForce = 4; // Reduced push force to prevent excessive movement
         if (thisCenterX < otherCenterX) {
           this.vx = -pushForce;
           other.vx = pushForce;
@@ -176,22 +197,32 @@ export class PhysicsBody {
           this.vx = pushForce;
           other.vx = -pushForce;
         }
-        // Reset vertical velocity
-        this.vy = 0;
+        // Don't reset vertical velocity here
+        // Let the physics system handle it naturally
       }
     } else {
-      // Resolve horizontal overlap
+      // Resolve horizontal overlap - prioritize this for charging players
       if (thisCenterX < otherCenterX) {
         // This player is to the left
         this.x = other.x - this.width;
+        // Stop horizontal movement if moving into the other player
         if (this.vx > 0) {
           this.vx = 0;
+        }
+        // Also stop the other player if they're moving into this player
+        if (other.vx < 0) {
+          other.vx = 0;
         }
       } else {
         // This player is to the right
         this.x = other.x + other.width;
+        // Stop horizontal movement if moving into the other player
         if (this.vx < 0) {
           this.vx = 0;
+        }
+        // Also stop the other player if they're moving into this player
+        if (other.vx > 0) {
+          other.vx = 0;
         }
       }
     }

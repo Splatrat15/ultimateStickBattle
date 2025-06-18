@@ -17,6 +17,8 @@ export class Player extends PhysicsBody {
     this.attackType = null; // 'light' or 'heavy'
     this.jumpsRemaining = 2; // Track number of jumps available
     this.isJumpKeyPressed = false; // Track if jump key is currently pressed
+    this.lastHitTarget = null; // Track last target hit to prevent spam damage
+    this.hitCooldown = 0; // Cooldown to prevent rapid damage from same attack
   }
 
   update(platforms, otherPlayer) {
@@ -30,6 +32,11 @@ export class Player extends PhysicsBody {
       this.heavyAttackCooldown--;
     }
     
+    // Update hit cooldown
+    if (this.hitCooldown > 0) {
+      this.hitCooldown--;
+    }
+    
     // Update attack state
     if (this.isAttacking) {
       this.attackCooldown--;
@@ -37,6 +44,7 @@ export class Player extends PhysicsBody {
         this.isAttacking = false;
         this.attackHitbox = null;
         this.attackType = null;
+        this.lastHitTarget = null; // Reset last hit target when attack ends
       }
     }
     
@@ -53,10 +61,8 @@ export class Player extends PhysicsBody {
       console.log('New jumps remaining:', this.jumpsRemaining);
     }
 
-    // Only check collision if this player is moving
-    if (this.vx !== 0) {
-      this.checkPlayerCollision(otherPlayer);
-    }
+    // Always check collision to prevent passing through other players
+    this.checkPlayerCollision(otherPlayer);
   }
 
   attack(type) {
@@ -86,32 +92,87 @@ export class Player extends PhysicsBody {
   createAttackHitbox() {
     const isHeavy = this.attackType === 'heavy';
     const hitboxSize = isHeavy ? 60 : 40; // Heavy attacks are larger
-    const offset = this.facing > 0 ? this.width : -hitboxSize;
+    
+    // Position hitbox in front of the player based on facing direction
+    let hitboxX;
+    if (this.facing > 0) {
+      // Facing right, hitbox to the right of player
+      hitboxX = this.x + this.width;
+    } else {
+      // Facing left, hitbox to the left of player
+      hitboxX = this.x - hitboxSize;
+    }
+    
     this.attackHitbox = {
-      x: this.x + offset,
+      x: hitboxX,
       y: this.y + (this.height - hitboxSize) / 2,
       width: hitboxSize,
       height: hitboxSize
     };
+    
+    // Debug log to verify hitbox positioning
+    console.log('Attack hitbox created:', {
+      playerX: this.x,
+      playerY: this.y,
+      facing: this.facing,
+      hitboxX: this.attackHitbox.x,
+      hitboxY: this.attackHitbox.y,
+      hitboxWidth: this.attackHitbox.width,
+      hitboxHeight: this.attackHitbox.height,
+      attackType: this.attackType
+    });
   }
 
   updateAttackHitbox() {
     if (this.attackHitbox) {
-      const offset = this.facing > 0 ? this.width : -this.attackHitbox.width;
-      this.attackHitbox.x = this.x + offset;
+      // Position hitbox in front of the player based on facing direction
+      let hitboxX;
+      if (this.facing > 0) {
+        // Facing right, hitbox to the right of player
+        hitboxX = this.x + this.width;
+      } else {
+        // Facing left, hitbox to the left of player
+        hitboxX = this.x - this.attackHitbox.width;
+      }
+      
+      this.attackHitbox.x = hitboxX;
       this.attackHitbox.y = this.y + (this.height - this.attackHitbox.height) / 2;
     }
   }
 
   checkAttackHit(otherPlayer) {
     if (!this.isAttacking || !this.attackHitbox) return false;
+    
+    // Check if we've already hit this target recently (prevent spam damage)
+    if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
+      return false;
+    }
 
-    return (
+    // Check if attack hitbox overlaps with other player
+    const hit = (
       this.attackHitbox.x < otherPlayer.x + otherPlayer.width &&
       this.attackHitbox.x + this.attackHitbox.width > otherPlayer.x &&
       this.attackHitbox.y < otherPlayer.y + otherPlayer.height &&
       this.attackHitbox.y + this.attackHitbox.height > otherPlayer.y
     );
+    
+    // If hit, set cooldown and mark target
+    if (hit) {
+      this.lastHitTarget = otherPlayer;
+      this.hitCooldown = 10; // 10 frames cooldown between hits on same target
+      
+      console.log('Attack hit detected!', {
+        attacker: this.color,
+        target: otherPlayer.color,
+        attackType: this.attackType,
+        attackerX: this.x,
+        targetX: otherPlayer.x,
+        hitboxX: this.attackHitbox.x,
+        cooldownSet: this.hitCooldown
+      });
+    }
+    
+    return hit;
   }
 
   takeDamage(amount, attacker) {
@@ -119,8 +180,21 @@ export class Player extends PhysicsBody {
     this.damage = Math.min(this.damage + amount, 999);
     this.invincibilityFrames = 30; // 30 frames of invincibility after being hit
     
-    // Calculate knockback direction based on attacker's position
-    const knockbackDirection = attacker.x < this.x ? 1 : -1;
+    // Always use the attacker's facing direction for knockback
+    // This ensures players are sent in the direction the attacker is facing
+    const knockbackDirection = attacker.facing;
+    
+    console.log('Taking damage:', {
+      target: this.color,
+      attacker: attacker.color,
+      damage: amount,
+      totalDamage: this.damage,
+      knockbackDirection: knockbackDirection,
+      attackerFacing: attacker.facing,
+      attackerX: attacker.x,
+      targetX: this.x
+    });
+    
     this.applyKnockback(knockbackDirection, this.damage);
   }
 
