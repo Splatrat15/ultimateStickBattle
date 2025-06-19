@@ -19,6 +19,9 @@ export class Player extends PhysicsBody {
     this.isJumpKeyPressed = false; // Track if jump key is currently pressed
     this.lastHitTarget = null; // Track last target hit to prevent spam damage
     this.hitCooldown = 0; // Cooldown to prevent rapid damage from same attack
+    this.respawnInvincibilityFrames = 0; // Frames of invincibility after respawning
+    this.isBlinking = false; // Track if player should be blinking
+    this.gameStarted = false; // Track if game has started to prevent initial invincibility
   }
 
   update(platforms, otherPlayer) {
@@ -35,6 +38,15 @@ export class Player extends PhysicsBody {
     // Update hit cooldown
     if (this.hitCooldown > 0) {
       this.hitCooldown--;
+    }
+    
+    // Update respawn invincibility
+    if (this.respawnInvincibilityFrames > 0) {
+      this.respawnInvincibilityFrames--;
+      // Blink every 3 frames for visual effect
+      this.isBlinking = (this.respawnInvincibilityFrames % 6) < 3;
+    } else {
+      this.isBlinking = false;
     }
     
     // Update attack state
@@ -176,9 +188,19 @@ export class Player extends PhysicsBody {
   }
 
   takeDamage(amount, attacker) {
+    // Don't take damage if respawn invincibility is active
+    if (this.respawnInvincibilityFrames > 0) {
+      console.log('Damage blocked by respawn invincibility:', {
+        target: this.color,
+        attacker: attacker.color,
+        remainingFrames: this.respawnInvincibilityFrames
+      });
+      return;
+    }
+    
     // Add damage but cap at 999%
     this.damage = Math.min(this.damage + amount, 999);
-    this.invincibilityFrames = 30; // 30 frames of invincibility after being hit
+    this.invincibilityFrames = 120; // 120 frames of invincibility after being hit
     
     // Always use the attacker's facing direction for knockback
     // This ensures players are sent in the direction the attacker is facing
@@ -225,5 +247,48 @@ export class Player extends PhysicsBody {
     this.jumpsRemaining = 2; // Reset jumps when position is reset
     this.isGrounded = true; // Ensure grounded state is set
     this.isJumpKeyPressed = false; // Reset jump key state
+    
+    // Only activate respawn invincibility if game has started (not during initial setup)
+    if (this.gameStarted) {
+      // Activate respawn invincibility (210 frames of blinking invincibility)
+      this.respawnInvincibilityFrames = 210;
+      this.isBlinking = true;
+      
+      console.log('Player respawned with invincibility:', {
+        color: this.color,
+        x: x,
+        y: y,
+        invincibilityFrames: this.respawnInvincibilityFrames
+      });
+    } else {
+      // During initial setup, ensure no invincibility
+      this.respawnInvincibilityFrames = 0;
+      this.isBlinking = false;
+    }
+  }
+
+  setGameStarted() {
+    this.gameStarted = true;
+    console.log('Game started for player:', this.color);
+  }
+
+  setInitialPosition(x, y) {
+    // Set position without triggering invincibility (for initial setup only)
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.isGrounded = true;
+    this.damage = 0;
+    this.jumpsRemaining = 2;
+    this.isJumpKeyPressed = false;
+    this.respawnInvincibilityFrames = 0;
+    this.isBlinking = false;
+    
+    console.log('Player initial position set:', {
+      color: this.color,
+      x: x,
+      y: y
+    });
   }
 }

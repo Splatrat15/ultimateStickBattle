@@ -48,9 +48,16 @@ function resizeCanvas() {
   platform.x = (canvas.width - platform.width) / 2;
   platform.y = canvas.height * 0.6;
 
-  // Set player positions on opposite sides of the platform
-  player1.resetPosition(platform.x + 50, platform.y - player1.height);
-  player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
+  // Set player positions on opposite sides of the platform (initial setup)
+  if (!gameStarted) {
+    // Use setInitialPosition for initial setup to avoid invincibility
+    player1.setInitialPosition(platform.x + 50, platform.y - player1.height);
+    player2.setInitialPosition(platform.x + platform.width - 110, platform.y - player2.height);
+  } else {
+    // Use resetPosition during gameplay (will trigger invincibility)
+    player1.resetPosition(platform.x + 50, platform.y - player1.height);
+    player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
+  }
 }
 
 function drawStage() {
@@ -64,9 +71,11 @@ function drawStage() {
   
   // Draw players
   [player1, player2].forEach(player => {
-    // Draw player
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    // Draw player (blink if respawn invincibility is active)
+    if (!player.isBlinking) {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
     
     // Draw attack hitbox if attacking
     if (player.isAttacking && player.attackHitbox) {
@@ -182,6 +191,9 @@ resizeCanvas();
 // Start game when start button is clicked
 document.getElementById('startButton').addEventListener('click', () => {
   gameStarted = true;
+  // Mark that the game has started for both players
+  player1.setGameStarted();
+  player2.setGameStarted();
 });
 
 // Start game loop
