@@ -77,6 +77,28 @@ function drawStage() {
       ctx.fillRect(player.x, player.y, player.width, player.height);
     }
     
+    // Draw shield effect if shielding
+    if (player.isShielding) {
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; // Cyan shield outline
+      ctx.lineWidth = 4;
+      ctx.strokeRect(player.x - 2, player.y - 2, player.width + 4, player.height + 4);
+      
+      // Draw shield energy bar
+      const shieldBarWidth = 60;
+      const shieldBarHeight = 8;
+      const shieldBarX = player.x;
+      const shieldBarY = player.y - 15;
+      
+      // Background bar
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
+      
+      // Shield energy bar
+      const shieldPercentage = player.shieldDuration / player.maxShieldDuration;
+      ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+      ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth * shieldPercentage, shieldBarHeight);
+    }
+    
     // Draw attack hitbox if attacking
     if (player.isAttacking && player.attackHitbox) {
       // Set color based on attack type
@@ -172,6 +194,10 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'g') player1.attack('light'); // Player 1 (blue) light attack with G
   if (e.key === 'l') player2.attack('heavy'); // Player 2 (red) heavy attack with L
   if (e.key === 'k') player2.attack('light'); // Player 2 (red) light attack with K
+  
+  // Shield controls
+  if (e.key === 'e' || e.key === 'E') player1.activateShield(); // Player 1 (blue) shield with E
+  if (e.key === 'o' || e.key === 'O') player2.activateShield(); // Player 2 (red) shield with O
 });
 
 window.addEventListener('keyup', (e) => {
@@ -182,6 +208,10 @@ window.addEventListener('keyup', (e) => {
     if (e.key === 'w') player1.isJumpKeyPressed = false;
     if (e.key === 'ArrowUp') player2.isJumpKeyPressed = false;
   }
+  
+  // Shield deactivation controls
+  if (e.key === 'e' || e.key === 'E') player1.deactivateShield(); // Player 1 (blue) deactivate shield
+  if (e.key === 'o' || e.key === 'O') player2.deactivateShield(); // Player 2 (red) deactivate shield
 });
 
 // Initialize game

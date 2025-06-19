@@ -22,11 +22,22 @@ export class Player extends PhysicsBody {
     this.respawnInvincibilityFrames = 0; // Frames of invincibility after respawning
     this.isBlinking = false; // Track if player should be blinking
     this.gameStarted = false; // Track if game has started to prevent initial invincibility
+    
+    // Shield mechanics
+    this.isShielding = false;
+    this.shieldCooldown = 0;
+    this.shieldDuration = 0;
+    this.maxShieldDuration = 120; // 6 seconds of shield
+    this.shieldRechargeTime = 120; // 6 seconds to recharge shield
   }
 
   //TODO: Get rid of inital invincibility off rip of loading into the game
 
   update(platforms, otherPlayer) {
+    // Sync attack and shield states with parent PhysicsBody
+    super.isAttacking = this.isAttacking;
+    super.isShielding = this.isShielding;
+    
     super.update(platforms);
     
     // Update attack cooldowns
@@ -40,6 +51,26 @@ export class Player extends PhysicsBody {
     // Update hit cooldown
     if (this.hitCooldown > 0) {
       this.hitCooldown--;
+    }
+    
+    // Update shield mechanics
+    if (this.isShielding) {
+      this.shieldDuration++;
+      // Deactivate shield if duration is exhausted
+      if (this.shieldDuration >= this.maxShieldDuration) {
+        this.isShielding = false;
+        this.shieldCooldown = this.shieldRechargeTime;
+        console.log('Shield exhausted for:', this.color);
+      }
+    } else {
+      // Recharge shield when not shielding
+      if (this.shieldDuration > 0) {
+        this.shieldDuration--;
+      }
+      // Reduce cooldown
+      if (this.shieldCooldown > 0) {
+        this.shieldCooldown--;
+      }
     }
     
     // Update respawn invincibility
@@ -200,6 +231,16 @@ export class Player extends PhysicsBody {
       return;
     }
     
+    // Check if shield is active and block the attack
+    if (this.isShielding) {
+      console.log('Attack blocked by shield:', {
+        target: this.color,
+        attacker: attacker.color,
+        shieldDuration: this.shieldDuration
+      });
+      return; // Shield blocks all damage and knockback
+    }
+    
     // Add damage but cap at 999%
     this.damage = Math.min(this.damage + amount, 999);
     this.invincibilityFrames = 120; // 120 frames of invincibility after being hit
@@ -227,6 +268,14 @@ export class Player extends PhysicsBody {
     console.log('Jumps remaining:', this.jumpsRemaining);
     console.log('Is grounded:', this.isGrounded);
     console.log('Is jump key pressed:', this.isJumpKeyPressed);
+    console.log('Is shielding:', this.isShielding);
+    console.log('Is attacking:', this.isAttacking);
+    
+    // Don't allow jumping if shielding or attacking
+    if (this.isShielding || this.isAttacking) {
+      console.log('Jump blocked - shielding or attacking');
+      return;
+    }
     
     // If this is a new jump press (key wasn't pressed before)
     if (!this.isJumpKeyPressed && this.jumpsRemaining > 0) {
@@ -292,5 +341,17 @@ export class Player extends PhysicsBody {
       x: x,
       y: y
     });
+  }
+
+  activateShield() {
+    // Can only shield if not on cooldown and shield duration is available
+    if (this.shieldCooldown === 0 && this.shieldDuration < this.maxShieldDuration) {
+      this.isShielding = true;
+      console.log('Shield activated for:', this.color);
+    }
+  }
+
+  deactivateShield() {
+    this.isShielding = false;
   }
 }

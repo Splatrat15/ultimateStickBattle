@@ -26,6 +26,8 @@ export class PhysicsBody {
     this.invincibilityFrames = 0;
     this.controlSwitchCooldown = 0;
     this.damage = 0; // Add damage property for knockback calculation
+    this.isAttacking = false; // Track if player is attacking
+    this.isShielding = false; // Track if player is shielding
     window.debugLog('PhysicsBody created', { x, y, width, height });
   }
 
@@ -106,7 +108,13 @@ export class PhysicsBody {
     
     // Only allow movement if not being knocked back (invincibility frames indicate recent hit)
     if (this.invincibilityFrames === 0) {
-      this.vx = direction * MOVE_SPEED;
+      // Check if player is attacking or shielding - if so, don't allow movement
+      if (!this.isAttacking && !this.isShielding) {
+        this.vx = direction * MOVE_SPEED;
+      } else {
+        // If attacking or shielding, stop horizontal movement but keep vertical movement (gravity)
+        this.vx = 0;
+      }
     } else {
       // If being knocked back, only allow movement in the same direction as knockback
       // This prevents players from fighting against the knockback
@@ -121,15 +129,20 @@ export class PhysicsBody {
     window.debugLog('Player moved', {
       direction,
       vx: this.vx.toFixed(2),
-      invincibilityFrames: this.invincibilityFrames
+      invincibilityFrames: this.invincibilityFrames,
+      isAttacking: this.isAttacking,
+      isShielding: this.isShielding
     });
   }
 
   jump() {
-    if (this.isGrounded) {
+    // Only allow jumping if not attacking or shielding
+    if (this.isGrounded && !this.isAttacking && !this.isShielding) {
       this.vy = JUMP_FORCE;
       this.isGrounded = false;
       console.log('PhysicsBody jump executed');
+    } else {
+      console.log('Jump blocked - grounded:', this.isGrounded, 'attacking:', this.isAttacking, 'shielding:', this.isShielding);
     }
   }
 
