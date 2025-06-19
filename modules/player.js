@@ -24,6 +24,8 @@ export class Player extends PhysicsBody {
     this.gameStarted = false; // Track if game has started to prevent initial invincibility
   }
 
+  //TODO: Get rid of inital invincibility off rip of loading into the game
+
   update(platforms, otherPlayer) {
     super.update(platforms);
     
