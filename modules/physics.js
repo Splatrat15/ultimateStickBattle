@@ -9,9 +9,9 @@ export const COLLISION_DAMPING = 0.1;
 export const CONTROL_SWITCH_COOLDOWN = 10; // Frames to wait after switching controls
 
 // Knockback constants
-export const BASE_KNOCKBACK = 15;
-export const KNOCKBACK_SCALING = 0.5; // How much damage affects knockback
-export const VERTICAL_KNOCKBACK = 0.1; // Much reduced vertical component of knockback
+export const BASE_KNOCKBACK = 8;
+export const KNOCKBACK_SCALING = 0.3;
+export const VERTICAL_KNOCKBACK = 0.05;
 
 export class PhysicsBody {
   constructor(x, y, width, height) {
@@ -35,8 +35,8 @@ export class PhysicsBody {
     // Calculate knockback based on damage
     const knockbackForce = BASE_KNOCKBACK + (damage * KNOCKBACK_SCALING);
     
-    // Apply strong horizontal knockback (increased for better horizontal movement)
-    this.vx = direction * knockbackForce * 2.5;
+    // Apply moderate horizontal knockback (reduced for more balanced gameplay)
+    this.vx = direction * knockbackForce * 1.8; // Reduced from 2.5
     
     // Apply minimal vertical knockback (just a tiny upward boost)
     this.vy = -knockbackForce * VERTICAL_KNOCKBACK;

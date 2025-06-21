@@ -243,7 +243,7 @@ export class Player extends PhysicsBody {
     
     // Add damage but cap at 999%
     this.damage = Math.min(this.damage + amount, 999);
-    this.invincibilityFrames = 120; // 120 frames of invincibility after being hit
+    this.invincibilityFrames = 30; // 30 frames of invincibility after being hit (reduced from 120)
     
     // Always use the attacker's facing direction for knockback
     // This ensures players are sent in the direction the attacker is facing
