@@ -130,34 +130,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialize player choice text styling
   updatePlayerChoiceText();
 
-  // Temporary debug button to force CPU mode
-  const debugButton = document.createElement('button');
-  debugButton.textContent = 'DEBUG: Force Both CPU';
-  debugButton.style.position = 'absolute';
-  debugButton.style.top = '10px';
-  debugButton.style.right = '10px';
-  debugButton.style.zIndex = '1000';
-  debugButton.addEventListener('click', () => {
-    window.player1IsCPU = true;
-    window.player2IsCPU = true;
-    updatePlayerBoxes();
-    console.log('DEBUG: Forced both players to CPU mode');
-  });
-  document.body.appendChild(debugButton);
-
-  // Test button to manually trigger update
-  const testButton = document.createElement('button');
-  testButton.textContent = 'TEST: Update Boxes';
-  testButton.style.position = 'absolute';
-  testButton.style.top = '50px';
-  testButton.style.right = '10px';
-  testButton.style.zIndex = '1000';
-  testButton.addEventListener('click', () => {
-    console.log('=== MANUAL TEST TRIGGER ===');
-    updatePlayerBoxes();
-  });
-  document.body.appendChild(testButton);
-
   // Function to update player boxes with CPU status
   function updatePlayerBoxes() {
     console.log('=== UPDATING PLAYER BOXES ===');

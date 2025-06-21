@@ -188,8 +188,6 @@ function resetGame() {
   // Reset player selection state
   window.selectedCharacter1 = null;
   window.selectedCharacter2 = null;
-  window.player1IsCPU = false;
-  window.player2IsCPU = false;
   
   // Reset choice text
   const player1Choice = document.getElementById('player1Choice');
