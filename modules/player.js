@@ -3,35 +3,55 @@ import { PhysicsBody, JUMP_FORCE, SECOND_JUMP_FORCE } from './physics.js';
 export class Player extends PhysicsBody {
   constructor(x, y, color, facing) {
     super(x, y, 60, 60); // 60x60 is the player size
-    this.color = color;
-    this.facing = facing;
+    
+    // Store initial properties that don't change
+    this.initialX = x;
+    this.initialY = y;
+    this.initialColor = color;
+    this.initialFacing = facing;
+    this.width = 60;
+    this.height = 60;
+    this.maxShieldDuration = 120; // 6 seconds of shield
+    this.shieldRechargeTime = 120; // 6 seconds to recharge shield
+
+    // Set initial state
+    this.fullReset();
+  }
+
+  fullReset() {
+    this.x = this.initialX;
+    this.y = this.initialY;
+    this.vx = 0;
+    this.vy = 0;
+    this.isGrounded = true;
+
+    this.color = this.initialColor;
+    this.facing = this.initialFacing;
     this.damage = 0;
     this.score = 0;
+
     this.isAttacking = false;
+    this.attackCooldown = 0;
     this.lightAttackCooldown = 0;
     this.heavyAttackCooldown = 0;
     this.attackHitbox = null;
-    this.width = 60;  // Explicitly set width
-    this.height = 60; // Explicitly set height
-    this.vy = 0;      // Initialize vertical velocity
-    this.attackType = null; // 'light' or 'heavy'
-    this.jumpsRemaining = 2; // Track number of jumps available
-    this.isJumpKeyPressed = false; // Track if jump key is currently pressed
-    this.lastHitTarget = null; // Track last target hit to prevent spam damage
-    this.hitCooldown = 0; // Cooldown to prevent rapid damage from same attack
-    this.respawnInvincibilityFrames = 0; // Frames of invincibility after respawning
-    this.isBlinking = false; // Track if player should be blinking
-    this.gameStarted = false; // Track if game has started to prevent initial invincibility
+    this.attackType = null;
     
-    // Shield mechanics
+    this.jumpsRemaining = 2;
+    this.isJumpKeyPressed = false;
+    this.lastHitTarget = null;
+    this.hitCooldown = 0;
+    
+    this.respawnInvincibilityFrames = 0;
+    this.isBlinking = false;
+    this.gameStarted = false;
+    
     this.isShielding = false;
     this.shieldCooldown = 0;
     this.shieldDuration = 0;
-    this.maxShieldDuration = 120; // 6 seconds of shield
-    this.shieldRechargeTime = 120; // 6 seconds to recharge shield
-  }
 
-  //TODO: Get rid of inital invincibility off rip of loading into the game
+    console.log('Player state has been fully reset for:', this.color);
+  }
 
   update(platforms, otherPlayer) {
     // Sync attack and shield states with parent PhysicsBody
@@ -318,12 +338,21 @@ export class Player extends PhysicsBody {
     }
   }
 
-  setGameStarted() {
-    this.gameStarted = true;
-    console.log('Game started for player:', this.color);
+  setGameStarted(status) {
+    this.gameStarted = status;
+    if (status) {
+      console.log('Game started for player:', this.color);
+    } else {
+      console.log('Game stopped for player:', this.color);
+    }
   }
 
   setInitialPosition(x, y) {
+    // This function sets the definitive starting position for a player
+    // It should be called once the platform is established.
+    this.initialX = x;
+    this.initialY = y;
+    
     // Set position without triggering invincibility (for initial setup only)
     this.x = x;
     this.y = y;
@@ -336,7 +365,7 @@ export class Player extends PhysicsBody {
     this.respawnInvincibilityFrames = 0;
     this.isBlinking = false;
     
-    console.log('Player initial position set:', {
+    console.log('Player initial position set and stored:', {
       color: this.color,
       x: x,
       y: y

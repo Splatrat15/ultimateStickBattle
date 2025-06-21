@@ -49,6 +49,22 @@ const keys = {
   ArrowRight: false
 };
 
+function resetKeys() {
+  for (const key in keys) {
+    if (Object.hasOwnProperty.call(keys, key)) {
+      keys[key] = false;
+    }
+  }
+  console.log('Input keys have been reset.');
+}
+
+function setupPlayersOnPlatform() {
+  // Use setInitialPosition to place players without triggering invincibility
+  player1.setInitialPosition(platform.x + 50, platform.y - player1.height);
+  player2.setInitialPosition(platform.x + platform.width - 110, platform.y - player2.height);
+  console.log('Players have been set up on the platform.');
+}
+
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -58,17 +74,6 @@ function resizeCanvas() {
   platform.height = 32;
   platform.x = (canvas.width - platform.width) / 2;
   platform.y = canvas.height * 0.6;
-
-  // Set player positions on opposite sides of the platform (initial setup)
-  if (!gameStarted) {
-    // Use setInitialPosition for initial setup to avoid invincibility
-    player1.setInitialPosition(platform.x + 50, platform.y - player1.height);
-    player2.setInitialPosition(platform.x + platform.width - 110, platform.y - player2.height);
-  } else {
-    // Use resetPosition during gameplay (will trigger invincibility)
-    player1.resetPosition(platform.x + 50, platform.y - player1.height);
-    player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
-  }
 }
 
 function drawStage() {
@@ -155,11 +160,80 @@ function drawStage() {
   ctx.fillText('Score: ' + player2.score, canvas.width - 20, 110);
 }
 
+function resetGame() {
+  console.log('=== GAME RESET ===');
+  
+  // Reset game state
+  gameStarted = false;
+  frameCount = 0;
+  lastResetFrame = 0;
+  
+  // Fully reset player objects to their initial state
+  player1.fullReset();
+  player2.fullReset();
+  
+  // Reset input state
+  resetKeys();
+  
+  // Reset CPU instances
+  cpu1 = null;
+  cpu2 = null;
+  
+  // Hide canvas and show character menu
+  const canvas = document.getElementById('gameCanvas');
+  const menu = document.getElementById('characterMenu');
+  canvas.style.display = 'none';
+  menu.style.display = 'flex';
+  
+  // Reset player selection state
+  window.selectedCharacter1 = null;
+  window.selectedCharacter2 = null;
+  window.player1IsCPU = false;
+  window.player2IsCPU = false;
+  
+  // Reset choice text
+  const player1Choice = document.getElementById('player1Choice');
+  const player2Choice = document.getElementById('player2Choice');
+  const startButton = document.getElementById('startButton');
+  if (player1Choice) player1Choice.style.display = 'block';
+  if (player2Choice) player2Choice.style.display = 'none';
+  if (startButton) startButton.style.display = 'none';
+  
+  // Reset character selection state by dispatching a custom event
+  // This will trigger the characterMenu.js to reset its internal state
+  window.dispatchEvent(new CustomEvent('gameReset'));
+  
+  console.log('Game reset complete - returning to character menu');
+}
+
 function update() {
   frameCount++;
   
   if (!gameStarted) {
     requestAnimationFrame(update);
+    return;
+  }
+
+  // Check for win condition
+  const winScore = window.winScore || 5; // Default to 5 if not set
+  if (player1.score >= winScore || player2.score >= winScore) {
+    const winner = player1.score >= winScore ? player1 : player2;
+    const winnerName = winner === player1 ? 
+      (window.player1IsCPU ? 'CPU' : 'Player 1') : 
+      (window.player2IsCPU ? 'CPU' : 'Player 2');
+    const winnerCharacter = winner === player1 ? 
+      window.selectedCharacter1 : window.selectedCharacter2;
+    
+    console.log(`=== GAME OVER ===`);
+    console.log(`Winner: ${winnerName} (${winnerCharacter})`);
+    console.log(`Final Score - Player 1: ${player1.score}, Player 2: ${player2.score}`);
+    
+    // Show winner announcement
+    alert(`${winnerName} (${winnerCharacter}) wins! Final Score - Player 1: ${player1.score}, Player 2: ${player2.score}`);
+    
+    // Reset game and return to character menu
+    resetGame();
+    requestAnimationFrame(update); // Keep the game loop alive in an idle state
     return;
   }
 
@@ -293,28 +367,45 @@ window.addEventListener('keyup', (e) => {
 // Initialize game
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+setupPlayersOnPlatform(); // Set initial positions on first load
 
-// Start game when start button is clicked
-document.getElementById('startButton').addEventListener('click', () => {
+window.addEventListener('startGame', (e) => {
+  const { character1, character2, player1IsCPU, player2IsCPU, winScore } = e.detail;
+  
+  // Store settings
+  window.selectedCharacter1 = character1;
+  window.selectedCharacter2 = character2;
+  window.player1IsCPU = player1IsCPU;
+  window.player2IsCPU = player2IsCPU;
+  window.winScore = winScore;
+
   gameStarted = true;
   
   console.log('Game starting...');
-  console.log('Player 1 CPU status:', window.player1IsCPU);
-  console.log('Player 2 CPU status:', window.player2IsCPU);
+  console.log('Player 1:', character1, 'CPU:', player1IsCPU);
+  console.log('Player 2:', character2, 'CPU:', player2IsCPU);
+  console.log('Win Score:', winScore);
   
   // Create CPU instances if needed
-  if (window.player1IsCPU) {
+  if (player1IsCPU) {
     cpu1 = new CPU(player1, player2, platform);
     console.log('CPU 1 created successfully');
   }
-  if (window.player2IsCPU) {
+  if (player2IsCPU) {
     cpu2 = new CPU(player2, player1, platform);
     console.log('CPU 2 created successfully');
   }
   
   // Mark that the game has started for both players
-  player1.setGameStarted();
-  player2.setGameStarted();
+  player1.setGameStarted(true);
+  player2.setGameStarted(true);
+  
+  // Show canvas and resize
+  canvas.style.display = 'block';
+  resizeCanvas();
+  
+  // Set up players on the platform for the new game
+  setupPlayersOnPlatform();
   
   console.log('Game started with CPUs:', { cpu1: !!cpu1, cpu2: !!cpu2 });
 });

@@ -10,6 +10,12 @@ export function showCharacterName(name, playerNumber) {
     existingNameBox.remove();
   }
 
+  // Also remove the existing character name display
+  const existingCharacterDisplay = box.querySelector('.characterNameDisplay');
+  if (existingCharacterDisplay) {
+    existingCharacterDisplay.remove();
+  }
+
   // Create a solid color box for the player name
   let nameBox = document.createElement('div');
   nameBox.className = 'playerNameBox'; // Use CSS class for styling
@@ -79,11 +85,11 @@ export function showCharacterName(name, playerNumber) {
   let characterNameDisplay = document.createElement('div');
   characterNameDisplay.className = 'characterNameDisplay';
   characterNameDisplay.setAttribute('data-player', playerNumber);
-  characterNameDisplay.innerText = name; // Set character name
+  characterNameDisplay.innerText = name || ''; // Set character name, default to empty string
 
   // Append character name display to the box
   box.appendChild(characterNameDisplay); // Append directly to the box
-} // Added missing closing brace
+}
 
 export function hideCharacterName(playerNumber) {
   const box = playerNumber === '1' ? document.getElementById('player1Box') : document.getElementById('player2Box');

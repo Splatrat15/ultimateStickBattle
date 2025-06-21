@@ -38,6 +38,75 @@ window.addEventListener('DOMContentLoaded', () => {
   if (window.player1IsCPU === undefined) window.player1IsCPU = false;
   if (window.player2IsCPU === undefined) window.player2IsCPU = false;
 
+  // Win condition state
+  let winScore = 5; // Default win score
+  if (window.winScore === undefined) window.winScore = 5;
+
+  // Create win condition selector
+  const winConditionSelector = document.createElement('div');
+  winConditionSelector.className = 'winConditionSelector';
+  winConditionSelector.innerHTML = `
+    <div class="winConditionTitle">Win Condition</div>
+    <div class="winConditionControls">
+      <button class="winConditionButton" id="decreaseWinScore">-</button>
+      <div class="winConditionValue" id="winScoreValue">${winScore}</div>
+      <button class="winConditionButton" id="increaseWinScore">+</button>
+    </div>
+  `;
+  
+  // Insert after the title
+  const title = menu.querySelector('h1');
+  title.parentNode.insertBefore(winConditionSelector, title.nextSibling);
+
+  // Add event listeners for win condition buttons
+  document.getElementById('decreaseWinScore').addEventListener('click', () => {
+    if (winScore > 1) {
+      winScore--;
+      window.winScore = winScore;
+      document.getElementById('winScoreValue').textContent = winScore;
+    }
+  });
+
+  document.getElementById('increaseWinScore').addEventListener('click', () => {
+    if (winScore < 20) {
+      winScore++;
+      window.winScore = winScore;
+      document.getElementById('winScoreValue').textContent = winScore;
+    }
+  });
+
+  // Function to reset character selection state
+  function resetCharacterSelection() {
+    selectedCharacter1 = null;
+    selectedCharacter2 = null;
+    player1Selected = false;
+    player2Selected = false;
+    
+    // Reset choice text visibility
+    if (player1Choice) player1Choice.style.display = 'block';
+    if (player2Choice) player2Choice.style.display = 'none';
+    if (startButton) startButton.style.display = 'none';
+    
+    // Clear any existing character selections
+    const characterBoxes = document.querySelectorAll('.characterBox');
+    characterBoxes.forEach(box => {
+      box.style.border = '2px solid #fff';
+      box.style.transform = 'scale(1)';
+    });
+
+    // Reset player boxes to their initial state
+    showCharacterName(null, '1');
+    showCharacterName(null, '2');
+    
+    console.log('Character selection reset complete');
+  }
+
+  // Listen for game reset event
+  window.addEventListener('gameReset', () => {
+    console.log('=== CHARACTER MENU RESET ===');
+    resetCharacterSelection();
+  });
+
   // Show start button when both players have selected
   function checkGameStart() {
     if (player1Selected && player2Selected) {
@@ -182,34 +251,22 @@ window.addEventListener('DOMContentLoaded', () => {
   createCharacterBoxes();
 
   startButton.addEventListener('click', () => {
-    hideCharacterName(1);
-    hideCharacterName(2);
-
-    // Store selected characters and CPU states in the window object
-    window.selectedCharacter1 = selectedCharacter1;
-    window.selectedCharacter2 = selectedCharacter2;
-    window.player1IsCPU = window.player1IsCPU;
-    window.player2IsCPU = window.player2IsCPU;
-
-    // Show player names in the game
-    showCharacterName(selectedCharacter1, '1');
-    showCharacterName(selectedCharacter2, '2');
+    // Dispatch an event with all the game settings
+    const event = new CustomEvent('startGame', {
+      detail: {
+        character1: selectedCharacter1,
+        character2: selectedCharacter2,
+        player1IsCPU: window.player1IsCPU,
+        player2IsCPU: window.player2IsCPU,
+        winScore: window.winScore,
+      }
+    });
+    window.dispatchEvent(event);
 
     menu.style.display = 'none';
-    canvas.style.display = 'block';
-    window.dispatchEvent(new Event('resize'));
-    window.gameStarted = true;
 
     // Log to verify game start
-    console.log('=== GAME START DEBUG ===');
-    console.log('Game started!');
-    console.log('Player 1 CPU:', window.player1IsCPU);
-    console.log('Player 2 CPU:', window.player2IsCPU);
-    console.log('Window Player 1 CPU:', window.player1IsCPU);
-    console.log('Window Player 2 CPU:', window.player2IsCPU);
-    console.log('Canvas visible:', canvas.style.display);
-    console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-    console.log('========================');
+    console.log('=== GAME START EVENT DISPATCHED ===');
   });
 
   // Show initial character names
