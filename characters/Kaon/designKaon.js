@@ -11,10 +11,10 @@ function setOrbsState(player, state, targetPositions = null) {
   });
 }
 
-// Helper to reset orbs to idle state and recalculate positions (slightly lower)
+// Helper to reset orbs to idle state and recalculate positions (even lower)
 function resetOrbs(player) {
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 42; // Lowered from -52 to -42
+  const centerY = player.y + player.height / 2 - 32; // Lowered from -42 to -32
   const numOrbs = 3;
   const radius = 24;
   player.orbs.forEach((orb, i) => {
@@ -45,7 +45,7 @@ export function initializeKaon(player) {
 export function updateKaon(player) {
   // Animate orbs based on their state
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 42; // Lowered from -52 to -42
+  const centerY = player.y + player.height / 2 - 32; // Lowered from -42 to -32
   player.orbs.forEach((orb, i) => {
     if (orb.state === 'idle') {
       orb.angle += 0.03;
@@ -86,11 +86,11 @@ function drawOrbs(ctx, player, bobOffset) {
   });
 }
 
-// --- Cartoonish/cool stickman, meditative pose, smaller, levitating lower ---
+// --- Cartoonish/cool stickman, meditative pose, smaller, levitating even lower ---
 function drawKaonBody(ctx, player, bobOffset) {
   const { x, y, width, height, color } = player;
-  // Meditative floating pose, smaller, slightly lower
-  const baseY = y + height + bobOffset - 52; // Lowered from -62 to -52
+  // Meditative floating pose, smaller, even lower
+  const baseY = y + height + bobOffset - 42; // Lowered from -52 to -42
   const centerX = x + width / 2;
   // Head (blue/player color, smaller)
   ctx.save();
