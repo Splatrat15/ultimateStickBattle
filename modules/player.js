@@ -3,7 +3,11 @@ import { initializeKaon, updateKaon } from '../characters/Kaon/designKaon.js';
 
 export class Player extends PhysicsBody {
   constructor(x, y, color, facing, characterData) {
-    super(x, y, 60, 60); // 60x60 is the player size
+    const moveset = characterData.moveset || {};
+    const weight = typeof moveset.weight === 'number' ? moveset.weight : 1.0;
+    const jumpForce = typeof moveset.jumpForce === 'number' ? moveset.jumpForce : JUMP_FORCE;
+    super(x, y, 60, 60, weight, jumpForce);
+    this.moveSpeed = typeof moveset.moveSpeed === 'number' ? moveset.moveSpeed : 5;
     
     // Store initial properties that don't change
     this.initialX = x;

@@ -18,6 +18,10 @@ export const kaonMoveset = {
     description: 'Kaon summons his three orbs to spin rapidly around him, forming a glowing, animated shield with a pulsing aura. Blocks incoming attacks while active.',
     visual: 'Three golden orbs spin in a triangle, glowing brightly, with a pulsing aura behind Kaon.'
   },
+  // Kaon is floaty and jumps higher, but does not move faster
+  weight: 1.2, // Lighter/floaty
+  jumpForce: -16, // Higher jump
+  moveSpeed: 4.2, // Slightly slower movement (default is 5.0)
 };
 
 // Draw Kaon's custom shield (spinning orbs + pulsing aura)

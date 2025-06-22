@@ -14,7 +14,7 @@ export const KNOCKBACK_SCALING = 0.3;
 export const VERTICAL_KNOCKBACK = 0.05;
 
 export class PhysicsBody {
-  constructor(x, y, width, height) {
+  constructor(x, y, width, height, weight = 1.0, jumpForce = JUMP_FORCE) {
     this.x = x;
     this.y = y;
     this.width = width;
@@ -29,7 +29,10 @@ export class PhysicsBody {
     this.isAttacking = false; // Track if player is attacking
     this.isShielding = false; // Track if player is shielding
     this.isCharging = false; // Track if player is charging
-    window.debugLog('PhysicsBody created', { x, y, width, height });
+    // --- Customizable physics properties ---
+    this.weight = weight; // 1.0 = normal, <1 = floaty, >1 = heavy
+    this.jumpForce = jumpForce; // -14 = normal, more negative = higher jump
+    window.debugLog('PhysicsBody created', { x, y, width, height, weight, jumpForce });
   }
 
   applyKnockback(direction, damage) {
@@ -63,7 +66,7 @@ export class PhysicsBody {
     this.x += this.vx;
     
     // Apply vertical movement
-    this.vy += GRAVITY;
+    this.vy += GRAVITY * (1 / this.weight); // Weight affects gravity
     if (this.vy > MAX_FALL_SPEED) {
       this.vy = MAX_FALL_SPEED;
     }
@@ -116,7 +119,7 @@ export class PhysicsBody {
     if (this.invincibilityFrames === 0) {
       // Check if player is attacking or shielding - if so, don't allow movement
       if (!this.isAttacking && !this.isShielding) {
-        this.vx = direction * MOVE_SPEED;
+        this.vx = direction * (this.moveSpeed || MOVE_SPEED);
       } else {
         // If attacking or shielding, stop horizontal movement but keep vertical movement (gravity)
         this.vx = 0;
@@ -143,11 +146,11 @@ export class PhysicsBody {
   }
 
   jump() {
-    // Only allow jumping if not attacking or shielding
+    // Only allow jumping if grounded, not attacking/shielding
     if (this.isGrounded && !this.isAttacking && !this.isShielding) {
-      this.vy = JUMP_FORCE;
+      this.vy = this.jumpForce;
       this.isGrounded = false;
-      console.log('PhysicsBody jump executed');
+      console.log('PhysicsBody jump executed', { jumpForce: this.jumpForce });
     } else {
       console.log('Jump blocked - grounded:', this.isGrounded, 'attacking:', this.isAttacking, 'shielding:', this.isShielding);
     }
