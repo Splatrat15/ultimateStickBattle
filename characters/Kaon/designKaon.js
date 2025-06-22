@@ -87,11 +87,22 @@ function drawOrbs(ctx, player, bobOffset) {
 }
 
 // --- Cartoonish/cool stickman, meditative pose, smaller, levitating even lower ---
-function drawKaonBody(ctx, player, bobOffset) {
+// --- 2 arms only, straight arm poses for heavies, no thickness change ---
+// --- Side heavy: only move corresponding arm, more Buddha-like torso, aura ---
+function drawKaonBody(ctx, player, bobOffset, pose = 'default', facing = 1) {
   const { x, y, width, height, color } = player;
   // Meditative floating pose, smaller, even lower
-  const baseY = y + height + bobOffset - 42; // Lowered from -52 to -42
+  const baseY = y + height + bobOffset - 42;
   const centerX = x + width / 2;
+  // Draw faint aura/circle behind character
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.beginPath();
+  ctx.arc(centerX, baseY - 10, 32, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = 1.0;
+  ctx.restore();
   // Head (blue/player color, smaller)
   ctx.save();
   ctx.shadowColor = color;
@@ -102,31 +113,104 @@ function drawKaonBody(ctx, player, bobOffset) {
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
-  // Torso (thinner, cartoonish)
+  // Main vertical body line (neck to belly)
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = 6;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(centerX, baseY - 16);
-  ctx.lineTo(centerX, baseY + 4);
+  ctx.moveTo(centerX, baseY - 15); // Just below head
+  ctx.lineTo(centerX, baseY + 8);  // Top of belly
   ctx.stroke();
-  // Arms (thinner, more dynamic, palms up)
+  // Torso (Buddha-like: rounded belly, chest curve, hint of shoulders)
+  // Chest/shoulders
+  ctx.beginPath();
+  ctx.arc(centerX, baseY - 10, 16, Math.PI * 0.95, Math.PI * 0.05, false);
+  ctx.stroke();
+  // Belly/abdomen
+  ctx.beginPath();
+  ctx.arc(centerX, baseY + 8, 10, Math.PI * 1.1, Math.PI * -0.1, false);
+  ctx.stroke();
+  // Neck line
+  ctx.beginPath();
+  ctx.arc(centerX, baseY - 18, 6, Math.PI, 2 * Math.PI, false);
+  ctx.stroke();
+  // Arms (pose-dependent, always 2 arms, no thickness change)
   ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(centerX, baseY - 14);
-  ctx.quadraticCurveTo(centerX - 20, baseY - 2, centerX - 16, baseY + 12);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(centerX, baseY - 14);
-  ctx.quadraticCurveTo(centerX + 20, baseY - 2, centerX + 16, baseY + 12);
-  ctx.stroke();
-  // Hands (cartoonish, round)
-  ctx.beginPath();
-  ctx.arc(centerX - 16, baseY + 12, 3, 0, Math.PI * 2);
-  ctx.arc(centerX + 16, baseY + 12, 3, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
+  if (pose === 'sideHeavy') {
+    // Only move the corresponding arm (left or right) in the direction of the attack
+    if (facing > 0) {
+      // Right arm straight right, left arm meditative
+      ctx.beginPath();
+      ctx.moveTo(centerX + 8, baseY - 10); // Connect from right side of chest
+      ctx.lineTo(centerX + 32, baseY - 14);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(centerX + 32, baseY - 14, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      // Left arm meditative, connect from left side of chest
+      ctx.beginPath();
+      ctx.moveTo(centerX - 8, baseY - 10);
+      ctx.lineTo(centerX - 16, baseY + 12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(centerX - 16, baseY + 12, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    } else {
+      // Left arm straight left, right arm meditative
+      ctx.beginPath();
+      ctx.moveTo(centerX - 8, baseY - 10); // Connect from left side of chest
+      ctx.lineTo(centerX - 32, baseY - 14);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(centerX - 32, baseY - 14, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      // Right arm meditative, connect from right side of chest
+      ctx.beginPath();
+      ctx.moveTo(centerX + 8, baseY - 10);
+      ctx.lineTo(centerX + 16, baseY + 12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(centerX + 16, baseY + 12, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+  } else if (pose === 'downHeavy') {
+    // Both arms straight down (slam down)
+    ctx.beginPath();
+    ctx.moveTo(centerX - 8, baseY - 10);
+    ctx.lineTo(centerX - 10, baseY + 38);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 8, baseY - 10);
+    ctx.lineTo(centerX + 10, baseY + 38);
+    ctx.stroke();
+    // Hands (cartoonish, round)
+    ctx.beginPath();
+    ctx.arc(centerX - 10, baseY + 38, 3, 0, Math.PI * 2);
+    ctx.arc(centerX + 10, baseY + 38, 3, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  } else {
+    // Default meditative arms, connect from sides of chest to hands
+    ctx.beginPath();
+    ctx.moveTo(centerX - 8, baseY - 10);
+    ctx.lineTo(centerX - 16, baseY + 12);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + 8, baseY - 10);
+    ctx.lineTo(centerX + 16, baseY + 12);
+    ctx.stroke();
+    // Hands (cartoonish, round)
+    ctx.beginPath();
+    ctx.arc(centerX - 16, baseY + 12, 3, 0, Math.PI * 2);
+    ctx.arc(centerX + 16, baseY + 12, 3, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
   // Legs (crossed, thinner, cartoonish)
   ctx.lineWidth = 5;
   ctx.beginPath();
@@ -145,6 +229,7 @@ function drawKaonBody(ctx, player, bobOffset) {
 }
 
 // --- Attack Poses: Orbs animate for every move, fix side heavy ---
+// --- Patch drawKaonAttackPose to use new arm poses and pass facing ---
 function drawKaonAttackPose(ctx, player, bobOffset) {
   const { activeMove, attackHitbox, attackHitbox2, facing } = player;
   if (!activeMove) return;
@@ -169,8 +254,8 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
-    // Draw the body in front of the orb
-    drawKaonBody(ctx, player, bobOffset);
+    // Draw the body in front of the orb, with side heavy pose and correct facing
+    drawKaonBody(ctx, player, bobOffset, 'sideHeavy', facing);
     return;
   } else if (activeMove.name === 'Core Beam') {
     // Orbs spiral tightly and merge at beam origin
@@ -201,6 +286,10 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
       ...Array(player.orbs.length - 2).fill({ x: centerX, y: centerY })
     ];
     setOrbsState(player, 'attacking', orbTargets);
+    // Draw orbs first, then body with down heavy pose
+    drawOrbs(ctx, player, bobOffset);
+    drawKaonBody(ctx, player, bobOffset, 'downHeavy');
+    return;
   } else {
     // Light attacks: orbs stretch out and pulse
     const dir = facing > 0 ? 1 : -1;
