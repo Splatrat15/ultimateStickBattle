@@ -150,14 +150,16 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
   if (!activeMove) return;
   let orbTargets = Array(player.orbs.length).fill(null);
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 36;
+  const centerY = player.y + player.height / 2 - 32;
   if (activeMove.name === 'Big Bang Attack') {
-    // All orbs combine into one big yellow orb before launching
-    const bbX = facing > 0 ? attackHitbox.x + attackHitbox.width / 2 : attackHitbox.x - attackHitbox.width / 2;
-    const bbY = attackHitbox.y;
+    // All orbs move directly behind the big yellow orb (hidden)
+    // Center the big orb at the middle of the attack hitbox (symmetrical for both facings)
+    const bbX = attackHitbox.x + attackHitbox.width / 2;
+    const bbY = attackHitbox.y + attackHitbox.height / 2;
     orbTargets = orbTargets.map(() => ({ x: bbX, y: bbY }));
     setOrbsState(player, 'attacking', orbTargets);
-    // Draw only one big yellow orb (no extra dot)
+    // Do NOT draw the orbs (they are hidden behind the big orb)
+    // Draw only one big yellow orb, always centered
     ctx.save();
     ctx.shadowColor = '#ffe53b';
     ctx.shadowBlur = 36;
@@ -167,6 +169,9 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
+    // Draw the body in front of the orb
+    drawKaonBody(ctx, player, bobOffset);
+    return;
   } else if (activeMove.name === 'Core Beam') {
     // Orbs spiral tightly and merge at beam origin
     const beamX = facing > 0 ? attackHitbox.x : attackHitbox.x + attackHitbox.width;
