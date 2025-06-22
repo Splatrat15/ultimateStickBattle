@@ -1,7 +1,8 @@
 import { PhysicsBody, JUMP_FORCE, SECOND_JUMP_FORCE } from './physics.js';
+import { initializeKaon, updateKaon } from '../characters/Kaon/designKaon.js';
 
 export class Player extends PhysicsBody {
-  constructor(x, y, color, facing) {
+  constructor(x, y, color, facing, characterData) {
     super(x, y, 60, 60); // 60x60 is the player size
     
     // Store initial properties that don't change
@@ -13,6 +14,32 @@ export class Player extends PhysicsBody {
     this.height = 60;
     this.maxShieldDuration = 120; // 6 seconds of shield
     this.shieldRechargeTime = 120; // 6 seconds to recharge shield
+
+    // Store character-specific data
+    this.characterName = characterData.name;
+    this.moveset = characterData.moveset;
+    this.animation = {
+      isWalking: false,
+      frame: 0,
+      timer: 0,
+      speed: 4, // Update frame every 4 game frames
+      numFrames: 2
+    };
+
+    // Aerial restrictions
+    this.upHeavyUsedInAir = false;
+    this.fastFallActive = false;
+
+    // Charging system for neutral heavy
+    this.isCharging = false;
+    this.chargeTime = 0;
+    this.maxChargeTime = 120; // 2 seconds at 60fps (increased from 60)
+    this.chargeLevel = 0; // 0-1 scale
+
+    // Initialize character-specific properties
+    if (this.characterName === 'Kaon') {
+      initializeKaon(this);
+    }
 
     // Set initial state
     this.fullReset();
@@ -35,6 +62,7 @@ export class Player extends PhysicsBody {
     this.lightAttackCooldown = 0;
     this.heavyAttackCooldown = 0;
     this.attackHitbox = null;
+    this.attackHitbox2 = null;
     this.attackType = null;
     
     this.jumpsRemaining = 2;
@@ -49,6 +77,27 @@ export class Player extends PhysicsBody {
     this.isShielding = false;
     this.shieldCooldown = 0;
     this.shieldDuration = 0;
+    this.animation = {
+      isWalking: false,
+      frame: 0,
+      timer: 0,
+      speed: 4,
+      numFrames: 2
+    };
+
+    // Reset aerial restrictions
+    this.upHeavyUsedInAir = false;
+    this.fastFallActive = false;
+
+    // Reset charging system
+    this.isCharging = false;
+    this.chargeTime = 0;
+    this.chargeLevel = 0;
+
+    // Reset character-specific properties
+    if (this.characterName === 'Kaon') {
+      initializeKaon(this);
+    }
 
     console.log('Player state has been fully reset for:', this.color);
   }
@@ -60,6 +109,25 @@ export class Player extends PhysicsBody {
     
     super.update(platforms);
     
+    // Update animation state
+    if (Math.abs(this.vx) > 0.1 && this.isGrounded) {
+      this.animation.isWalking = true;
+      this.animation.timer++;
+      if (this.animation.timer >= this.animation.speed) {
+        this.animation.timer = 0;
+        this.animation.frame = (this.animation.frame + 1) % this.animation.numFrames;
+      }
+    } else {
+      this.animation.isWalking = false;
+      this.animation.frame = 0;
+      this.animation.timer = 0;
+    }
+
+    // Update character-specific animations
+    if (this.characterName === 'Kaon') {
+      updateKaon(this);
+    }
+
     // Update attack cooldowns
     if (this.lightAttackCooldown > 0) {
       this.lightAttackCooldown--;
@@ -108,7 +176,9 @@ export class Player extends PhysicsBody {
       if (this.attackCooldown === 0) {
         this.isAttacking = false;
         this.attackHitbox = null;
+        this.attackHitbox2 = null;
         this.attackType = null;
+        this.activeMove = null; // Reset active move
         this.lastHitTarget = null; // Reset last hit target when attack ends
       }
     }
@@ -126,82 +196,218 @@ export class Player extends PhysicsBody {
       console.log('New jumps remaining:', this.jumpsRemaining);
     }
 
+    // Reset aerial restrictions when landing
+    if (this.isGrounded) {
+      this.upHeavyUsedInAir = false;
+      this.fastFallActive = false;
+    }
+
+    // Update charging system
+    if (this.isCharging) {
+      this.chargeTime++;
+      this.chargeLevel = Math.min(this.chargeTime / this.maxChargeTime, 1.0);
+      
+      // Keep charge at maximum when fully charged
+      if (this.chargeTime >= this.maxChargeTime) {
+        this.chargeTime = this.maxChargeTime;
+        this.chargeLevel = 1.0;
+      }
+      
+      // Debug logging every 30 frames
+      if (this.chargeTime % 30 === 0) {
+        console.log('Charging update:', {
+          character: this.characterName,
+          chargeTime: this.chargeTime,
+          chargeLevel: this.chargeLevel.toFixed(3),
+          maxChargeTime: this.maxChargeTime,
+          isCharging: this.isCharging,
+          isAttacking: this.isAttacking,
+          isShielding: this.isShielding
+        });
+      }
+    } else {
+      // Debug when not charging but should be
+      if (this.chargeTime > 0) {
+        console.log('Charging stopped unexpectedly:', {
+          character: this.characterName,
+          chargeTime: this.chargeTime,
+          chargeLevel: this.chargeLevel.toFixed(3),
+          isCharging: this.isCharging,
+          isAttacking: this.isAttacking,
+          isShielding: this.isShielding
+        });
+      }
+    }
+
     // Always check collision to prevent passing through other players
     this.checkPlayerCollision(otherPlayer);
   }
 
-  attack(type) {
-    // Check if the specific attack type is on cooldown
-    if (type === 'light' && this.lightAttackCooldown > 0) {
-      return; // Can't use light attack yet
+  attack(direction, type) {
+    const moveName = `${direction}${type.charAt(0).toUpperCase() + type.slice(1)}`; // e.g., "sideLight"
+    const move = this.moveset[moveName];
+
+    if (!move) {
+      console.error(`Move ${moveName} not found for character ${this.characterName}`);
+      return;
     }
-    if (type === 'heavy' && this.heavyAttackCooldown > 0) {
-      return; // Can't use heavy attack yet
+
+    // Check if the specific attack type is on cooldown
+    const cooldownType = `${type}AttackCooldown`;
+    if (this[cooldownType] > 0) {
+      return; // Can't use this attack type yet
+    }
+
+    // Aerial restrictions for heavy attacks
+    if (type === 'heavy') {
+      if (direction === 'up' && !this.isGrounded && this.upHeavyUsedInAir) {
+        console.log('Up heavy blocked - already used in air');
+        return; // Can't use up heavy again until landing
+      }
+      if (direction === 'down' && !this.isGrounded) {
+        console.log('Down heavy blocked - cannot use in air');
+        return; // Can't use down heavy in air
+      }
     }
 
     this.isAttacking = true;
     this.attackType = type;
+    this.activeMove = move; // Store the active move data
     
     // Set cooldowns based on attack type
-    if (type === 'heavy') {
-      this.attackCooldown = 30; // Duration of heavy attack
-      this.heavyAttackCooldown = 60; // Cooldown before next heavy attack
-    } else {
-      this.attackCooldown = 15; // Duration of light attack
-      this.lightAttackCooldown = 20; // Cooldown before next light attack
+    this.attackCooldown = move.duration; // Duration of the attack
+    this[cooldownType] = move.cooldown; // Cooldown before next attack of this type
+    
+    // Track up heavy usage in air
+    if (direction === 'up' && type === 'heavy' && !this.isGrounded) {
+      this.upHeavyUsedInAir = true;
+      console.log('Up heavy used in air - will be blocked until landing');
+    }
+    
+    // Trigger self-launch immediately for Gravity Spike (for recovery purposes)
+    if (move.selfLaunch) {
+      const launchForce = move.selfLaunchForce || 20;
+      this.vy = -launchForce; // Launch the attacker upward immediately
+      console.log('Self-launch triggered immediately for:', this.characterName, 'with force:', launchForce);
     }
     
     this.createAttackHitbox();
   }
 
   createAttackHitbox() {
-    const isHeavy = this.attackType === 'heavy';
-    const hitboxSize = isHeavy ? 60 : 40; // Heavy attacks are larger
+    if (!this.activeMove || !this.activeMove.hitbox) return;
+
+    const hitboxData = this.activeMove.hitbox;
+    
+    console.log('Creating attack hitbox:', {
+      moveName: this.activeMove.name,
+      chargeLevel: this.chargeLevel,
+      isCharged: this.chargeLevel > 0,
+      originalWidth: hitboxData.width,
+      originalHeight: hitboxData.height,
+      originalOffsetX: hitboxData.offsetX
+    });
+    
+    // Scale hitbox for charged neutral heavy attacks
+    let hitboxWidth = hitboxData.width;
+    let hitboxHeight = hitboxData.height;
+    let hitboxOffsetX = hitboxData.offsetX;
+    
+    if (this.attackType === 'heavy' && this.activeMove.name === 'Core Beam' && this.chargeLevel > 0) {
+      // Scale hitbox size and range based on charge level (1.0x to 4.0x)
+      const sizeMultiplier = 1.0 + (this.chargeLevel * 3.0);
+      hitboxWidth = Math.floor(hitboxData.width * sizeMultiplier);
+      hitboxHeight = Math.floor(hitboxData.height * sizeMultiplier);
+      hitboxOffsetX = Math.floor(hitboxData.offsetX * sizeMultiplier);
+      
+      console.log('Scaled hitbox for charged attack:', {
+        chargeLevel: this.chargeLevel.toFixed(3),
+        sizeMultiplier: sizeMultiplier.toFixed(3),
+        originalWidth: hitboxData.width,
+        newWidth: hitboxWidth,
+        originalHeight: hitboxData.height,
+        newHeight: hitboxHeight,
+        originalOffsetX: hitboxData.offsetX,
+        newOffsetX: hitboxOffsetX
+      });
+    }
     
     // Position hitbox in front of the player based on facing direction
     let hitboxX;
     if (this.facing > 0) {
-      // Facing right, hitbox to the right of player
-      hitboxX = this.x + this.width;
+      // Facing right, use offsetX as is
+      hitboxX = this.x + hitboxOffsetX;
     } else {
-      // Facing left, hitbox to the left of player
-      hitboxX = this.x - hitboxSize;
+      // Facing left, invert offsetX and adjust for player and hitbox width
+      hitboxX = this.x - hitboxOffsetX - hitboxWidth + this.width;
     }
     
     this.attackHitbox = {
       x: hitboxX,
-      y: this.y + (this.height - hitboxSize) / 2,
-      width: hitboxSize,
-      height: hitboxSize
+      y: this.y + hitboxData.offsetY,
+      width: hitboxWidth,
+      height: hitboxHeight
     };
-    
-    // Debug log to verify hitbox positioning
-    console.log('Attack hitbox created:', {
-      playerX: this.x,
-      playerY: this.y,
-      facing: this.facing,
-      hitboxX: this.attackHitbox.x,
-      hitboxY: this.attackHitbox.y,
-      hitboxWidth: this.attackHitbox.width,
-      hitboxHeight: this.attackHitbox.height,
-      attackType: this.attackType
-    });
+
+    // Handle dual hitboxes for downHeavy (Dual Blast)
+    if (this.activeMove.hitbox2) {
+      const hitbox2Data = this.activeMove.hitbox2;
+      let hitbox2X;
+      if (this.facing > 0) {
+        hitbox2X = this.x + hitbox2Data.offsetX;
+      } else {
+        hitbox2X = this.x - hitbox2Data.offsetX - hitbox2Data.width + this.width;
+      }
+      
+      this.attackHitbox2 = {
+        x: hitbox2X,
+        y: this.y + hitbox2Data.offsetY,
+        width: hitbox2Data.width,
+        height: hitbox2Data.height
+      };
+    } else {
+      this.attackHitbox2 = null;
+    }
   }
 
   updateAttackHitbox() {
-    if (this.attackHitbox) {
-      // Position hitbox in front of the player based on facing direction
-      let hitboxX;
+    if (!this.activeMove || !this.activeMove.hitbox || !this.attackHitbox) return;
+    
+    const hitboxData = this.activeMove.hitbox;
+    
+    // Only update position, not size (size is set in createAttackHitbox)
+    let hitboxOffsetX = hitboxData.offsetX;
+    
+    // For charged Core Beam, use the scaled offset that was already calculated
+    if (this.attackType === 'heavy' && this.activeMove.name === 'Core Beam' && this.chargeLevel > 0) {
+      const sizeMultiplier = 1.0 + (this.chargeLevel * 3.0);
+      hitboxOffsetX = Math.floor(hitboxData.offsetX * sizeMultiplier);
+    }
+      
+    // Position hitbox in front of the player based on facing direction
+    let hitboxX;
+    if (this.facing > 0) {
+      hitboxX = this.x + hitboxOffsetX;
+    } else {
+      hitboxX = this.x - hitboxOffsetX - this.attackHitbox.width + this.width;
+    }
+    
+    this.attackHitbox.x = hitboxX;
+    this.attackHitbox.y = this.y + hitboxData.offsetY;
+    // Don't change width/height here - they're already set in createAttackHitbox
+
+    // Update second hitbox if it exists
+    if (this.attackHitbox2 && this.activeMove.hitbox2) {
+      const hitbox2Data = this.activeMove.hitbox2;
+      let hitbox2X;
       if (this.facing > 0) {
-        // Facing right, hitbox to the right of player
-        hitboxX = this.x + this.width;
+        hitbox2X = this.x + hitbox2Data.offsetX;
       } else {
-        // Facing left, hitbox to the left of player
-        hitboxX = this.x - this.attackHitbox.width;
+        hitbox2X = this.x - hitbox2Data.offsetX - hitbox2Data.width + this.width;
       }
       
-      this.attackHitbox.x = hitboxX;
-      this.attackHitbox.y = this.y + (this.height - this.attackHitbox.height) / 2;
+      this.attackHitbox2.x = hitbox2X;
+      this.attackHitbox2.y = this.y + hitbox2Data.offsetY;
     }
   }
 
@@ -213,31 +419,38 @@ export class Player extends PhysicsBody {
       return false;
     }
 
-    // Check if attack hitbox overlaps with other player
-    const hit = (
-      this.attackHitbox.x < otherPlayer.x + otherPlayer.width &&
-      this.attackHitbox.x + this.attackHitbox.width > otherPlayer.x &&
-      this.attackHitbox.y < otherPlayer.y + otherPlayer.height &&
-      this.attackHitbox.y + this.attackHitbox.height > otherPlayer.y
-    );
+    // Check primary hitbox
+    const hit = this.checkHitboxCollision(this.attackHitbox, otherPlayer);
     
-    // If hit, set cooldown and mark target
-    if (hit) {
+    // Check secondary hitbox if it exists
+    const hit2 = this.attackHitbox2 ? this.checkHitboxCollision(this.attackHitbox2, otherPlayer) : false;
+    
+    // If either hitbox hits, set cooldown and mark target
+    if (hit || hit2) {
       this.lastHitTarget = otherPlayer;
       this.hitCooldown = 10; // 10 frames cooldown between hits on same target
       
       console.log('Attack hit detected!', {
-        attacker: this.color,
-        target: otherPlayer.color,
+        attacker: this.characterName,
+        move: this.activeMove.name,
+        target: otherPlayer.characterName,
         attackType: this.attackType,
-        attackerX: this.x,
-        targetX: otherPlayer.x,
-        hitboxX: this.attackHitbox.x,
+        hitbox1Hit: hit,
+        hitbox2Hit: hit2,
         cooldownSet: this.hitCooldown
       });
     }
     
-    return hit;
+    return hit || hit2;
+  }
+
+  checkHitboxCollision(hitbox, otherPlayer) {
+    return (
+      hitbox.x < otherPlayer.x + otherPlayer.width &&
+      hitbox.x + hitbox.width > otherPlayer.x &&
+      hitbox.y < otherPlayer.y + otherPlayer.height &&
+      hitbox.y + hitbox.height > otherPlayer.y
+    );
   }
 
   takeDamage(amount, attacker) {
@@ -265,22 +478,47 @@ export class Player extends PhysicsBody {
     this.damage = Math.min(this.damage + amount, 999);
     this.invincibilityFrames = 30; // 30 frames of invincibility after being hit (reduced from 120)
     
-    // Always use the attacker's facing direction for knockback
-    // This ensures players are sent in the direction the attacker is facing
-    const knockbackDirection = attacker.facing;
+    // Handle special knockback effects
+    let knockbackDirection = attacker.facing;
+    let knockbackForce = attacker.activeMove ? (attacker.activeMove.knockback || 1) : 1;
+    
+    // Handle spike knockback (downward force)
+    if (attacker.activeMove && attacker.activeMove.spikeKnockback) {
+      knockbackDirection = 0; // No horizontal knockback
+      knockbackForce = 15; // Strong downward force
+      this.vy = Math.abs(knockbackForce); // Force downward movement
+    }
+    
+    // Handle upward knockback (Ki Blast)
+    if (attacker.activeMove && attacker.activeMove.upwardKnockback) {
+      knockbackDirection = 0; // No horizontal knockback
+      knockbackForce = 15; // Strong upward force
+      this.vy = -Math.abs(knockbackForce); // Force upward movement
+    }
+    
+    // Handle self-launch for the attacker (Gravity Spike)
+    if (attacker.activeMove && attacker.activeMove.selfLaunch) {
+      const launchForce = attacker.activeMove.selfLaunchForce || 20; // Use custom force or default
+      attacker.vy = -launchForce; // Launch the attacker upward
+      console.log('Self-launch triggered for:', attacker.characterName, 'with force:', launchForce);
+    }
     
     console.log('Taking damage:', {
-      target: this.color,
-      attacker: attacker.color,
+      target: this.characterName,
+      attacker: attacker.characterName,
       damage: amount,
       totalDamage: this.damage,
       knockbackDirection: knockbackDirection,
-      attackerFacing: attacker.facing,
-      attackerX: attacker.x,
-      targetX: this.x
+      knockbackForce: knockbackForce,
+      spikeKnockback: attacker.activeMove?.spikeKnockback || false,
+      upwardKnockback: attacker.activeMove?.upwardKnockback || false,
+      selfLaunch: attacker.activeMove?.selfLaunch || false
     });
     
-    this.applyKnockback(knockbackDirection, this.damage);
+    // Apply knockback (skip if it's a spike or upward blast)
+    if (!attacker.activeMove?.spikeKnockback && !attacker.activeMove?.upwardKnockback) {
+      this.applyKnockback(knockbackDirection, this.damage);
+    }
   }
 
   jump() {
@@ -382,5 +620,80 @@ export class Player extends PhysicsBody {
 
   deactivateShield() {
     this.isShielding = false;
+  }
+
+  startCharge() {
+    console.log('startCharge called for:', this.characterName, {
+      isAttacking: this.isAttacking,
+      isShielding: this.isShielding,
+      isCharging: this.isCharging,
+      chargeTime: this.chargeTime,
+      chargeLevel: this.chargeLevel
+    });
+    
+    // Don't start charging if already charging, attacking, or shielding
+    if (this.isCharging || this.isAttacking || this.isShielding) {
+      console.log('Cannot start charging - already charging:', this.isCharging, 'attacking:', this.isAttacking, 'shielding:', this.isShielding);
+      return;
+    }
+    
+    this.isCharging = true;
+    this.chargeTime = 0;
+    this.chargeLevel = 0;
+    console.log('Started charging neutral heavy for:', this.characterName, {
+      chargeTime: this.chargeTime,
+      chargeLevel: this.chargeLevel,
+      isCharging: this.isCharging
+    });
+  }
+
+  releaseCharge() {
+    if (this.isCharging) {
+      console.log('Releasing charge for:', this.characterName, {
+        finalChargeTime: this.chargeTime,
+        finalChargeLevel: this.chargeLevel.toFixed(3)
+      });
+      
+      this.isCharging = false;
+      
+      // Only fire if we have some charge
+      if (this.chargeLevel > 0.1) {
+        this.fireChargedAttack();
+      }
+      
+      // Reset charge after attack is created
+      this.chargeTime = 0;
+      this.chargeLevel = 0;
+      console.log('Released charge with level:', this.chargeLevel);
+    } else {
+      console.log('Cannot release charge - not charging');
+    }
+  }
+
+  fireChargedAttack() {
+    const move = this.moveset.neutralHeavy;
+    if (!move) return;
+
+    this.isAttacking = true;
+    this.attackType = 'heavy';
+    this.activeMove = move; // Keep original move data for hitbox scaling
+    
+    // Scale damage, knockback, and duration based on charge level (0.2x to 2.0x)
+    const chargeMultiplier = 0.2 + (this.chargeLevel * 1.8); // 0.2x to 2.0x scaling
+    
+    // Create scaled properties without overwriting the original move
+    this.activeMove = {
+      ...move,
+      damage: Math.floor(move.damage * chargeMultiplier),
+      knockback: move.knockback * chargeMultiplier,
+      duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8)) // Longer duration for more charge
+    };
+    
+    this.attackCooldown = this.activeMove.duration;
+    this.heavyAttackCooldown = move.cooldown;
+    
+    this.createAttackHitbox();
+    
+    console.log('Fired charged attack with level:', this.chargeLevel.toFixed(3), 'damage:', this.activeMove.damage, 'multiplier:', chargeMultiplier.toFixed(3));
   }
 }

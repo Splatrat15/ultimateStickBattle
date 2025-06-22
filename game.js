@@ -1,6 +1,7 @@
 import { Player } from './modules/player.js';
 import { characters } from './modules/characters.js';
 import { CPU } from './modules/cpu.js';
+import { drawKaon } from './characters/Kaon/designKaon.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -18,8 +19,10 @@ const BLAST_ZONE_TOP = -100;    // 100px above screen
 const BLAST_ZONE_BOTTOM = 100;  // 100px below screen
 
 // Access selected characters
-const player1Character = window.selectedCharacter1 || characters.kaon.name;
-const player2Character = window.selectedCharacter2 || characters.rakka.name;
+const player1CharacterName = window.selectedCharacter1 || 'kaon';
+const player2CharacterName = window.selectedCharacter2 || 'rakka';
+const player1CharacterData = characters[player1CharacterName.toLowerCase()];
+const player2CharacterData = characters[player2CharacterName.toLowerCase()];
 
 // Platform properties
 const platform = {
@@ -30,8 +33,8 @@ const platform = {
 };
 
 // Initialize players with explicit positions
-let player1 = new Player(100, 100, '#2196f3', 1);  // Blue for player1
-let player2 = new Player(400, 100, '#e53935', -1); // Red for player2
+let player1 = new Player(100, 100, '#2196f3', 1, player1CharacterData);  // Blue for player1
+let player2 = new Player(400, 100, '#e53935', -1, player2CharacterData); // Red for player2
 
 // CPU instances (will be created if needed)
 let cpu1 = null;
@@ -42,10 +45,12 @@ const keys = {
   // Player 1 (WASD) - Blue cube
   w: false,
   a: false,
+  s: false,
   d: false,
   // Player 2 (Arrow keys) - Red cube
   ArrowUp: false,
   ArrowLeft: false,
+  ArrowDown: false,
   ArrowRight: false
 };
 
@@ -95,8 +100,12 @@ function drawStage() {
     
     // Draw player (blink if respawn invincibility is active)
     if (!player.isBlinking) {
-      ctx.fillStyle = playerColor;
-      ctx.fillRect(player.x, player.y, player.width, player.height);
+      if (player.characterName === 'Kaon') {
+        drawKaon(ctx, player);
+      } else {
+        ctx.fillStyle = playerColor;
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+      }
     }
     
     // Draw shield effect if shielding
@@ -123,16 +132,32 @@ function drawStage() {
     
     // Draw attack hitbox if attacking
     if (player.isAttacking && player.attackHitbox) {
-      // Set color based on attack type
-      ctx.fillStyle = player.attackType === 'heavy' ? 
-        'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
-        'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
-      ctx.fillRect(
-        player.attackHitbox.x,
-        player.attackHitbox.y,
-        player.attackHitbox.width,
-        player.attackHitbox.height
-      );
+      // Kaon's drawing function handles his own attack visuals.
+      // We only need to draw hitboxes for other characters.
+      if (player.characterName !== 'Kaon') {
+        // Set color based on attack type
+        ctx.fillStyle = player.attackType === 'heavy' ? 
+          'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
+          'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
+        
+        // Draw primary hitbox
+        ctx.fillRect(
+          player.attackHitbox.x,
+          player.attackHitbox.y,
+          player.attackHitbox.width,
+          player.attackHitbox.height
+        );
+        
+        // Draw secondary hitbox if it exists (for Dual Blast)
+        if (player.attackHitbox2) {
+          ctx.fillRect(
+            player.attackHitbox2.x,
+            player.attackHitbox2.y,
+            player.attackHitbox2.width,
+            player.attackHitbox2.height
+          );
+        }
+      }
     }
   });
   
@@ -250,6 +275,10 @@ function update() {
     if (keys.a) player1.move(-1);
     if (keys.d) player1.move(1);
     if (keys.w) player1.jump();
+    // Fast fall
+    if (keys.s && !player1.isGrounded) {
+      player1.vy = Math.min(player1.vy + 0.8, 15); // Increase fall speed
+    }
   } else {
     // CPU player - update AI
     if (cpu1) {
@@ -266,6 +295,10 @@ function update() {
     if (keys.ArrowLeft) player2.move(-1);
     if (keys.ArrowRight) player2.move(1);
     if (keys.ArrowUp) player2.jump();
+    // Fast fall
+    if (keys.ArrowDown && !player2.isGrounded) {
+      player2.vy = Math.min(player2.vy + 0.8, 15); // Increase fall speed
+    }
   } else {
     // CPU player - update AI
     if (cpu2) {
@@ -282,11 +315,11 @@ function update() {
 
   // Check for attacks
   if (player1.checkAttackHit(player2)) {
-    const damage = player1.attackType === 'heavy' ? 5 : 2;
+    const damage = player1.activeMove ? player1.activeMove.damage : (player1.attackType === 'heavy' ? 5 : 2);
     player2.takeDamage(damage, player1);
   }
   if (player2.checkAttackHit(player1)) {
-    const damage = player2.attackType === 'heavy' ? 5 : 2;
+    const damage = player2.activeMove ? player2.activeMove.damage : (player2.attackType === 'heavy' ? 5 : 2);
     player1.takeDamage(damage, player2);
   }
 
@@ -327,12 +360,50 @@ window.addEventListener('keydown', (e) => {
   }
   // Attack controls - only for human players
   if (!window.player1IsCPU) {
-    if (e.key === 'f') player1.attack('heavy'); // Player 1 (blue) heavy attack with F
-    if (e.key === 'g') player1.attack('light'); // Player 1 (blue) light attack with G
+    if (e.key === 'g') { // Light Attack
+      let direction = 'neutral';
+      if (keys.a || keys.d) direction = 'side';
+      else if (keys.w) direction = 'up';
+      else if (keys.s) direction = 'down';
+      player1.attack(direction, 'light');
+    }
+    if (e.key === 'f') { // Use directional heavy attacks or start neutral charging
+      let direction = 'neutral';
+      if (keys.a || keys.d) direction = 'side';
+      else if (keys.w) direction = 'up';
+      else if (keys.s) direction = 'down';
+      
+      // Use instant attacks for directional heavy
+      if (direction !== 'neutral') {
+        player1.attack(direction, 'heavy');
+      } else {
+        // For neutral heavy, start charging
+        player1.startCharge();
+      }
+    }
   }
   if (!window.player2IsCPU) {
-    if (e.key === 'l') player2.attack('heavy'); // Player 2 (red) heavy attack with L
-    if (e.key === 'k') player2.attack('light'); // Player 2 (red) light attack with K
+    if (e.key === 'k') { // Light Attack
+      let direction = 'neutral';
+      if (keys.ArrowLeft || keys.ArrowRight) direction = 'side';
+      else if (keys.ArrowUp) direction = 'up';
+      else if (keys.ArrowDown) direction = 'down';
+      player2.attack(direction, 'light');
+    }
+    if (e.key === 'l') { // Use directional heavy attacks or start neutral charging
+      let direction = 'neutral';
+      if (keys.ArrowLeft || keys.ArrowRight) direction = 'side';
+      else if (keys.ArrowUp) direction = 'up';
+      else if (keys.ArrowDown) direction = 'down';
+      
+      // Use instant attacks for directional heavy
+      if (direction !== 'neutral') {
+        player2.attack(direction, 'heavy');
+      } else {
+        // For neutral heavy, start charging
+        player2.startCharge();
+      }
+    }
   }
   
   // Shield controls - only for human players
@@ -351,6 +422,18 @@ window.addEventListener('keyup', (e) => {
     // Reset jump key state when key is released
     if (e.key === 'w') player1.isJumpKeyPressed = false;
     if (e.key === 'ArrowUp') player2.isJumpKeyPressed = false;
+  }
+  
+  // Release charged attacks
+  if (!window.player1IsCPU) {
+    if (e.key === 'f') {
+      player1.releaseCharge();
+    }
+  }
+  if (!window.player2IsCPU) {
+    if (e.key === 'l') {
+      player2.releaseCharge();
+    }
   }
   
   // Shield deactivation controls - only for human players
@@ -383,6 +466,10 @@ window.addEventListener('startGame', (e) => {
   console.log('Player 1:', character1, 'CPU:', player1IsCPU);
   console.log('Player 2:', character2, 'CPU:', player2IsCPU);
   console.log('Win Score:', winScore);
+  
+  // Re-initialize players with the correct character data
+  player1 = new Player(100, 100, '#2196f3', 1, characters[character1.toLowerCase()]);
+  player2 = new Player(400, 100, '#e53935', -1, characters[character2.toLowerCase()]);
   
   // Create CPU instances if needed
   if (player1IsCPU) {

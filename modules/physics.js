@@ -1,9 +1,9 @@
 // Physics constants
 export const MOVE_SPEED = 5;
 export const FRICTION = 0.9;
-export const GRAVITY = 0.5;
-export const JUMP_FORCE = -18;
-export const SECOND_JUMP_FORCE = -15;
+export const GRAVITY = 0.35;
+export const JUMP_FORCE = -14;
+export const SECOND_JUMP_FORCE = -12;
 export const MAX_FALL_SPEED = 12;
 export const COLLISION_DAMPING = 0.1;
 export const CONTROL_SWITCH_COOLDOWN = 10; // Frames to wait after switching controls
@@ -28,6 +28,7 @@ export class PhysicsBody {
     this.damage = 0; // Add damage property for knockback calculation
     this.isAttacking = false; // Track if player is attacking
     this.isShielding = false; // Track if player is shielding
+    this.isCharging = false; // Track if player is charging
     window.debugLog('PhysicsBody created', { x, y, width, height });
   }
 
@@ -101,6 +102,11 @@ export class PhysicsBody {
   }
 
   move(direction) {
+    // Don't allow movement if charging
+    if (this.isCharging) {
+      return;
+    }
+    
     // If we're switching controls, set cooldown
     if (this.vx === 0 && direction !== 0) {
       this.controlSwitchCooldown = CONTROL_SWITCH_COOLDOWN;
@@ -131,7 +137,8 @@ export class PhysicsBody {
       vx: this.vx.toFixed(2),
       invincibilityFrames: this.invincibilityFrames,
       isAttacking: this.isAttacking,
-      isShielding: this.isShielding
+      isShielding: this.isShielding,
+      isCharging: this.isCharging
     });
   }
 
