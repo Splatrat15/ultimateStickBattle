@@ -39,6 +39,7 @@ export class Player extends PhysicsBody {
     // Initialize character-specific properties
     if (this.characterName === 'Kaon') {
       initializeKaon(this);
+      this.attackFrame = 0; // For orb animation
     }
 
     // Set initial state
@@ -97,6 +98,7 @@ export class Player extends PhysicsBody {
     // Reset character-specific properties
     if (this.characterName === 'Kaon') {
       initializeKaon(this);
+      this.attackFrame = 0;
     }
 
     console.log('Player state has been fully reset for:', this.color);
@@ -126,6 +128,12 @@ export class Player extends PhysicsBody {
     // Update character-specific animations
     if (this.characterName === 'Kaon') {
       updateKaon(this);
+      // Increment attackFrame if attacking
+      if (this.isAttacking) {
+        this.attackFrame = (this.attackFrame || 0) + 1;
+      } else {
+        this.attackFrame = 0;
+      }
     }
 
     // Update attack cooldowns
@@ -292,6 +300,11 @@ export class Player extends PhysicsBody {
     }
     
     this.createAttackHitbox();
+
+    // Reset attackFrame for Kaon
+    if (this.characterName === 'Kaon') {
+      this.attackFrame = 0;
+    }
   }
 
   createAttackHitbox() {

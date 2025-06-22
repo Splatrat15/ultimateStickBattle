@@ -26,6 +26,13 @@ function resetOrbs(player) {
   });
 }
 
+// Helper to reset orbs after attack ends
+function resetOrbsAfterAttack(player) {
+  if (!player.isAttacking && player.orbs) {
+    resetOrbs(player);
+  }
+}
+
 export function initializeKaon(player) {
   player.orbs = [];
   const numOrbs = 3;
@@ -46,7 +53,10 @@ export function updateKaon(player) {
   // Animate orbs based on their state
   const centerX = player.x + player.width / 2;
   const centerY = player.y + player.height / 2 - 32; // Lowered from -42 to -32
+  // If Kaon is attacking with a light move, do not update the first orb (handled in drawKaonAttackPose)
+  const skipFirst = player.isAttacking && player.activeMove && player.activeMove.type === 'light';
   player.orbs.forEach((orb, i) => {
+    if (skipFirst && i === 0) return;
     if (orb.state === 'idle') {
       orb.angle += 0.03;
       orb.distance = 24 + Math.sin(Date.now() * 0.003 + i) * 1.5;
@@ -69,6 +79,8 @@ export function updateKaon(player) {
       }
     }
   });
+  // Always reset orbs after attack ends
+  resetOrbsAfterAttack(player);
 }
 
 // --- Orbs: Draw first, so stickman is in front ---
@@ -231,11 +243,96 @@ function drawKaonBody(ctx, player, bobOffset, pose = 'default', facing = 1) {
 // --- Attack Poses: Orbs animate for every move, fix side heavy ---
 // --- Patch drawKaonAttackPose to use new arm poses and pass facing ---
 function drawKaonAttackPose(ctx, player, bobOffset) {
-  const { activeMove, attackHitbox, attackHitbox2, facing } = player;
+  const { activeMove, attackHitbox, attackHitbox2, facing, isGrounded } = player;
   if (!activeMove) return;
   let orbTargets = Array(player.orbs.length).fill(null);
   const centerX = player.x + player.width / 2;
   const centerY = player.y + player.height / 2 - 32;
+  // --- Custom all-orb light attacks ---
+  if (activeMove.type === 'light') {
+    // Animate only the first orb for light attacks
+    const orb = player.orbs[0];
+    const t = Math.min((player.attackFrame || 0) / (activeMove.duration || 20), 1); // 0 to 1
+    let orbPath = { x: orb.x, y: orb.y };
+    if (activeMove.name === 'Orb Jab') {
+      // Neutral: straight out, then return
+      const dist = 60;
+      const dir = facing > 0 ? 1 : -1;
+      if (t < 0.5) {
+        orbPath.x = centerX + dir * dist * (t / 0.5);
+        orbPath.y = centerY;
+      } else {
+        orbPath.x = centerX + dir * dist * (1 - (t - 0.5) / 0.5);
+        orbPath.y = centerY;
+      }
+    } else if (activeMove.name === 'Ki Orb') {
+      // Side: dash with Kaon, S-curve: start in front, dip very low (almost floor), then curve up
+      const dashDist = 40;
+      const curveDist = 60;
+      const dir = facing > 0 ? 1 : -1;
+      const startX = centerX + dir * 18; // Start just in front of Kaon
+      const startY = centerY;
+      const endX = centerX + dir * (dashDist + curveDist);
+      const endY = centerY - 10; // End just slightly above start
+      // Control points for S-curve (very low dip)
+      const cp1X = centerX + dir * (dashDist * 0.7); // More forward
+      const cp1Y = centerY + 120; // Dip very low, almost floor
+      const cp2X = centerX + dir * (dashDist + curveDist * 0.7);
+      const cp2Y = centerY - 20; // Shallower curve up
+      // Cubic Bezier interpolation
+      orbPath.x = Math.pow(1 - t, 3) * startX + 3 * Math.pow(1 - t, 2) * t * cp1X + 3 * (1 - t) * t * t * cp2X + Math.pow(t, 3) * endX;
+      orbPath.y = Math.pow(1 - t, 3) * startY + 3 * Math.pow(1 - t, 2) * t * cp1Y + 3 * (1 - t) * t * t * cp2Y + Math.pow(t, 3) * endY;
+    } else if (activeMove.name === 'Orb Pop') {
+      // Up: curve from left to right above Kaon
+      const arcRadius = 48;
+      const arcT = t * Math.PI;
+      orbPath.x = centerX - arcRadius * Math.cos(arcT);
+      orbPath.y = centerY - 32 - arcRadius * Math.sin(arcT);
+    } else if (activeMove.name === 'Pulse Sweep') {
+      if (isGrounded) {
+        // Down (grounded): roll like a bowling ball
+        const rollDist = 80;
+        const dir = facing > 0 ? 1 : -1;
+        orbPath.x = centerX + dir * rollDist * t;
+        orbPath.y = centerY + 32 + 12 * Math.sin(Math.PI * 2 * t);
+      } else {
+        // Down (air): drop to bottom left, curve to other side
+        const dropRadius = 48;
+        const dropT = t * Math.PI;
+        orbPath.x = centerX - dropRadius * Math.cos(dropT);
+        orbPath.y = centerY + dropRadius * Math.sin(dropT);
+      }
+    }
+    // Animate orb to orbPath
+    orb.state = 'attacking';
+    orb.x = orbPath.x;
+    orb.y = orbPath.y;
+    // Draw the attacking orb
+    ctx.save();
+    ctx.shadowColor = '#ffe53b';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = '#ffe53b';
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, orb.size + 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    // Draw the other orbs in idle orbit
+    for (let i = 1; i < player.orbs.length; i++) {
+      const idleOrb = player.orbs[i];
+      ctx.save();
+      ctx.shadowColor = '#ffe53b';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#ffe53b';
+      ctx.beginPath();
+      ctx.arc(idleOrb.x, idleOrb.y, idleOrb.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+    drawKaonBody(ctx, player, bobOffset);
+    return;
+  }
   if (activeMove.name === 'Big Bang Attack') {
     // All orbs move directly behind the big yellow orb (hidden)
     // Center the big orb at the middle of the attack hitbox (symmetrical for both facings)
@@ -306,8 +403,12 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
 
 // --- DBZ/Cartoonish Attack Visuals ---
 function drawAttackVisuals(ctx, player) {
-  const { attackHitbox, attackHitbox2, activeMove, attackType, chargeLevel } = player;
+  const { attackHitbox, attackHitbox2, activeMove, attackType, chargeLevel, characterName } = player;
   if (!attackHitbox || !activeMove) return;
+  // For Kaon's light attacks, do not draw any extra visuals (handled in drawKaonAttackPose)
+  if (characterName === 'Kaon' && activeMove.type === 'light') {
+    return;
+  }
   // DBZ-style energy and cartoon impact
   if (activeMove.name === 'Core Beam') {
     // Beam: thick, glowing, animated
