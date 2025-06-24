@@ -1,5 +1,6 @@
 import { PhysicsBody, JUMP_FORCE, SECOND_JUMP_FORCE } from './physics.js';
 import { initializeKaon, updateKaon } from '../characters/Kaon/designKaon.js';
+import { initializeRakka, updateRakka } from '../characters/Rakka/designRakka.js';
 
 export class Player extends PhysicsBody {
   constructor(x, y, color, facing, characterData) {
@@ -44,6 +45,9 @@ export class Player extends PhysicsBody {
     if (this.characterName === 'Kaon') {
       initializeKaon(this);
       this.attackFrame = 0; // For orb animation
+    }
+    if (this.characterName === 'Rakka') {
+      initializeRakka(this);
     }
 
     // Set initial state
@@ -103,6 +107,9 @@ export class Player extends PhysicsBody {
     if (this.characterName === 'Kaon') {
       initializeKaon(this);
       this.attackFrame = 0;
+    }
+    if (this.characterName === 'Rakka') {
+      initializeRakka(this);
     }
 
     console.log('Player state has been fully reset for:', this.color);

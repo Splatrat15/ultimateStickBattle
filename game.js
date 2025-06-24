@@ -3,6 +3,7 @@ import { characters } from './modules/characters.js';
 import { CPU } from './modules/cpu.js';
 import { drawKaon } from './characters/Kaon/designKaon.js';
 import { drawKaonShield } from './characters/Kaon/movesetKaon.js';
+import { drawRakka } from './characters/Rakka/designRakka.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -103,6 +104,8 @@ function drawStage() {
     if (!player.isBlinking) {
       if (player.characterName === 'Kaon') {
         drawKaon(ctx, player);
+      } else if (player.characterName === 'Rakka') {
+        drawRakka(ctx, player);
       } else {
         ctx.fillStyle = playerColor;
         ctx.fillRect(player.x, player.y, player.width, player.height);
