@@ -53,6 +53,18 @@ export function updateKaon(player) {
   // Animate orbs based on their state
   const centerX = player.x + player.width / 2;
   const centerY = player.y + player.height / 2 - 32; // Lowered from -42 to -32
+  
+  // Handle charging state first
+  if (player.isCharging) {
+    player.orbs.forEach((orb, i) => {
+      orb.angle += 0.08 + player.chargeLevel * 0.2;
+      orb.distance = 20 + player.chargeLevel * 30; // Start closer, expand with charge
+      orb.x = centerX + Math.cos(orb.angle) * orb.distance;
+      orb.y = centerY + Math.sin(orb.angle) * orb.distance;
+    });
+    return; // Skip other orb updates when charging
+  }
+  
   // If Kaon is attacking with a light move, do not update the first orb (handled in drawKaonAttackPose)
   const skipFirst = player.isAttacking && player.activeMove && player.activeMove.type === 'light';
   player.orbs.forEach((orb, i) => {
@@ -511,12 +523,12 @@ function drawAttackVisuals(ctx, player) {
 
 function drawKaonChargingPose(ctx, player, bobOffset) {
   drawKaonBody(ctx, player, bobOffset);
-  // Orbs spiral tightly and glow
+  // Orbs spiral tightly around head/torso and glow
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 + bobOffset - 10;
+  const centerY = player.y + player.height / 2 - 32; // Same as idle position (around head/torso)
   player.orbs.forEach((orb, i) => {
     orb.angle += 0.08 + player.chargeLevel * 0.2;
-    orb.distance = 30 + player.chargeLevel * 40;
+    orb.distance = 20 + player.chargeLevel * 30; // Start closer, expand with charge
     orb.x = centerX + Math.cos(orb.angle) * orb.distance;
     orb.y = centerY + Math.sin(orb.angle) * orb.distance;
   });
