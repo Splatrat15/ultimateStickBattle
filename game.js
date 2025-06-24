@@ -16,7 +16,7 @@ const RESET_COOLDOWN = 30; // Frames to wait between resets
 // Blast zone constants (areas outside screen where players die)
 const BLAST_ZONE_LEFT = -100;   // 100px left of screen
 const BLAST_ZONE_RIGHT = 100;   // 100px right of screen  
-const BLAST_ZONE_TOP = -100;    // 100px above screen
+const BLAST_ZONE_TOP = -400;    // 400px above screen (increased to prevent self-kills)
 const BLAST_ZONE_BOTTOM = 100;  // 100px below screen
 
 // Access selected characters
