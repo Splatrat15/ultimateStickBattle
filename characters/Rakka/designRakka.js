@@ -12,6 +12,9 @@ export function initializeRakka(player) {
     offsetX: 18,
     offsetY: 38
   };
+  // Slow down animation speed
+  player.animation.speed = 8; // Update frame every 8 game frames instead of 4
+  player.animation.numFrames = 4; // More frames for smoother animation
 }
 
 // Update Rakka's animation state (e.g., afterimages for shadowstep)
@@ -41,7 +44,7 @@ export function drawRakka(ctx, player) {
   player.shadowAfterimages.forEach((img, i) => {
     ctx.save();
     ctx.globalAlpha = img.alpha * (1 - i * 0.15);
-    drawRakkaBody(ctx, img.x, img.y - 26, width, height, facing, true, color);
+    drawRakkaBody(ctx, img.x, img.y - 26, width, height, facing, true, color, player);
     ctx.globalAlpha = 1.0;
     ctx.restore();
   });
@@ -57,7 +60,7 @@ export function drawRakka(ctx, player) {
   ctx.restore();
 
   // Draw main body
-  drawRakkaBody(ctx, x, y - 26, width, height, facing, false, color);
+  drawRakkaBody(ctx, x, y - 26, width, height, facing, false, color, player);
   // Draw katana at waist (lowered)
   drawRakkaKatana(ctx, x, y - 26, width, height, facing, player.sword);
   // Draw hat with 鬼 and ribbon
@@ -65,7 +68,7 @@ export function drawRakka(ctx, player) {
 }
 
 // Draw stick figure body
-function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color) {
+function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player) {
   const centerX = x + width / 2;
   const baseY = y + height; // Feet at bottom
   ctx.save();
@@ -86,13 +89,28 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color) {
   ctx.moveTo(centerX, baseY - 32);
   ctx.lineTo(centerX + 24 * facing, baseY - 22);
   ctx.stroke();
-  // Legs
+  
+  // Legs with walking animation
   ctx.beginPath();
-  ctx.moveTo(centerX, baseY);
-  ctx.lineTo(centerX - 12, baseY + 26);
-  ctx.moveTo(centerX, baseY);
-  ctx.lineTo(centerX + 12, baseY + 26);
+  if (player.animation.isWalking) {
+    // Walking animation - slower and more subtle
+    const walkCycle = (player.animation.frame / player.animation.numFrames) * Math.PI * 2;
+    const legSwing = Math.sin(walkCycle) * 8; // Reduced swing amplitude from 12 to 8
+    // Left leg
+    ctx.moveTo(centerX, baseY);
+    ctx.lineTo(centerX - 12 + legSwing, baseY + 26);
+    // Right leg
+    ctx.moveTo(centerX, baseY);
+    ctx.lineTo(centerX + 12 - legSwing, baseY + 26);
+  } else {
+    // Standing still
+    ctx.moveTo(centerX, baseY);
+    ctx.lineTo(centerX - 12, baseY + 26);
+    ctx.moveTo(centerX, baseY);
+    ctx.lineTo(centerX + 12, baseY + 26);
+  }
   ctx.stroke();
+  
   // Head
   ctx.beginPath();
   ctx.arc(centerX, baseY - 48, 14, 0, Math.PI * 2);
