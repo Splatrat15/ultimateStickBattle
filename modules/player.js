@@ -267,6 +267,96 @@ export class Player extends PhysicsBody {
       }
     }
 
+    // === DEMON FANG THRUST LOGIC ===
+    if (
+      this.characterName === 'Rakka' &&
+      this.isAttacking &&
+      this.activeMove &&
+      this.activeMove.name === 'Demon Fang' &&
+      this.demonFangEffects &&
+      this.demonFangEffects.thrustDistance > 0
+    ) {
+      // Lock facing direction
+      if (this.demonFangEffects.lockedFacing === undefined) {
+        this.demonFangEffects.lockedFacing = this.facing;
+      }
+      const facing = this.demonFangEffects.lockedFacing;
+      // On first frame of thrust, create a big hitbox from originalX to current x+width
+      if (!this.demonFangEffects.dashHitbox) {
+        const startX = this.demonFangEffects.originalX;
+        const endX = this.x;
+        const minX = Math.min(startX, endX);
+        const maxX = Math.max(startX + this.width, endX + this.width);
+        this.demonFangEffects.dashHitbox = {
+          x: minX,
+          y: this.y,
+          width: maxX - minX,
+          height: this.height
+        };
+        this.demonFangEffects.hasHitOpponent = false;
+      }
+      // Move Rakka in one step (no sub-steps needed now)
+      let moveStep = Math.min(32, this.demonFangEffects.thrustDistance); // Move up to 32px per frame
+      let canMove = true;
+      if (this.isGrounded && platforms && platforms.length > 0) {
+        const platform = platforms[0];
+        if (facing > 0) {
+          const maxX = platform.x + platform.width - this.width;
+          if (this.x + moveStep >= maxX) {
+            moveStep = Math.max(0, maxX - this.x);
+            canMove = moveStep >= 0;
+          }
+        } else {
+          const minX = platform.x;
+          if (this.x - moveStep <= minX) {
+            moveStep = Math.max(0, this.x - minX);
+            canMove = moveStep >= 0;
+          }
+        }
+      }
+      if (canMove && moveStep > 0) {
+        this.x += moveStep * facing;
+        this.demonFangEffects.thrustDistance -= moveStep;
+      } else {
+        this.demonFangEffects.thrustDistance = 0;
+      }
+      if (!this.isGrounded) {
+        this.canAct = false;
+        this.vx = moveStep * facing;
+      } else {
+        this.canAct = true;
+        this.vx = 0;
+      }
+      // Check for collision with opponent using the big dash hitbox
+      if (
+        this.demonFangEffects.dashHitbox &&
+        !this.demonFangEffects.hasHitOpponent &&
+        this.checkHitboxCollision(this.demonFangEffects.dashHitbox, otherPlayer)
+      ) {
+        otherPlayer.takeDamage(this.activeMove.damage, this);
+        this.lastHitTarget = otherPlayer;
+        this.demonFangEffects.hasHitOpponent = true;
+      }
+      if (this.demonFangEffects.thrustDistance <= 0) {
+        this.demonFangEffects.thrustDistance = 0;
+        if (this.isGrounded) {
+          this.canAct = true;
+        }
+        // Clear the dash hitbox after the dash ends
+        this.demonFangEffects.dashHitbox = null;
+        this.demonFangEffects.hasHitOpponent = false;
+      }
+    } else {
+      this.canAct = true;
+      if (this.demonFangEffects && this.demonFangEffects.lockedFacing !== undefined) {
+        delete this.demonFangEffects.lockedFacing;
+      }
+      if (this.demonFangEffects && this.demonFangEffects.dashHitbox) {
+        this.demonFangEffects.dashHitbox = null;
+        this.demonFangEffects.hasHitOpponent = false;
+      }
+    }
+
     // Always check collision to prevent passing through other players
     this.checkPlayerCollision(otherPlayer);
   }
@@ -329,6 +419,13 @@ export class Player extends PhysicsBody {
 
   createAttackHitbox() {
     if (!this.activeMove || !this.activeMove.hitbox) return;
+
+    // For Demon Fang, do not create a normal attack hitbox; use body collision during thrust instead
+    if (this.characterName === 'Rakka' && this.activeMove.name === 'Demon Fang') {
+      this.attackHitbox = null;
+      this.attackHitbox2 = null;
+      return;
+    }
 
     const hitboxData = this.activeMove.hitbox;
     

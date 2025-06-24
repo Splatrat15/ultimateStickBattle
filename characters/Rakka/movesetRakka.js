@@ -54,7 +54,7 @@ export const rakkaMoveset = {
     chargeScaling: {
       damage: 2.5, // Damage multiplier at max charge
       range: 2.0, // Range multiplier at max charge
-      thrust: 280 // Increased from 180 for more significant movement
+      thrust: 300 // Covers about 3/5 of the stage at max charge
     },
     hitbox: { 
       width: 90, 
