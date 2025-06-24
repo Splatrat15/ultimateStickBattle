@@ -794,34 +794,40 @@ export class Player extends PhysicsBody {
     if (this.characterName === 'Rakka') {
       if (move.name === 'Demon Fang') {
         const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
-        // Store original position and set thrust distance
         if (this.demonFangEffects) {
           this.demonFangEffects.originalX = this.x;
           this.demonFangEffects.thrustDistance = thrustDistance;
-          // Apply immediate forward thrust
           this.x += thrustDistance * this.facing;
         }
-        
-        // Scale hitbox based on charge level
         const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
         this.activeMove.hitbox = {
           ...move.hitbox,
           width: Math.floor(move.hitbox.width * rangeMultiplier),
           offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
         };
+        this.createAttackHitbox();
       } else if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
         if (this.shadowSneak && this.shadowSneak.active) {
           this.x = this.shadowSneak.x;
           this.shadowSneak.active = false;
         }
+        // Create a sword swing hitbox at the new position
+        const swingHitbox = {
+          width: 90,
+          height: 22,
+          offsetX: this.facing > 0 ? 40 : -70,
+          offsetY: 8
+        };
+        this.activeMove.hitbox = swingHitbox;
+        this.createAttackHitbox();
       }
+    } else {
+      this.createAttackHitbox();
     }
     
     this.attackCooldown = this.activeMove.duration;
     this.heavyAttackCooldown = move.cooldown;
-    
-    this.createAttackHitbox();
     
     console.log('Fired charged attack:', {
       character: this.characterName,
