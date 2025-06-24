@@ -119,6 +119,7 @@ export class Player extends PhysicsBody {
     // Sync attack and shield states with parent PhysicsBody
     super.isAttacking = this.isAttacking;
     super.isShielding = this.isShielding;
+    super.isCharging = this.isCharging;
     
     super.update(platforms);
     
@@ -139,11 +140,19 @@ export class Player extends PhysicsBody {
     // Update character-specific animations
     if (this.characterName === 'Kaon') {
       updateKaon(this);
-      // Increment attackFrame if attacking
       if (this.isAttacking) {
         this.attackFrame = (this.attackFrame || 0) + 1;
       } else {
         this.attackFrame = 0;
+      }
+    } else if (this.characterName === 'Rakka') {
+      updateRakka(this);
+      
+      // For Demon Fang, only reset stance and effects after attack ends
+      if (!this.isCharging && !this.isAttacking && this.demonFangEffects?.originalX !== undefined) {
+        // Clear effects but keep the new position
+        this.demonFangEffects.originalX = undefined;
+        this.demonFangEffects.thrustDistance = 0;
       }
     }
 
@@ -661,13 +670,17 @@ export class Player extends PhysicsBody {
       return;
     }
     
+    // Set the active move to neutral heavy for stance changes
+    this.activeMove = this.moveset.neutralHeavy;
+    
     this.isCharging = true;
     this.chargeTime = 0;
     this.chargeLevel = 0;
     console.log('Started charging neutral heavy for:', this.characterName, {
       chargeTime: this.chargeTime,
       chargeLevel: this.chargeLevel,
-      isCharging: this.isCharging
+      isCharging: this.isCharging,
+      activeMove: this.activeMove?.name
     });
   }
 
@@ -683,6 +696,9 @@ export class Player extends PhysicsBody {
       // Only fire if we have some charge
       if (this.chargeLevel > 0.1) {
         this.fireChargedAttack();
+      } else {
+        // If not enough charge, just reset the activeMove
+        this.activeMove = null;
       }
       
       // Reset charge after attack is created
@@ -700,24 +716,50 @@ export class Player extends PhysicsBody {
 
     this.isAttacking = true;
     this.attackType = 'heavy';
-    this.activeMove = move; // Keep original move data for hitbox scaling
     
     // Scale damage, knockback, and duration based on charge level (0.2x to 2.0x)
-    const chargeMultiplier = 0.2 + (this.chargeLevel * 1.8); // 0.2x to 2.0x scaling
+    const chargeMultiplier = 0.2 + (this.chargeLevel * 1.8);
     
     // Create scaled properties without overwriting the original move
     this.activeMove = {
       ...move,
       damage: Math.floor(move.damage * chargeMultiplier),
       knockback: move.knockback * chargeMultiplier,
-      duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8)) // Longer duration for more charge
+      duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8))
     };
+
+    // Handle Demon Fang's thrust distance
+    if (this.characterName === 'Rakka' && move.name === 'Demon Fang') {
+      const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
+      // Store original position and set thrust distance
+      if (this.demonFangEffects) {
+        this.demonFangEffects.originalX = this.x;
+        this.demonFangEffects.thrustDistance = thrustDistance;
+        // Apply immediate forward thrust
+        this.x += thrustDistance * this.facing;
+      }
+      
+      // Scale hitbox based on charge level
+      const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
+      this.activeMove.hitbox = {
+        ...move.hitbox,
+        width: Math.floor(move.hitbox.width * rangeMultiplier),
+        offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
+      };
+    }
     
     this.attackCooldown = this.activeMove.duration;
     this.heavyAttackCooldown = move.cooldown;
     
     this.createAttackHitbox();
     
-    console.log('Fired charged attack with level:', this.chargeLevel.toFixed(3), 'damage:', this.activeMove.damage, 'multiplier:', chargeMultiplier.toFixed(3));
+    console.log('Fired charged attack:', {
+      character: this.characterName,
+      move: move.name,
+      chargeLevel: this.chargeLevel.toFixed(3),
+      damage: this.activeMove.damage,
+      multiplier: chargeMultiplier.toFixed(3),
+      thrustDistance: this.demonFangEffects?.thrustDistance
+    });
   }
 }

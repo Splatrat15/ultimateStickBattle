@@ -48,11 +48,21 @@ export const rakkaMoveset = {
     type: 'heavy',
     damage: 10,
     knockback: 7,
-    duration: 32,
+    duration: 45, // Increased to account for charge animation
     cooldown: 70,
     chargeable: true,
-    hitbox: { width: 90, height: 18, offsetX: 80, offsetY: 0 },
-    description: 'Charged forward thrust, sword glows, black mist.'
+    chargeScaling: {
+      damage: 2.5, // Damage multiplier at max charge
+      range: 2.0, // Range multiplier at max charge
+      thrust: 280 // Increased from 180 for more significant movement
+    },
+    hitbox: { 
+      width: 90, 
+      height: 18, 
+      offsetX: 80, 
+      offsetY: 0 
+    },
+    description: 'Takes a low stance and charges up dark energy before unleashing a devastating forward thrust.'
   },
   sideHeavy: {
     name: 'Shadowstep Strike',
