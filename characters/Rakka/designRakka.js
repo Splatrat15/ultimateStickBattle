@@ -77,10 +77,14 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color) {
   ctx.moveTo(centerX, baseY - 42);
   ctx.lineTo(centerX, baseY);
   ctx.stroke();
-  // Arms
+  // Arms - One grabbing katana handle, one resting
   ctx.beginPath();
-  ctx.moveTo(centerX - 16, baseY - 28);
-  ctx.lineTo(centerX + 16, baseY - 20);
+  // Resting arm (closer to body)
+  ctx.moveTo(centerX, baseY - 32);
+  ctx.lineTo(centerX - 24 * facing, baseY - 22);
+  // Katana-holding arm (reaching lower to handle)
+  ctx.moveTo(centerX, baseY - 32);
+  ctx.lineTo(centerX + 24 * facing, baseY - 22);
   ctx.stroke();
   // Legs
   ctx.beginPath();
@@ -100,9 +104,9 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color) {
 // Draw katana at waist
 function drawRakkaKatana(ctx, x, y, width, height, facing, sword) {
   const centerX = x + width / 2;
-  // Raise the katana slightly
-  const baseY = y + height - 8;
-  const sheathOffset = 10 * facing;
+  // Raise the katana slightly and move it closer to the body
+  const baseY = y + height - 12;
+  const sheathOffset = 8 * facing; // Reduced offset to bring katana closer
   ctx.save();
   ctx.translate(centerX + sheathOffset, baseY);
   if (facing < 0) ctx.scale(-1, 1); // Mirror horizontally for left
@@ -115,9 +119,9 @@ function drawRakkaKatana(ctx, x, y, width, height, facing, sword) {
   ctx.lineWidth = 1.2;
   ctx.strokeStyle = '#bbb';
   ctx.strokeRect(-sword.length * 0.7, -sheathWidth / 2, sword.length, sheathWidth);
-  // Hilt (handle just past waist)
+  // Hilt (handle just past waist, positioned where the hand reaches)
   ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(sword.length * 0.3, -sheathWidth / 2, 8, sheathWidth);
+  ctx.fillRect(sword.length * 0.3 - 2, -sheathWidth / 2 - 1, 12, sheathWidth + 2); // Made handle slightly larger
   ctx.restore();
 }
 
