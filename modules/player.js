@@ -276,76 +276,7 @@ export class Player extends PhysicsBody {
       this.demonFangEffects &&
       this.demonFangEffects.thrustDistance > 0
     ) {
-      // Lock facing direction
-      if (this.demonFangEffects.lockedFacing === undefined) {
-        this.demonFangEffects.lockedFacing = this.facing;
-      }
-      const facing = this.demonFangEffects.lockedFacing;
-      // On first frame of thrust, create a big hitbox from originalX to current x+width
-      if (!this.demonFangEffects.dashHitbox) {
-        const startX = this.demonFangEffects.originalX;
-        const endX = this.x;
-        const minX = Math.min(startX, endX);
-        const maxX = Math.max(startX + this.width, endX + this.width);
-        this.demonFangEffects.dashHitbox = {
-          x: minX,
-          y: this.y,
-          width: maxX - minX,
-          height: this.height
-        };
-        this.demonFangEffects.hasHitOpponent = false;
-      }
-      // Move Rakka in one step (no sub-steps needed now)
-      let moveStep = Math.min(32, this.demonFangEffects.thrustDistance); // Move up to 32px per frame
-      let canMove = true;
-      if (this.isGrounded && platforms && platforms.length > 0) {
-        const platform = platforms[0];
-        if (facing > 0) {
-          const maxX = platform.x + platform.width - this.width;
-          if (this.x + moveStep >= maxX) {
-            moveStep = Math.max(0, maxX - this.x);
-            canMove = moveStep >= 0;
-          }
-        } else {
-          const minX = platform.x;
-          if (this.x - moveStep <= minX) {
-            moveStep = Math.max(0, this.x - minX);
-            canMove = moveStep >= 0;
-          }
-        }
-      }
-      if (canMove && moveStep > 0) {
-        this.x += moveStep * facing;
-        this.demonFangEffects.thrustDistance -= moveStep;
-      } else {
-        this.demonFangEffects.thrustDistance = 0;
-      }
-      if (!this.isGrounded) {
-        this.canAct = false;
-        this.vx = moveStep * facing;
-      } else {
-        this.canAct = true;
-        this.vx = 0;
-      }
-      // Check for collision with opponent using the big dash hitbox
-      if (
-        this.demonFangEffects.dashHitbox &&
-        !this.demonFangEffects.hasHitOpponent &&
-        this.checkHitboxCollision(this.demonFangEffects.dashHitbox, otherPlayer)
-      ) {
-        otherPlayer.takeDamage(this.activeMove.damage, this);
-        this.lastHitTarget = otherPlayer;
-        this.demonFangEffects.hasHitOpponent = true;
-      }
-      if (this.demonFangEffects.thrustDistance <= 0) {
-        this.demonFangEffects.thrustDistance = 0;
-        if (this.isGrounded) {
-          this.canAct = true;
-        }
-        // Clear the dash hitbox after the dash ends
-        this.demonFangEffects.dashHitbox = null;
-        this.demonFangEffects.hasHitOpponent = false;
-      }
+      // THIS LOGIC IS BEING MOVED TO fireChargedAttack()
     } else {
       this.canAct = true;
       if (this.demonFangEffects && this.demonFangEffects.lockedFacing !== undefined) {
@@ -374,6 +305,12 @@ export class Player extends PhysicsBody {
     const cooldownType = `${type}AttackCooldown`;
     if (this[cooldownType] > 0) {
       return; // Can't use this attack type yet
+    }
+
+    // For Rakka's Shadow Sneak (sideHeavy), start charging instead of immediate attack
+    if (this.characterName === 'Rakka' && move.name === 'Shadow Sneak') {
+      this.startCharge(move);
+      return;
     }
 
     // Aerial restrictions for heavy attacks
@@ -414,6 +351,34 @@ export class Player extends PhysicsBody {
     // Reset attackFrame for Kaon
     if (this.characterName === 'Kaon') {
       this.attackFrame = 0;
+    }
+
+    // Handle character-specific charged attacks
+    if (this.characterName === 'Rakka') {
+      if (move.name === 'Demon Fang') {
+        const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
+        // Store original position and set thrust distance
+        if (this.demonFangEffects) {
+          this.demonFangEffects.originalX = this.x;
+          this.demonFangEffects.thrustDistance = thrustDistance;
+          // Apply immediate forward thrust
+          this.x += thrustDistance * this.facing;
+        }
+        
+        // Scale hitbox based on charge level
+        const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
+        this.activeMove.hitbox = {
+          ...move.hitbox,
+          width: Math.floor(move.hitbox.width * rangeMultiplier),
+          offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
+        };
+      } else if (move.name === 'Shadow Sneak') {
+        // Teleport to shadow position
+        if (this.shadowSneak && this.shadowSneak.active) {
+          this.x = this.shadowSneak.x;
+          this.shadowSneak.active = false;
+        }
+      }
     }
   }
 
@@ -752,7 +717,7 @@ export class Player extends PhysicsBody {
     this.isShielding = false;
   }
 
-  startCharge() {
+  startCharge(move) {
     console.log('startCharge called for:', this.characterName, {
       isAttacking: this.isAttacking,
       isShielding: this.isShielding,
@@ -767,13 +732,13 @@ export class Player extends PhysicsBody {
       return;
     }
     
-    // Set the active move to neutral heavy for stance changes
-    this.activeMove = this.moveset.neutralHeavy;
+    // Set the active move. Default to neutralHeavy if no move is passed.
+    this.activeMove = move || this.moveset.neutralHeavy;
     
     this.isCharging = true;
     this.chargeTime = 0;
     this.chargeLevel = 0;
-    console.log('Started charging neutral heavy for:', this.characterName, {
+    console.log('Started charging for:', this.characterName, {
       chargeTime: this.chargeTime,
       chargeLevel: this.chargeLevel,
       isCharging: this.isCharging,
@@ -790,8 +755,8 @@ export class Player extends PhysicsBody {
       
       this.isCharging = false;
       
-      // Only fire if we have some charge
-      if (this.chargeLevel > 0.1) {
+      // Only fire if we have some charge and the move is chargeable
+      if (this.activeMove && this.activeMove.chargeable && this.chargeLevel > 0.1) {
         this.fireChargedAttack();
       } else {
         // If not enough charge, just reset the activeMove
@@ -808,7 +773,7 @@ export class Player extends PhysicsBody {
   }
 
   fireChargedAttack() {
-    const move = this.moveset.neutralHeavy;
+    const move = this.activeMove;
     if (!move) return;
 
     this.isAttacking = true;
@@ -825,24 +790,32 @@ export class Player extends PhysicsBody {
       duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8))
     };
 
-    // Handle Demon Fang's thrust distance
-    if (this.characterName === 'Rakka' && move.name === 'Demon Fang') {
-      const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
-      // Store original position and set thrust distance
-      if (this.demonFangEffects) {
-        this.demonFangEffects.originalX = this.x;
-        this.demonFangEffects.thrustDistance = thrustDistance;
-        // Apply immediate forward thrust
-        this.x += thrustDistance * this.facing;
+    // Handle character-specific charged attacks
+    if (this.characterName === 'Rakka') {
+      if (move.name === 'Demon Fang') {
+        const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
+        // Store original position and set thrust distance
+        if (this.demonFangEffects) {
+          this.demonFangEffects.originalX = this.x;
+          this.demonFangEffects.thrustDistance = thrustDistance;
+          // Apply immediate forward thrust
+          this.x += thrustDistance * this.facing;
+        }
+        
+        // Scale hitbox based on charge level
+        const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
+        this.activeMove.hitbox = {
+          ...move.hitbox,
+          width: Math.floor(move.hitbox.width * rangeMultiplier),
+          offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
+        };
+      } else if (move.name === 'Shadow Sneak') {
+        // Teleport to shadow position
+        if (this.shadowSneak && this.shadowSneak.active) {
+          this.x = this.shadowSneak.x;
+          this.shadowSneak.active = false;
+        }
       }
-      
-      // Scale hitbox based on charge level
-      const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
-      this.activeMove.hitbox = {
-        ...move.hitbox,
-        width: Math.floor(move.hitbox.width * rangeMultiplier),
-        offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
-      };
     }
     
     this.attackCooldown = this.activeMove.duration;
@@ -855,8 +828,7 @@ export class Player extends PhysicsBody {
       move: move.name,
       chargeLevel: this.chargeLevel.toFixed(3),
       damage: this.activeMove.damage,
-      multiplier: chargeMultiplier.toFixed(3),
-      thrustDistance: this.demonFangEffects?.thrustDistance
+      multiplier: chargeMultiplier.toFixed(3)
     });
   }
 }

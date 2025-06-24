@@ -65,15 +65,25 @@ export const rakkaMoveset = {
     description: 'Takes a low stance and charges up dark energy before unleashing a devastating forward thrust.'
   },
   sideHeavy: {
-    name: 'Shadowstep Strike',
+    name: 'Shadow Sneak',
     type: 'heavy',
     damage: 12,
     knockback: 8,
     duration: 28,
     cooldown: 80,
     blink: true,
+    chargeable: true,
+    chargeScaling: {
+      distance: 2.0 // Distance multiplier at max charge
+    },
+    shadow: {
+      speed: 6,
+      maxDistance: 400, // Maximum distance the shadow can travel
+      width: 30,
+      height: 40
+    },
     hitbox: { width: 70, height: 22, offsetX: 120, offsetY: 8 },
-    description: 'Teleport/blink forward, slashing through enemies. Summons shadow silhouette at start and end.'
+    description: 'Send a shadow forward while charging, then teleport to its position and slash through enemies on release.'
   },
   upHeavy: {
     name: 'Phantom Slash',

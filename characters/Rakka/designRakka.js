@@ -3,6 +3,13 @@
 // Initialize Rakka's visual state
 export function initializeRakka(player) {
   player.shadowAfterimages = [];
+  player.shadowSneak = {
+    active: false,
+    x: 0,
+    y: 0,
+    distance: 0,
+    direction: 1
+  };
   player.demonFangEffects = {
     mistParticles: [],
     chargeAngle: 0,
@@ -25,6 +32,45 @@ export function initializeRakka(player) {
 
 // Update Rakka's animation state (e.g., afterimages for shadowstep)
 export function updateRakka(player) {
+  // Handle Shadow Sneak charging and shadow movement
+  if (player.isCharging && player.activeMove && player.activeMove.name === 'Shadow Sneak') {
+    if (!player.shadowSneak.active) {
+      // Initialize shadow position when starting charge
+      player.shadowSneak.active = true;
+      player.shadowSneak.x = player.x;
+      player.shadowSneak.y = player.y;
+      player.shadowSneak.distance = 0;
+      player.shadowSneak.direction = player.facing;
+    }
+    
+    // Move shadow forward while charging
+    const shadow = player.activeMove.shadow;
+    const maxDistance = shadow.maxDistance * (1 + (player.chargeLevel || 0) * player.activeMove.chargeScaling.distance);
+    if (player.shadowSneak.distance < maxDistance) {
+      player.shadowSneak.x += shadow.speed * player.shadowSneak.direction;
+      player.shadowSneak.distance += shadow.speed;
+    }
+  } else if (player.isAttacking && player.activeMove && player.activeMove.name === 'Shadow Sneak') {
+    // When attack is released, teleport to shadow position and create afterimages
+    if (player.shadowSneak.active) {
+      player.x = player.shadowSneak.x;
+      player.shadowSneak.active = false;
+      
+      // Create afterimages for the teleport effect
+      for (let i = 0; i < 3; i++) {
+        player.shadowAfterimages.push({
+          x: player.x - (player.shadowSneak.direction * i * 30),
+          y: player.y,
+          alpha: 0.5 - (i * 0.1),
+          facing: player.facing
+        });
+      }
+    }
+  } else {
+    // Reset shadow state when not charging or attacking
+    player.shadowSneak.active = false;
+  }
+
   // Shadowstep afterimages for Side Heavy
   if (player.isAttacking && player.activeMove && player.activeMove.name === 'Shadowstep Strike') {
     if (player.shadowAfterimages.length < 6) {
@@ -80,6 +126,16 @@ export function updateRakka(player) {
       player.demonFangEffects.mistParticles.splice(i, 1);
     }
   });
+
+  // Update existing afterimages
+  if (player.shadowAfterimages.length > 0) {
+    player.shadowAfterimages.forEach((image, i) => {
+      image.alpha -= 0.05;
+      if (image.alpha <= 0) {
+        player.shadowAfterimages.splice(i, 1);
+      }
+    });
+  }
 }
 
 // Draw Rakka (main function)
@@ -142,6 +198,25 @@ export function drawRakka(ctx, player) {
   // Draw charge indicator if charging
   if (player.isCharging && player.activeMove && player.activeMove.name === 'Demon Fang') {
     drawChargeIndicator(ctx, player);
+  }
+
+  // Draw Shadow Sneak shadow if active
+  if (player.shadowSneak.active) {
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    // Draw black stick figure body (shadow)
+    drawRakkaBody(ctx, player.shadowSneak.x, player.shadowSneak.y - 26, player.width, player.height, player.shadowSneak.direction, true, '#000', player);
+    // Draw red eyes (very transparent)
+    const centerX = player.shadowSneak.x + player.width / 2;
+    const baseY = player.shadowSneak.y + player.height - 26;
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#f00';
+    // Eyes are positioned relative to the head
+    ctx.beginPath();
+    ctx.arc(centerX - 5, baseY - 48, 3, 0, Math.PI * 2); // Left eye
+    ctx.arc(centerX + 5, baseY - 48, 3, 0, Math.PI * 2); // Right eye
+    ctx.fill();
+    ctx.restore();
   }
 }
 
