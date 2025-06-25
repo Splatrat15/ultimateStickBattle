@@ -30,6 +30,12 @@ export function initializeRakka(player) {
       swingDirection: 1, // 1 for right, -1 for left
       bladeTrails: [],
       hitFrame: 0
+    },
+    // Demonic/shadow effects
+    demonicAura: {
+      isActive: false,
+      intensity: 0,
+      particles: []
     }
   };
   player.sword = {
@@ -203,6 +209,10 @@ export function updateRakka(player) {
       effects.circlingBlade.swingDirection = 1;
       effects.circlingBlade.bladeTrails = [];
       effects.circlingBlade.hitFrame = 0;
+      // Initialize demonic aura
+      effects.demonicAura.isActive = true;
+      effects.demonicAura.intensity = 0;
+      effects.demonicAura.particles = [];
     }
     
     // Update shadow wings animation
@@ -251,18 +261,57 @@ export function updateRakka(player) {
       effects.circlingBlade.bladeTrails = effects.circlingBlade.bladeTrails.filter(trail => trail.alpha > 0);
     }
     
+    // Update demonic aura effects
+    if (effects.demonicAura.isActive) {
+      // Increase aura intensity over time
+      effects.demonicAura.intensity = Math.min(effects.demonicAura.intensity + 0.02, 1.0);
+      
+      // Create shadow particles
+      if (effects.shadowWings.frame % 2 === 0) { // Every 2 frames
+        effects.demonicAura.particles.push({
+          x: player.x + (Math.random() - 0.5) * 80,
+          y: player.y + (Math.random() - 0.5) * 60,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          alpha: 0.8 + Math.random() * 0.2,
+          size: 3 + Math.random() * 6,
+          life: 30 + Math.random() * 20
+        });
+      }
+      
+      // Update and remove particles
+      effects.demonicAura.particles.forEach((particle, i) => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.alpha -= 0.02;
+        particle.life--;
+        
+        if (particle.life <= 0 || particle.alpha <= 0) {
+          effects.demonicAura.particles.splice(i, 1);
+        }
+      });
+    }
+    
     // End effects when attack is complete
     if (player.attackCooldown <= 0) {
       effects.shadowWings.isActive = false;
       effects.circlingBlade.isActive = false;
       effects.circlingBlade.bladeTrails = [];
+      effects.demonicAura.isActive = false;
+      effects.demonicAura.particles = [];
     }
   } else {
     // Reset Phantom Slash effects when not attacking
     if (player.phantomSlashEffects.shadowWings.isActive) {
       player.phantomSlashEffects.shadowWings.isActive = false;
+    }
+    if (player.phantomSlashEffects.circlingBlade.isActive) {
       player.phantomSlashEffects.circlingBlade.isActive = false;
       player.phantomSlashEffects.circlingBlade.bladeTrails = [];
+    }
+    if (player.phantomSlashEffects.demonicAura.isActive) {
+      player.phantomSlashEffects.demonicAura.isActive = false;
+      player.phantomSlashEffects.demonicAura.particles = [];
     }
   }
 }
@@ -353,6 +402,11 @@ export function drawRakka(ctx, player) {
 
   // Draw Phantom Slash effects
   if (player.isAttacking && player.activeMove && player.activeMove.name === 'Phantom Slash') {
+    // Draw demonic aura and shadow particles first (behind everything)
+    if (player.phantomSlashEffects.demonicAura.isActive) {
+      drawDemonicAura(ctx, x, y - 26, width, height, facing, player);
+    }
+    
     // Draw shadow wings
     if (player.phantomSlashEffects.shadowWings.isActive) {
       drawShadowWings(ctx, x, y - 26, width, height, facing, player);
@@ -881,6 +935,85 @@ function drawCirclingBlade(ctx, x, y, width, height, facing, player) {
   ctx.fill();
   
   ctx.restore();
+  
+  ctx.restore();
+}
+
+// Draw demonic aura and shadow particles
+function drawDemonicAura(ctx, x, y, width, height, facing, player) {
+  const effects = player.phantomSlashEffects.demonicAura;
+  
+  ctx.save();
+  
+  // Draw shadow particles
+  effects.particles.forEach(particle => {
+    ctx.save();
+    ctx.globalAlpha = particle.alpha * 0.6; // Reduced from full alpha
+    
+    // Shadow particle with subtle red glow
+    ctx.shadowColor = '#600';
+    ctx.shadowBlur = 4; // Reduced from 8
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    ctx.fillStyle = '#111';
+    ctx.fill();
+    
+    // Subtle red core
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#300'; // Darker red
+    ctx.fill();
+    
+    ctx.restore();
+  });
+  
+  // Draw demonic aura around player
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+  const auraRadius = 50 + (effects.intensity * 20);
+  
+  // Outer aura glow - much more subtle
+  ctx.save();
+  ctx.globalAlpha = effects.intensity * 0.15; // Reduced from 0.3
+  ctx.shadowColor = '#600';
+  ctx.shadowBlur = 10; // Reduced from 20
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, auraRadius, 0, Math.PI * 2);
+  ctx.fillStyle = '#300'; // Darker red
+  ctx.fill();
+  ctx.restore();
+  
+  // Inner aura pulse - more subtle
+  ctx.save();
+  ctx.globalAlpha = effects.intensity * 0.25; // Reduced from 0.6
+  ctx.shadowColor = '#600';
+  ctx.shadowBlur = 8; // Reduced from 15
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, auraRadius * 0.7, 0, Math.PI * 2);
+  ctx.fillStyle = '#400'; // Darker red
+  ctx.fill();
+  ctx.restore();
+  
+  // Demonic energy tendrils - much more subtle
+  for (let i = 0; i < 6; i++) { // Reduced from 8 to 6
+    const angle = (i / 6) * Math.PI * 2 + (effects.intensity * Math.PI);
+    const tendrilLength = 20 + (effects.intensity * 15); // Reduced length
+    const tendrilX = centerX + Math.cos(angle) * tendrilLength;
+    const tendrilY = centerY + Math.sin(angle) * tendrilLength;
+    
+    ctx.save();
+    ctx.globalAlpha = effects.intensity * 0.2; // Reduced from 0.4
+    ctx.shadowColor = '#600';
+    ctx.shadowBlur = 5; // Reduced from 10
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(tendrilX, tendrilY);
+    ctx.strokeStyle = '#400'; // Darker red
+    ctx.lineWidth = 2; // Reduced from 3
+    ctx.stroke();
+    ctx.restore();
+  }
   
   ctx.restore();
 } 
