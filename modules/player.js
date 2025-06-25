@@ -459,6 +459,13 @@ export class Player extends PhysicsBody {
       return;
     }
 
+    // For Void Splitter, do not create a normal attack hitbox; only the shadow wave is the hitbox
+    if (this.characterName === 'Rakka' && this.activeMove.name === 'Void Splitter') {
+      this.attackHitbox = null;
+      this.attackHitbox2 = null;
+      return;
+    }
+
     const hitboxData = this.activeMove.hitbox;
     
     console.log('Creating attack hitbox:', {
@@ -574,6 +581,11 @@ export class Player extends PhysicsBody {
   }
 
   checkAttackHit(otherPlayer) {
+    // Special handling for Void Splitter wave (no normal hitbox)
+    if (this.activeMove && this.activeMove.name === 'Void Splitter') {
+      return this.checkVoidSplitterHit(otherPlayer);
+    }
+    
     if (!this.isAttacking || !this.attackHitbox) return false;
     
     // Check if we've already hit this target recently (prevent spam damage)
@@ -661,6 +673,45 @@ export class Player extends PhysicsBody {
         damage: damage,
         knockback: knockback,
         target: otherPlayer.characterName
+      });
+      
+      return true;
+    }
+    
+    return false;
+  }
+
+  checkVoidSplitterHit(otherPlayer) {
+    const move = this.activeMove;
+    const effects = this.voidSplitterEffects;
+    
+    // Check if wave is active and has hit cooldown
+    if (effects.wave.hitCooldown > 0) {
+      return false;
+    }
+    
+    // Only check wave hitbox - shadow is the only hitbox
+    let waveHit = false;
+    if (effects.wave.isActive && move.wave) {
+      const waveHitbox = {
+        x: effects.wave.x - move.wave.width/2,
+        y: effects.wave.y - move.wave.height/2,
+        width: move.wave.width,
+        height: move.wave.height
+      };
+      waveHit = this.checkHitboxCollision(waveHitbox, otherPlayer);
+    }
+    
+    if (waveHit) {
+      // Wave hit - wave damage
+      otherPlayer.takeDamage(move.wave.damage, this);
+      effects.wave.lastHitTarget = otherPlayer;
+      effects.wave.hitCooldown = move.wave.hitCooldown;
+      console.log('Void Splitter wave hit!', {
+        attacker: this.characterName,
+        target: otherPlayer.characterName,
+        damage: move.wave.damage,
+        waveDistance: effects.wave.distance
       });
       
       return true;

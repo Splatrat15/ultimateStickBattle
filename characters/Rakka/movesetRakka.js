@@ -121,11 +121,27 @@ export const rakkaMoveset = {
     type: 'heavy',
     damage: 14,
     knockback: 10,
-    duration: 40,
+    duration: 60, // Increased from 40 to 60 frames for slower move
     cooldown: 90,
-    hitbox: { width: 100, height: 36, offsetX: 10, offsetY: 50 },
-    wave: true,
-    description: 'Powerful ground slam, sends a dark wave forward.'
+    hitbox: { width: 100, height: 36, offsetX: 10, offsetY: 50 }, // This will be disabled for shadow hitbox
+    wave: {
+      active: true,
+      speed: 4, // Reduced from 8 to 4 for slower shadow
+      maxDistance: 200, // Reduced from 300 to 200 for shorter shadow
+      width: 80, // Width of the wave
+      height: 30, // Height of the wave
+      damage: 8, // Damage per wave hit
+      knockback: 6, // Knockback per wave hit
+      duration: 30, // How long wave lasts
+      hitCooldown: 15 // Cooldown between wave hits on same target
+    },
+    groundSlam: {
+      active: true,
+      slamForce: 12, // Force of the ground slam
+      slamDuration: 25, // Increased from 15 to 25 for longer slam animation
+      shockwaveRadius: 60 // Radius of ground impact effect
+    },
+    description: 'Rakka slams his sword into the ground, creating a devastating dark wave that travels forward like demonic shadow fire.'
   },
   // Rakka stats
   weight: 1.0, // Standard

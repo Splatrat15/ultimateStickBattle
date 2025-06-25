@@ -38,6 +38,31 @@ export function initializeRakka(player) {
       particles: []
     }
   };
+  // Void Splitter effects
+  player.voidSplitterEffects = {
+    wave: {
+      isActive: false,
+      x: 0,
+      y: 0,
+      distance: 0,
+      direction: 1,
+      frame: 0,
+      particles: [],
+      lastHitTarget: null,
+      hitCooldown: 0
+    },
+    groundSlam: {
+      isActive: false,
+      frame: 0,
+      slamAngle: 0,
+      shockwaveParticles: [],
+      groundCrack: {
+        isActive: false,
+        frame: 0,
+        width: 0
+      }
+    }
+  };
   player.sword = {
     length: 54,
     width: 7,
@@ -314,6 +339,142 @@ export function updateRakka(player) {
       player.phantomSlashEffects.demonicAura.particles = [];
     }
   }
+
+  // Update Void Splitter effects
+  if (player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter') {
+    const effects = player.voidSplitterEffects;
+    const move = player.activeMove;
+    
+    // Initialize effects if not already active
+    if (!effects.groundSlam.isActive) {
+      effects.groundSlam.isActive = true;
+      effects.groundSlam.frame = 0;
+      effects.groundSlam.slamAngle = 0;
+      effects.groundSlam.shockwaveParticles = [];
+      effects.groundSlam.groundCrack.isActive = true;
+      effects.groundSlam.groundCrack.frame = 0;
+      effects.groundSlam.groundCrack.width = 0;
+      
+      // Initialize wave
+      effects.wave.isActive = true;
+      effects.wave.x = player.x + (player.facing > 0 ? 60 : -60); // Closer to player since shadow is shorter
+      effects.wave.y = player.y + 20;
+      effects.wave.distance = 0;
+      effects.wave.direction = player.facing;
+      effects.wave.frame = 0;
+      effects.wave.particles = [];
+      effects.wave.lastHitTarget = null;
+      effects.wave.hitCooldown = 0;
+    }
+    
+    // Update ground slam animation
+    if (move.groundSlam) {
+      effects.groundSlam.frame++;
+      
+      // Slam angle animation (sword goes from raised to slammed)
+      const slamProgress = Math.min(effects.groundSlam.frame / move.groundSlam.slamDuration, 1.0);
+      effects.groundSlam.slamAngle = Math.PI / 2 * slamProgress; // 0 to 90 degrees
+      
+      // Create shockwave particles on impact
+      if (effects.groundSlam.frame === Math.floor(move.groundSlam.slamDuration / 2)) {
+        // Create impact particles
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * Math.PI * 2;
+          const distance = 20 + Math.random() * 40;
+          effects.groundSlam.shockwaveParticles.push({
+            x: player.x + player.width / 2 + Math.cos(angle) * distance,
+            y: player.y + player.height + Math.sin(angle) * distance,
+            vx: Math.cos(angle) * 3,
+            vy: Math.sin(angle) * 3,
+            alpha: 0.8 + Math.random() * 0.2,
+            size: 4 + Math.random() * 6,
+            life: 20 + Math.random() * 15
+          });
+        }
+      }
+      
+      // Update ground crack
+      if (effects.groundSlam.groundCrack.isActive) {
+        effects.groundSlam.groundCrack.frame++;
+        const crackProgress = Math.min(effects.groundSlam.groundCrack.frame / 10, 1.0);
+        effects.groundSlam.groundCrack.width = move.groundSlam.shockwaveRadius * crackProgress;
+      }
+      
+      // Update shockwave particles
+      effects.groundSlam.shockwaveParticles.forEach((particle, i) => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.alpha -= 0.03;
+        particle.life--;
+        
+        if (particle.life <= 0 || particle.alpha <= 0) {
+          effects.groundSlam.shockwaveParticles.splice(i, 1);
+        }
+      });
+    }
+    
+    // Update wave
+    if (move.wave && effects.wave.isActive) {
+      effects.wave.frame++;
+      
+      // Move wave forward
+      if (effects.wave.distance < move.wave.maxDistance) {
+        effects.wave.x += move.wave.speed * effects.wave.direction;
+        effects.wave.distance += move.wave.speed;
+      }
+      
+      // Create wave particles (dark fire effect)
+      if (effects.wave.frame % 2 === 0) { // Every 2 frames
+        effects.wave.particles.push({
+          x: effects.wave.x + (Math.random() - 0.5) * move.wave.width,
+          y: effects.wave.y + (Math.random() - 0.5) * move.wave.height,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          alpha: 0.9 + Math.random() * 0.1,
+          size: 3 + Math.random() * 8,
+          life: 15 + Math.random() * 10,
+          type: Math.random() > 0.7 ? 'flame' : 'shadow' // 30% chance for flame effect
+        });
+      }
+      
+      // Update wave particles
+      effects.wave.particles.forEach((particle, i) => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.alpha -= 0.04;
+        particle.life--;
+        
+        if (particle.life <= 0 || particle.alpha <= 0) {
+          effects.wave.particles.splice(i, 1);
+        }
+      });
+      
+      // Update hit cooldown
+      if (effects.wave.hitCooldown > 0) {
+        effects.wave.hitCooldown--;
+      }
+    }
+    
+    // End effects when attack is complete
+    if (player.attackCooldown <= 0) {
+      effects.groundSlam.isActive = false;
+      effects.groundSlam.shockwaveParticles = [];
+      effects.groundSlam.groundCrack.isActive = false;
+      effects.wave.isActive = false;
+      effects.wave.particles = [];
+    }
+  } else {
+    // Reset Void Splitter effects when not attacking
+    if (player.voidSplitterEffects.groundSlam.isActive) {
+      player.voidSplitterEffects.groundSlam.isActive = false;
+      player.voidSplitterEffects.groundSlam.shockwaveParticles = [];
+      player.voidSplitterEffects.groundSlam.groundCrack.isActive = false;
+    }
+    if (player.voidSplitterEffects.wave.isActive) {
+      player.voidSplitterEffects.wave.isActive = false;
+      player.voidSplitterEffects.wave.particles = [];
+    }
+  }
 }
 
 // Draw Rakka (main function)
@@ -369,6 +530,9 @@ export function drawRakka(ctx, player) {
   } else if (player.swordSwing.isActive) {
     // Draw swinging sword for Shadow Sneak
     drawSwingingSword(ctx, x, y - 26, width, height, facing, player);
+  } else if (player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter') {
+    // Draw slamming sword for Void Splitter
+    drawVoidSplitterSword(ctx, x, y - 26, width, height, facing, player);
   } else {
     drawRakkaKatana(ctx, x, y - 26, width, height, facing, player.sword);
   }
@@ -417,6 +581,19 @@ export function drawRakka(ctx, player) {
       drawCirclingBlade(ctx, x, y - 26, width, height, facing, player);
     }
   }
+
+  // Draw Void Splitter effects
+  if (player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter') {
+    // Draw ground slam effects first (behind everything)
+    if (player.voidSplitterEffects.groundSlam.isActive) {
+      drawGroundSlam(ctx, x, y - 26, width, height, facing, player);
+    }
+    
+    // Draw dark wave
+    if (player.voidSplitterEffects.wave.isActive) {
+      drawDarkWave(ctx, x, y - 26, width, height, facing, player);
+    }
+  }
 }
 
 // Draw stick figure body
@@ -431,6 +608,10 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
   // Check if charging Demon Fang for special stance
   const isChargingDemonFang = player.isCharging && player.activeMove && player.activeMove.name === 'Demon Fang';
   const chargeLevel = player.chargeLevel || 0;
+
+  // Check if performing Void Splitter for special stance
+  const isVoidSplitter = player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter';
+  const voidSplitterEffects = player.voidSplitterEffects;
 
   if (isChargingDemonFang) {
     // Lower stance - body tilted forward
@@ -487,6 +668,60 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
     const backFootY = hipY + backLegLength * Math.sin(backLegAngle);
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(backFootX, backFootY);
+    ctx.stroke();
+
+  } else if (isVoidSplitter) {
+    // Void Splitter stance - crouching with sword raised for slam
+    const slamAngle = voidSplitterEffects.groundSlam.slamAngle;
+    const bodyYOffset = 8; // Lower stance
+
+    // --- Draw Crouched Body ---
+    ctx.save();
+    ctx.translate(0, bodyYOffset);
+
+    // Body - crouched position
+    ctx.beginPath();
+    ctx.moveTo(centerX, baseY - 35); // Shorter body
+    ctx.lineTo(centerX, baseY - 5);
+    ctx.stroke();
+
+    // Arms in slam position
+    ctx.beginPath();
+    // Left arm (supporting)
+    ctx.moveTo(centerX, baseY - 25);
+    ctx.lineTo(centerX - (20 * facing), baseY - 15);
+    // Right arm (raised for slam)
+    ctx.moveTo(centerX, baseY - 25);
+    ctx.lineTo(centerX + (25 * facing), baseY - 35);
+    ctx.stroke();
+    
+    // Head - lowered
+    ctx.beginPath();
+    ctx.arc(centerX + (5 * facing), baseY - 40, 12, 0, Math.PI * 2);
+    ctx.fillStyle = isShadow ? '#222' : color || '#000';
+    ctx.fill();
+
+    ctx.restore();
+
+    // --- Draw Legs: Crouched stance ---
+    // Hip position: lower and wider stance
+    const hipX = centerX;
+    const hipY = baseY - 2 + bodyYOffset;
+
+    ctx.beginPath();
+    // Left leg (bent)
+    const leftKneeX = hipX - 15;
+    const leftKneeY = hipY + 8;
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(leftKneeX, leftKneeY);
+    ctx.lineTo(leftKneeX - 5, baseY + 15);
+
+    // Right leg (bent)
+    const rightKneeX = hipX + 15;
+    const rightKneeY = hipY + 8;
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(rightKneeX, rightKneeY);
+    ctx.lineTo(rightKneeX + 5, baseY + 15);
     ctx.stroke();
 
   } else {
@@ -622,12 +857,78 @@ function drawSwingingSword(ctx, x, y, width, height, facing, player) {
   ctx.restore();
 }
 
+// Draw slamming sword for Void Splitter
+function drawVoidSplitterSword(ctx, x, y, width, height, facing, player) {
+  const centerX = x + width / 2;
+  const baseY = y + height;
+  const sword = player.sword;
+  const effects = player.voidSplitterEffects;
+  
+  ctx.save();
+  
+  // Position at the sword arm (right arm when facing right, left when facing left)
+  const armX = centerX + (25 * facing);
+  const armY = baseY - 35;
+  
+  ctx.translate(armX, armY);
+  
+  // Apply facing direction
+  if (facing < 0) {
+    ctx.scale(-1, 1);
+  }
+  
+  // Apply slam angle
+  const slamAngle = effects.groundSlam.slamAngle;
+  ctx.rotate(slamAngle);
+  
+  // Draw sword with demonic effect
+  const slamProgress = Math.min(effects.groundSlam.frame / 25, 1.0);
+  const glowIntensity = slamProgress;
+  
+  // Outer glow
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 20 + (glowIntensity * 15);
+  
+  // Sword blade
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  
+  // Red energy glow along the blade
+  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.9})`);
+  gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.6})`);
+  gradient.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  
+  // Hilt
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = sword.hiltColor;
+  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  
+  // Add motion blur effect (trail) when slamming
+  if (glowIntensity > 0.5) {
+    ctx.save();
+    ctx.globalAlpha = glowIntensity * 0.4;
+    ctx.translate(-sword.length * 0.2, 0);
+    ctx.rotate(-0.1);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(0, -sword.width/2, sword.length * 0.4, sword.width);
+    ctx.restore();
+  }
+  
+  ctx.restore();
+}
+
 // Draw hat with 鬼 and ribbon
 function drawRakkaHat(ctx, x, y, width, height, facing, player) {
   const centerX = x + width / 2;
   // Adjust hat position based on charging state
   const isChargingDemonFang = player.isCharging && player.activeMove && player.activeMove.name === 'Demon Fang';
   const chargeLevel = player.chargeLevel || 0;
+  
+  // Check if performing Void Splitter for special stance
+  const isVoidSplitter = player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter';
   
   // Base hat position
   let hatY = y + height - 48 - 12;
@@ -640,6 +941,10 @@ function drawRakkaHat(ctx, x, y, width, height, facing, player) {
     hatOffsetX -= 3 * facing;
     // Adjust Y position slightly to stay with head
     hatY += 8;
+  } else if (isVoidSplitter) {
+    // Move hat with the lowered head during Void Splitter
+    hatOffsetX = (5 * facing); // Small forward offset to stay with head
+    hatY += 8; // Lower the hat to match the crouched head position
   }
   
   ctx.save();
@@ -650,6 +955,9 @@ function drawRakkaHat(ctx, x, y, width, height, facing, player) {
     // Match body's lean angle during charge
     const leanAngle = (0.3 + (chargeLevel * 0.2)) * facing;
     ctx.rotate(leanAngle);
+  } else if (isVoidSplitter) {
+    // Slight forward tilt for Void Splitter stance
+    ctx.rotate(0.15 * facing);
   } else {
     // Normal hat tilt
     ctx.rotate(0.12 * facing);
@@ -1014,6 +1322,157 @@ function drawDemonicAura(ctx, x, y, width, height, facing, player) {
     ctx.stroke();
     ctx.restore();
   }
+  
+  ctx.restore();
+}
+
+// Draw ground slam effects
+function drawGroundSlam(ctx, x, y, width, height, facing, player) {
+  const effects = player.voidSplitterEffects.groundSlam;
+  const move = player.activeMove;
+  
+  ctx.save();
+  
+  // Draw shockwave particles
+  effects.shockwaveParticles.forEach(particle => {
+    ctx.save();
+    ctx.globalAlpha = particle.alpha;
+    
+    // Shadow particle with red glow
+    ctx.shadowColor = '#f00';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    ctx.fillStyle = '#111';
+    ctx.fill();
+    
+    // Red core
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#600';
+    ctx.fill();
+    
+    ctx.restore();
+  });
+  
+  // Draw ground crack
+  if (effects.groundCrack.isActive) {
+    const centerX = x + width / 2;
+    const groundY = y + height + 10; // Slightly below player
+    
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+    
+    // Crack shadow
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 10;
+    
+    // Draw crack as jagged line
+    ctx.beginPath();
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 4;
+    
+    const crackWidth = effects.groundCrack.width;
+    const segments = 8;
+    
+    ctx.moveTo(centerX - crackWidth/2, groundY);
+    for (let i = 1; i <= segments; i++) {
+      const xPos = centerX - crackWidth/2 + (crackWidth * i / segments);
+      const yOffset = (Math.random() - 0.5) * 8; // Random jaggedness
+      ctx.lineTo(xPos, groundY + yOffset);
+    }
+    ctx.stroke();
+    
+    // Red glow along crack
+    ctx.shadowColor = '#f00';
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = '#600';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.restore();
+  }
+  
+  ctx.restore();
+}
+
+// Draw dark wave
+function drawDarkWave(ctx, x, y, width, height, facing, player) {
+  const effects = player.voidSplitterEffects.wave;
+  const move = player.activeMove;
+  
+  ctx.save();
+  
+  // Draw wave particles (dark fire effect)
+  effects.particles.forEach(particle => {
+    ctx.save();
+    ctx.globalAlpha = particle.alpha;
+    
+    if (particle.type === 'flame') {
+      // Flame particles - red/orange with glow
+      ctx.shadowColor = '#f00';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fillStyle = '#f00';
+      ctx.fill();
+      
+      // Inner flame
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff6600';
+      ctx.fill();
+      
+      // Core
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffff00';
+      ctx.fill();
+    } else {
+      // Shadow particles - dark with red glow
+      ctx.shadowColor = '#f00';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fillStyle = '#111';
+      ctx.fill();
+      
+      // Red core
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size * 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = '#600';
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  });
+  
+  // Draw wave outline/aura
+  const waveWidth = move.wave.width;
+  const waveHeight = move.wave.height;
+  const waveX = effects.x - waveWidth/2;
+  const waveY = effects.y - waveHeight/2;
+  
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  
+  // Wave shadow
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 15;
+  ctx.fillStyle = '#111';
+  ctx.fillRect(waveX, waveY, waveWidth, waveHeight);
+  
+  // Red glow around wave
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 20;
+  ctx.strokeStyle = '#600';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(waveX, waveY, waveWidth, waveHeight);
+  
+  ctx.restore();
   
   ctx.restore();
 } 
