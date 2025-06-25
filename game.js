@@ -148,27 +148,32 @@ function drawStage() {
       // Kaon's drawing function handles his own attack visuals.
       // We only need to draw hitboxes for other characters.
       if (player.characterName !== 'Kaon') {
-        // Set color based on attack type
-        ctx.fillStyle = player.attackType === 'heavy' ? 
-          'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
-          'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
-        
-        // Draw primary hitbox
-        ctx.fillRect(
-          player.attackHitbox.x,
-          player.attackHitbox.y,
-          player.attackHitbox.width,
-          player.attackHitbox.height
-        );
-        
-        // Draw secondary hitbox if it exists (for Dual Blast)
-        if (player.attackHitbox2) {
+        // Don't draw red box for Shadow Sneak - the sword swing is the visual
+        if (player.activeMove && player.activeMove.name === 'Shadow Sneak') {
+          // Skip drawing hitbox for Shadow Sneak
+        } else {
+          // Set color based on attack type
+          ctx.fillStyle = player.attackType === 'heavy' ? 
+            'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
+            'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
+          
+          // Draw primary hitbox
           ctx.fillRect(
-            player.attackHitbox2.x,
-            player.attackHitbox2.y,
-            player.attackHitbox2.width,
-            player.attackHitbox2.height
+            player.attackHitbox.x,
+            player.attackHitbox.y,
+            player.attackHitbox.width,
+            player.attackHitbox.height
           );
+          
+          // Draw secondary hitbox if it exists (for Dual Blast)
+          if (player.attackHitbox2) {
+            ctx.fillRect(
+              player.attackHitbox2.x,
+              player.attackHitbox2.y,
+              player.attackHitbox2.width,
+              player.attackHitbox2.height
+            );
+          }
         }
       }
     }

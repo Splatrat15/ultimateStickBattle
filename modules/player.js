@@ -421,7 +421,7 @@ export class Player extends PhysicsBody {
         const swingHitbox = {
           width: 90,
           height: 22,
-          offsetX: this.facing > 0 ? 40 : -70,
+          offsetX: 40, // Always positive, will be handled by facing direction in createAttackHitbox
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
@@ -1006,7 +1006,7 @@ export class Player extends PhysicsBody {
         const swingHitbox = {
           width: 90,
           height: 22,
-          offsetX: this.facing > 0 ? 40 : -70,
+          offsetX: 40, // Always positive, will be handled by facing direction in createAttackHitbox
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
