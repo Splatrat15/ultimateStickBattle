@@ -383,26 +383,9 @@ export class Player extends PhysicsBody {
       this.attackFrame = 0;
     }
 
-    // Handle character-specific charged attacks
+    // Handle character-specific attack logic (separate from charging)
     if (this.characterName === 'Rakka') {
-      if (move.name === 'Demon Fang') {
-        const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
-        // Store original position and set thrust distance
-        if (this.demonFangEffects) {
-          this.demonFangEffects.originalX = this.x;
-          this.demonFangEffects.thrustDistance = thrustDistance;
-          // Apply immediate forward thrust
-          this.x += thrustDistance * this.facing;
-        }
-        
-        // Scale hitbox based on charge level
-        const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
-        this.activeMove.hitbox = {
-          ...move.hitbox,
-          width: Math.floor(move.hitbox.width * rangeMultiplier),
-          offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
-        };
-      } else if (move.name === 'Shadow Sneak') {
+      if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
         if (this.shadowSneak && this.shadowSneak.active) {
           this.x = this.shadowSneak.x;
@@ -454,13 +437,6 @@ export class Player extends PhysicsBody {
 
     // For Demon Fang, do not create a normal attack hitbox; use body collision during thrust instead
     if (this.characterName === 'Rakka' && this.activeMove.name === 'Demon Fang') {
-      this.attackHitbox = null;
-      this.attackHitbox2 = null;
-      return;
-    }
-
-    // For Void Splitter, do not create a normal attack hitbox; only the shadow wave is the hitbox
-    if (this.characterName === 'Rakka' && this.activeMove.name === 'Void Splitter') {
       this.attackHitbox = null;
       this.attackHitbox2 = null;
       return;
@@ -581,9 +557,9 @@ export class Player extends PhysicsBody {
   }
 
   checkAttackHit(otherPlayer) {
-    // Special handling for Void Splitter wave (no normal hitbox)
-    if (this.activeMove && this.activeMove.name === 'Void Splitter') {
-      return this.checkVoidSplitterHit(otherPlayer);
+    // Special handling for Demon Fang dash collision
+    if (this.activeMove && this.activeMove.name === 'Demon Fang') {
+      return this.checkDemonFangHit(otherPlayer);
     }
     
     if (!this.isAttacking || !this.attackHitbox) return false;
@@ -591,11 +567,6 @@ export class Player extends PhysicsBody {
     // Check if we've already hit this target recently (prevent spam damage)
     if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
       return false;
-    }
-
-    // Special handling for Phantom Slash multi-hit
-    if (this.activeMove && this.activeMove.name === 'Phantom Slash') {
-      return this.checkPhantomSlashHit(otherPlayer);
     }
 
     // Check primary hitbox
@@ -623,101 +594,36 @@ export class Player extends PhysicsBody {
     return hit || hit2;
   }
 
-  checkPhantomSlashHit(otherPlayer) {
-    const move = this.activeMove;
-    const multiHit = this.multiHitData;
-    
-    // Check if it's time for the next hit
-    const currentFrame = move.duration - this.attackCooldown;
-    const nextHitFrame = multiHit.hitTiming[multiHit.currentHit];
-    
-    if (currentFrame < nextHitFrame) {
-      return false; // Not time for this hit yet
-    }
-    
-    // Check if we've already hit this target with this specific hit
-    if (multiHit.lastHitTarget === otherPlayer && multiHit.hitCooldown > 0) {
+  checkDemonFangHit(otherPlayer) {
+    // Check if we've already hit this target recently (prevent spam damage)
+    if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
       return false;
     }
     
-    // Check hitbox collision
-    const hit = this.checkHitboxCollision(this.attackHitbox, otherPlayer);
+    // For Demon Fang, check if the player's body collides with the opponent during the dash
+    const hit = this.checkHitboxCollision({
+      x: this.x,
+      y: this.y,
+      width: this.width,
+      height: this.height
+    }, otherPlayer);
     
     if (hit) {
-      // Determine if this is the final hit
-      const isFinalHit = multiHit.currentHit === multiHit.maxHits - 1;
+      // Apply damage to the opponent
+      otherPlayer.takeDamage(this.activeMove.damage, this);
       
-      // Calculate damage and knockback
-      let damage = move.damage;
-      let knockback = move.knockback;
+      this.lastHitTarget = otherPlayer;
+      this.hitCooldown = 10; // 10 frames cooldown between hits on same target
       
-      if (isFinalHit) {
-        // Final hit has extra damage and knockback
-        damage = move.finalHitDamage || move.damage * 1.5;
-        knockback = move.finalHitKnockback || move.knockback * 2;
-      }
-      
-      // Apply damage
-      otherPlayer.takeDamage(damage, this);
-      
-      // Set cooldown for this specific hit
-      multiHit.hitCooldown = 8; // 8 frames between hits
-      multiHit.lastHitTarget = otherPlayer;
-      
-      // Move to next hit
-      multiHit.currentHit++;
-      
-      console.log('Phantom Slash hit!', {
-        hitNumber: multiHit.currentHit,
-        isFinalHit: isFinalHit,
-        damage: damage,
-        knockback: knockback,
-        target: otherPlayer.characterName
-      });
-      
-      return true;
-    }
-    
-    return false;
-  }
-
-  checkVoidSplitterHit(otherPlayer) {
-    const move = this.activeMove;
-    const effects = this.voidSplitterEffects;
-    
-    // Check if wave is active and has hit cooldown
-    if (effects.wave.hitCooldown > 0) {
-      return false;
-    }
-    
-    // Only check wave hitbox - shadow is the only hitbox
-    let waveHit = false;
-    if (effects.wave.isActive && move.wave) {
-      const waveHitbox = {
-        x: effects.wave.x - move.wave.width/2,
-        y: effects.wave.y - move.wave.height/2,
-        width: move.wave.width,
-        height: move.wave.height
-      };
-      waveHit = this.checkHitboxCollision(waveHitbox, otherPlayer);
-    }
-    
-    if (waveHit) {
-      // Wave hit - wave damage
-      otherPlayer.takeDamage(move.wave.damage, this);
-      effects.wave.lastHitTarget = otherPlayer;
-      effects.wave.hitCooldown = move.wave.hitCooldown;
-      console.log('Void Splitter wave hit!', {
+      console.log('Demon Fang dash hit detected!', {
         attacker: this.characterName,
         target: otherPlayer.characterName,
-        damage: move.wave.damage,
-        waveDistance: effects.wave.distance
+        damage: this.activeMove.damage,
+        cooldownSet: this.hitCooldown
       });
-      
-      return true;
     }
     
-    return false;
+    return hit;
   }
 
   checkHitboxCollision(hitbox, otherPlayer) {
@@ -898,7 +804,7 @@ export class Player extends PhysicsBody {
     this.isShielding = false;
   }
 
-  startCharge(move) {
+  startCharge(move = null) {
     console.log('startCharge called for:', this.characterName, {
       isAttacking: this.isAttacking,
       isShielding: this.isShielding,
@@ -913,7 +819,7 @@ export class Player extends PhysicsBody {
       return;
     }
     
-    // Set the active move. Default to neutralHeavy if no move is passed.
+    // Set the active move. Use passed move or default to neutralHeavy
     this.activeMove = move || this.moveset.neutralHeavy;
     
     this.isCharging = true;
@@ -937,11 +843,8 @@ export class Player extends PhysicsBody {
       this.isCharging = false;
       
       // Only fire if we have some charge and the move is chargeable
-      if (this.activeMove && this.activeMove.chargeable && this.chargeLevel > 0.1) {
+      if (this.chargeLevel > 0.1) {
         this.fireChargedAttack();
-      } else {
-        // If not enough charge, just reset the activeMove
-        this.activeMove = null;
       }
       
       // Reset charge after attack is created
@@ -954,39 +857,38 @@ export class Player extends PhysicsBody {
   }
 
   fireChargedAttack() {
-    const move = this.activeMove;
+    // Use the active move if set, otherwise default to neutralHeavy
+    const move = this.activeMove || this.moveset.neutralHeavy;
     if (!move) return;
 
     this.isAttacking = true;
     this.attackType = 'heavy';
+    this.activeMove = move; // Keep original move data for hitbox scaling
     
     // Scale damage, knockback, and duration based on charge level (0.2x to 2.0x)
-    const chargeMultiplier = 0.2 + (this.chargeLevel * 1.8);
+    const chargeMultiplier = 0.2 + (this.chargeLevel * 1.8); // 0.2x to 2.0x scaling
     
     // Create scaled properties without overwriting the original move
     this.activeMove = {
       ...move,
       damage: Math.floor(move.damage * chargeMultiplier),
       knockback: move.knockback * chargeMultiplier,
-      duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8))
+      duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8)) // Longer duration for more charge
     };
-
+    
+    this.attackCooldown = this.activeMove.duration;
+    this.heavyAttackCooldown = move.cooldown;
+    
     // Handle character-specific charged attacks
     if (this.characterName === 'Rakka') {
       if (move.name === 'Demon Fang') {
-        const thrustDistance = move.chargeScaling.thrust * this.chargeLevel;
+        // For Demon Fang, add dash movement based on charge level
+        const thrustDistance = 100 + (this.chargeLevel * 200); // 100-300px dash
         if (this.demonFangEffects) {
           this.demonFangEffects.originalX = this.x;
           this.demonFangEffects.thrustDistance = thrustDistance;
           this.x += thrustDistance * this.facing;
         }
-        const rangeMultiplier = 1.0 + (this.chargeLevel * move.chargeScaling.range);
-        this.activeMove.hitbox = {
-          ...move.hitbox,
-          width: Math.floor(move.hitbox.width * rangeMultiplier),
-          offsetX: Math.floor(move.hitbox.offsetX * rangeMultiplier)
-        };
-        this.createAttackHitbox();
       } else if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
         if (this.shadowSneak && this.shadowSneak.active) {
@@ -1010,40 +912,11 @@ export class Player extends PhysicsBody {
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
-        this.createAttackHitbox();
-      } else if (move.name === 'Phantom Slash') {
-        // Set up multi-hit data for Phantom Slash
-        this.multiHitData.maxHits = move.multiHit || 4;
-        this.multiHitData.currentHit = 0;
-        this.multiHitData.hitCooldown = 0;
-        this.multiHitData.lastHitTarget = null;
-        
-        // Set up hit timing (hits at frames 8, 16, 24, 32 of the 54-frame duration)
-        this.multiHitData.hitTiming = [8, 16, 24, 32];
-        
-        // Apply self-launch for upward movement
-        if (move.selfLaunch) {
-          const launchForce = move.selfLaunchForce || 16;
-          this.vy = -launchForce;
-          console.log('Phantom Slash self-launch triggered with force:', launchForce);
-        }
-        
-        // Create initial hitbox
-        this.createAttackHitbox();
       }
-    } else {
-      this.createAttackHitbox();
     }
     
-    this.attackCooldown = this.activeMove.duration;
-    this.heavyAttackCooldown = move.cooldown;
+    this.createAttackHitbox();
     
-    console.log('Fired charged attack:', {
-      character: this.characterName,
-      move: move.name,
-      chargeLevel: this.chargeLevel.toFixed(3),
-      damage: this.activeMove.damage,
-      multiplier: chargeMultiplier.toFixed(3)
-    });
+    console.log('Fired charged attack with level:', this.chargeLevel.toFixed(3), 'damage:', this.activeMove.damage, 'multiplier:', chargeMultiplier.toFixed(3));
   }
 }
