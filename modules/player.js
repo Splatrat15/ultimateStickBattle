@@ -208,6 +208,13 @@ export class Player extends PhysicsBody {
         this.attackType = null;
         this.activeMove = null; // Reset active move
         this.lastHitTarget = null; // Reset last hit target when attack ends
+        
+        // Reset sword swing animation when attack ends
+        if (this.swordSwing) {
+          this.swordSwing.isActive = false;
+          this.swordSwing.frame = 0;
+          this.swordSwing.glowIntensity = 0;
+        }
       }
     }
     
@@ -378,6 +385,24 @@ export class Player extends PhysicsBody {
           this.x = this.shadowSneak.x;
           this.shadowSneak.active = false;
         }
+        
+        // Start sword swing animation
+        if (this.swordSwing) {
+          this.swordSwing.isActive = true;
+          this.swordSwing.frame = 0;
+          this.swordSwing.angle = this.swordSwing.startAngle;
+          this.swordSwing.glowIntensity = 0;
+        }
+        
+        // Create a sword swing hitbox at the new position
+        const swingHitbox = {
+          width: 90,
+          height: 22,
+          offsetX: this.facing > 0 ? 40 : -70,
+          offsetY: 8
+        };
+        this.activeMove.hitbox = swingHitbox;
+        this.createAttackHitbox();
       }
     }
   }
@@ -812,6 +837,15 @@ export class Player extends PhysicsBody {
           this.x = this.shadowSneak.x;
           this.shadowSneak.active = false;
         }
+        
+        // Start sword swing animation
+        if (this.swordSwing) {
+          this.swordSwing.isActive = true;
+          this.swordSwing.frame = 0;
+          this.swordSwing.angle = this.swordSwing.startAngle;
+          this.swordSwing.glowIntensity = 0;
+        }
+        
         // Create a sword swing hitbox at the new position
         const swingHitbox = {
           width: 90,

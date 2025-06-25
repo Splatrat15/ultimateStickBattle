@@ -25,6 +25,16 @@ export function initializeRakka(player) {
     offsetX: 18,
     offsetY: 38
   };
+  // Sword swing animation for Shadow Sneak
+  player.swordSwing = {
+    isActive: false,
+    frame: 0,
+    maxFrames: 18, // Increased from 12 to 18 frames for slower swing
+    angle: 0,
+    startAngle: -Math.PI / 2, // Start behind the player
+    endAngle: Math.PI / 2, // End in front of the player
+    glowIntensity: 0
+  };
   // Slow down animation speed
   player.animation.speed = 8; // Update frame every 8 game frames instead of 4
   player.animation.numFrames = 4; // More frames for smoother animation
@@ -136,6 +146,32 @@ export function updateRakka(player) {
       }
     });
   }
+
+  // Update sword swing animation for Shadow Sneak
+  if (player.swordSwing.isActive) {
+    player.swordSwing.frame++;
+    
+    // Calculate swing progress (0 to 1)
+    const progress = player.swordSwing.frame / player.swordSwing.maxFrames;
+    
+    // Use ease-out function for smooth swing
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
+    
+    // Interpolate angle from start to end
+    player.swordSwing.angle = player.swordSwing.startAngle + 
+      (player.swordSwing.endAngle - player.swordSwing.startAngle) * easeProgress;
+    
+    // Calculate glow intensity (peak at middle of swing)
+    const glowProgress = Math.sin(progress * Math.PI);
+    player.swordSwing.glowIntensity = glowProgress;
+    
+    // End animation when complete
+    if (player.swordSwing.frame >= player.swordSwing.maxFrames) {
+      player.swordSwing.isActive = false;
+      player.swordSwing.frame = 0;
+      player.swordSwing.glowIntensity = 0;
+    }
+  }
 }
 
 // Draw Rakka (main function)
@@ -185,9 +221,12 @@ export function drawRakka(ctx, player) {
   // Draw main body
   drawRakkaBody(ctx, x, y - 26, width, height, facing, false, color, player);
   
-  // Draw katana with special handling for Demon Fang
+  // Draw katana with special handling for Demon Fang and sword swing
   if (player.isCharging && player.activeMove && player.activeMove.name === 'Demon Fang') {
     drawDemonFangStance(ctx, x, y - 26, width, height, facing, player);
+  } else if (player.swordSwing.isActive) {
+    // Draw swinging sword for Shadow Sneak
+    drawSwingingSword(ctx, x, y - 26, width, height, facing, player);
   } else {
     drawRakkaKatana(ctx, x, y - 26, width, height, facing, player.sword);
   }
@@ -359,6 +398,67 @@ function drawRakkaKatana(ctx, x, y, width, height, facing, sword) {
   // Hilt (handle just past waist, positioned where the hand reaches)
   ctx.fillStyle = sword.hiltColor;
   ctx.fillRect(sword.length * 0.3 - 2, -sheathWidth / 2 - 1, 12, sheathWidth + 2); // Made handle slightly larger
+  ctx.restore();
+}
+
+// Draw swinging sword for Shadow Sneak
+function drawSwingingSword(ctx, x, y, width, height, facing, player) {
+  const centerX = x + width / 2;
+  const baseY = y + height;
+  const sword = player.sword;
+  const swing = player.swordSwing;
+  
+  ctx.save();
+  
+  // Position at the sword arm (right arm when facing right, left when facing left)
+  const armX = centerX + (24 * facing);
+  const armY = baseY - 22;
+  
+  ctx.translate(armX, armY);
+  
+  // Apply facing direction
+  if (facing < 0) {
+    ctx.scale(-1, 1);
+  }
+  
+  // Apply swing angle
+  ctx.rotate(swing.angle);
+  
+  // Draw sword with glow effect
+  const glowIntensity = swing.glowIntensity;
+  
+  // Outer glow
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 15 + (glowIntensity * 10);
+  
+  // Sword blade
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  
+  // Red energy glow along the blade
+  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.8})`);
+  gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.4})`);
+  gradient.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  
+  // Hilt
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = sword.hiltColor;
+  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  
+  // Add motion blur effect (trail)
+  if (glowIntensity > 0.3) {
+    ctx.save();
+    ctx.globalAlpha = glowIntensity * 0.3;
+    ctx.translate(-sword.length * 0.3, 0);
+    ctx.rotate(-0.2);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(0, -sword.width/2, sword.length * 0.6, sword.width);
+    ctx.restore();
+  }
+  
   ctx.restore();
 }
 
