@@ -88,14 +88,33 @@ export const rakkaMoveset = {
   upHeavy: {
     name: 'Phantom Slash',
     type: 'heavy',
-    damage: 8,
-    knockback: 6,
-    multiHit: 3,
+    damage: 3, // Per hit, 4 hits total = 12 damage
+    knockback: 2, // Per hit, final hit has stronger knockback
+    multiHit: 4, // 4 hits total
     verticalKnockback: true,
-    duration: 36,
+    duration: 54, // Increased from 42 to 54 frames for longer attack
     cooldown: 75,
+    selfLaunch: true, // Launches Rakka upward
+    selfLaunchForce: 16, // Increased from 12 to 16 for higher launch
+    finalHitKnockback: 8, // Strong knockback on the final hit
+    finalHitDamage: 4, // Extra damage on final hit
     hitbox: { width: 36, height: 70, offsetX: 18, offsetY: -60 },
-    description: 'Rising multi-hit spin, shadow afterimages.'
+    shadowWings: {
+      active: true,
+      duration: 54,
+      wingSpan: 80,
+      wingHeight: 40
+    },
+    circlingBlade: {
+      active: true,
+      radius: 45,
+      swingSpeed: 0.2, // Speed of horizontal swing (radians per frame)
+      swingRange: Math.PI / 2, // Range of swing (90 degrees each way)
+      bladeCount: 3, // Number of blade afterimages
+      bladeDamage: 2, // Damage per blade hit
+      bladeKnockback: 1.5
+    },
+    description: 'Shadow wings propel Rakka upward while his blade swings horizontally around his waist, creating a devastating multi-hit aerial assault.'
   },
   downHeavy: {
     name: 'Void Splitter',

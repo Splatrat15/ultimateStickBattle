@@ -16,6 +16,22 @@ export function initializeRakka(player) {
     originalX: 0,
     thrustDistance: 0
   };
+  // Phantom Slash effects
+  player.phantomSlashEffects = {
+    shadowWings: {
+      isActive: false,
+      frame: 0,
+      wingAngle: 0,
+      wingFlapSpeed: 0.4
+    },
+    circlingBlade: {
+      isActive: false,
+      swingAngle: 0, // Current swing angle
+      swingDirection: 1, // 1 for right, -1 for left
+      bladeTrails: [],
+      hitFrame: 0
+    }
+  };
   player.sword = {
     length: 54,
     width: 7,
@@ -172,6 +188,83 @@ export function updateRakka(player) {
       player.swordSwing.glowIntensity = 0;
     }
   }
+
+  // Update Phantom Slash effects
+  if (player.isAttacking && player.activeMove && player.activeMove.name === 'Phantom Slash') {
+    const effects = player.phantomSlashEffects;
+    const move = player.activeMove;
+    
+    // Initialize effects if not already active
+    if (!effects.shadowWings.isActive) {
+      effects.shadowWings.isActive = true;
+      effects.shadowWings.frame = 0;
+      effects.circlingBlade.isActive = true;
+      effects.circlingBlade.swingAngle = 0;
+      effects.circlingBlade.swingDirection = 1;
+      effects.circlingBlade.bladeTrails = [];
+      effects.circlingBlade.hitFrame = 0;
+    }
+    
+    // Update shadow wings animation
+    effects.shadowWings.frame++;
+    effects.shadowWings.wingAngle += effects.shadowWings.wingFlapSpeed;
+    
+    // Update circling blade
+    if (move.circlingBlade) {
+      // Horizontal swinging motion around waist
+      const swingSpeed = move.circlingBlade.swingSpeed;
+      const swingRange = move.circlingBlade.swingRange;
+      
+      // Update swing angle
+      effects.circlingBlade.swingAngle += swingSpeed * effects.circlingBlade.swingDirection;
+      
+      // Reverse direction when reaching swing limits
+      if (effects.circlingBlade.swingAngle >= swingRange) {
+        effects.circlingBlade.swingDirection = -1;
+        effects.circlingBlade.swingAngle = swingRange;
+      } else if (effects.circlingBlade.swingAngle <= -swingRange) {
+        effects.circlingBlade.swingDirection = 1;
+        effects.circlingBlade.swingAngle = -swingRange;
+      }
+      
+      // Create blade trail effects
+      if (effects.shadowWings.frame % 3 === 0) { // Every 3 frames
+        effects.circlingBlade.bladeTrails.push({
+          angle: effects.circlingBlade.swingAngle,
+          alpha: 0.7,
+          scale: 1.0
+        });
+      }
+      
+      // Limit trail count
+      if (effects.circlingBlade.bladeTrails.length > move.circlingBlade.bladeCount) {
+        effects.circlingBlade.bladeTrails.shift();
+      }
+      
+      // Update trail effects
+      effects.circlingBlade.bladeTrails.forEach((trail, i) => {
+        trail.alpha -= 0.1;
+        trail.scale -= 0.05;
+      });
+      
+      // Remove faded trails
+      effects.circlingBlade.bladeTrails = effects.circlingBlade.bladeTrails.filter(trail => trail.alpha > 0);
+    }
+    
+    // End effects when attack is complete
+    if (player.attackCooldown <= 0) {
+      effects.shadowWings.isActive = false;
+      effects.circlingBlade.isActive = false;
+      effects.circlingBlade.bladeTrails = [];
+    }
+  } else {
+    // Reset Phantom Slash effects when not attacking
+    if (player.phantomSlashEffects.shadowWings.isActive) {
+      player.phantomSlashEffects.shadowWings.isActive = false;
+      player.phantomSlashEffects.circlingBlade.isActive = false;
+      player.phantomSlashEffects.circlingBlade.bladeTrails = [];
+    }
+  }
 }
 
 // Draw Rakka (main function)
@@ -256,6 +349,19 @@ export function drawRakka(ctx, player) {
     ctx.arc(centerX + 5, baseY - 48, 3, 0, Math.PI * 2); // Right eye
     ctx.fill();
     ctx.restore();
+  }
+
+  // Draw Phantom Slash effects
+  if (player.isAttacking && player.activeMove && player.activeMove.name === 'Phantom Slash') {
+    // Draw shadow wings
+    if (player.phantomSlashEffects.shadowWings.isActive) {
+      drawShadowWings(ctx, x, y - 26, width, height, facing, player);
+    }
+    
+    // Draw circling blade
+    if (player.phantomSlashEffects.circlingBlade.isActive) {
+      drawCirclingBlade(ctx, x, y - 26, width, height, facing, player);
+    }
   }
 }
 
@@ -612,6 +718,169 @@ function drawChargeIndicator(ctx, player) {
   ctx.strokeStyle = '#f00';
   ctx.lineWidth = 1;
   ctx.strokeRect(barX, barY, barWidth, barHeight);
+  
+  ctx.restore();
+}
+
+// Draw shadow wings
+function drawShadowWings(ctx, x, y, width, height, facing, player) {
+  const effects = player.phantomSlashEffects;
+  const move = player.activeMove;
+  
+  ctx.save();
+  
+  // Position at the center of the player
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+  
+  ctx.translate(centerX, centerY);
+  
+  // Apply facing direction
+  if (facing < 0) {
+    ctx.scale(-1, 1);
+  }
+  
+  // Draw shadow wings
+  const wingAngle = effects.shadowWings.wingAngle;
+  const wingSpan = move.shadowWings.wingSpan;
+  const wingHeight = move.shadowWings.wingHeight;
+  
+  // Left wing
+  ctx.save();
+  ctx.translate(-20, -10);
+  ctx.rotate(Math.sin(wingAngle) * 0.3); // Flapping motion
+  
+  // Wing shadow effect
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 8;
+  
+  // Wing shape (bat-like)
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-wingSpan/2, -wingHeight/2, -wingSpan, -wingHeight);
+  ctx.quadraticCurveTo(-wingSpan/2, -wingHeight/3, 0, -wingHeight/4);
+  ctx.quadraticCurveTo(-wingSpan/3, -wingHeight/6, 0, 0);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+  
+  // Wing glow
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 12;
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#600';
+  ctx.fill();
+  
+  ctx.restore();
+  
+  // Right wing
+  ctx.save();
+  ctx.translate(20, -10);
+  ctx.rotate(-Math.sin(wingAngle) * 0.3); // Opposite flapping motion
+  
+  // Wing shadow effect
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 8;
+  
+  // Wing shape (bat-like)
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(wingSpan/2, -wingHeight/2, wingSpan, -wingHeight);
+  ctx.quadraticCurveTo(wingSpan/2, -wingHeight/3, 0, -wingHeight/4);
+  ctx.quadraticCurveTo(wingSpan/3, -wingHeight/6, 0, 0);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+  
+  // Wing glow
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 12;
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#600';
+  ctx.fill();
+  
+  ctx.restore();
+  
+  ctx.restore();
+}
+
+// Draw circling blade
+function drawCirclingBlade(ctx, x, y, width, height, facing, player) {
+  const effects = player.phantomSlashEffects;
+  const move = player.activeMove;
+  
+  ctx.save();
+  
+  // Position at the waist level of the player
+  const centerX = x + width / 2;
+  const centerY = y + height / 2 + 5; // At waist level
+  
+  ctx.translate(centerX, centerY);
+  
+  // Apply facing direction
+  if (facing < 0) {
+    ctx.scale(-1, 1);
+  }
+  
+  // Draw circling blade
+  const swingAngle = effects.circlingBlade.swingAngle;
+  const bladeTrails = effects.circlingBlade.bladeTrails;
+  const radius = move.circlingBlade.radius;
+  
+  // Draw blade trails (afterimages)
+  bladeTrails.forEach((trail, i) => {
+    ctx.save();
+    ctx.rotate(trail.angle);
+    ctx.translate(0, -radius);
+    
+    // Blade glow
+    ctx.shadowColor = '#f00';
+    ctx.shadowBlur = 8 + (trail.alpha * 10);
+    
+    // Blade shape - positioned to swing around waist
+    ctx.beginPath();
+    ctx.moveTo(-6 * trail.scale, 0);
+    ctx.lineTo(6 * trail.scale, 0);
+    ctx.lineTo(3 * trail.scale, -25 * trail.scale);
+    ctx.lineTo(-3 * trail.scale, -25 * trail.scale);
+    ctx.closePath();
+    
+    // Blade color based on alpha
+    if (trail.alpha > 0.5) {
+      ctx.fillStyle = '#f00';
+    } else {
+      ctx.fillStyle = '#600';
+    }
+    ctx.globalAlpha = trail.alpha;
+    ctx.fill();
+    
+    ctx.restore();
+  });
+  
+  // Draw main swinging blade
+  ctx.save();
+  ctx.rotate(swingAngle);
+  ctx.translate(0, -radius);
+  
+  // Strong glow for main blade
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 15;
+  
+  // Main blade shape - sized to swing around waist
+  ctx.beginPath();
+  ctx.moveTo(-8, 0);
+  ctx.lineTo(8, 0);
+  ctx.lineTo(4, -30);
+  ctx.lineTo(-4, -30);
+  ctx.closePath();
+  ctx.fillStyle = '#f00';
+  ctx.fill();
+  
+  // Blade hilt
+  ctx.beginPath();
+  ctx.arc(0, 0, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#a00';
+  ctx.fill();
+  
+  ctx.restore();
   
   ctx.restore();
 } 

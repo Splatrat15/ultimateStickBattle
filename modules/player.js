@@ -50,6 +50,15 @@ export class Player extends PhysicsBody {
       initializeRakka(this);
     }
 
+    // Multi-hit tracking for moves like Phantom Slash
+    this.multiHitData = {
+      currentHit: 0,
+      maxHits: 0,
+      hitCooldown: 0,
+      lastHitTarget: null,
+      hitTiming: [] // Array of frame numbers when hits should occur
+    };
+
     // Set initial state
     this.fullReset();
   }
@@ -112,6 +121,15 @@ export class Player extends PhysicsBody {
       initializeRakka(this);
     }
 
+    // Reset multi-hit data
+    this.multiHitData = {
+      currentHit: 0,
+      maxHits: 0,
+      hitCooldown: 0,
+      lastHitTarget: null,
+      hitTiming: []
+    };
+
     console.log('Player state has been fully reset for:', this.color);
   }
 
@@ -167,6 +185,11 @@ export class Player extends PhysicsBody {
     // Update hit cooldown
     if (this.hitCooldown > 0) {
       this.hitCooldown--;
+    }
+    
+    // Update multi-hit cooldown
+    if (this.multiHitData.hitCooldown > 0) {
+      this.multiHitData.hitCooldown--;
     }
     
     // Update shield mechanics
@@ -403,6 +426,25 @@ export class Player extends PhysicsBody {
         };
         this.activeMove.hitbox = swingHitbox;
         this.createAttackHitbox();
+      } else if (move.name === 'Phantom Slash') {
+        // Set up multi-hit data for Phantom Slash
+        this.multiHitData.maxHits = move.multiHit || 4;
+        this.multiHitData.currentHit = 0;
+        this.multiHitData.hitCooldown = 0;
+        this.multiHitData.lastHitTarget = null;
+        
+        // Set up hit timing (hits at frames 8, 16, 24, 32 of the 54-frame duration)
+        this.multiHitData.hitTiming = [8, 16, 24, 32];
+        
+        // Apply self-launch for upward movement
+        if (move.selfLaunch) {
+          const launchForce = move.selfLaunchForce || 16;
+          this.vy = -launchForce;
+          console.log('Phantom Slash self-launch triggered with force:', launchForce);
+        }
+        
+        // Create initial hitbox
+        this.createAttackHitbox();
       }
     }
   }
@@ -539,6 +581,11 @@ export class Player extends PhysicsBody {
       return false;
     }
 
+    // Special handling for Phantom Slash multi-hit
+    if (this.activeMove && this.activeMove.name === 'Phantom Slash') {
+      return this.checkPhantomSlashHit(otherPlayer);
+    }
+
     // Check primary hitbox
     const hit = this.checkHitboxCollision(this.attackHitbox, otherPlayer);
     
@@ -562,6 +609,64 @@ export class Player extends PhysicsBody {
     }
     
     return hit || hit2;
+  }
+
+  checkPhantomSlashHit(otherPlayer) {
+    const move = this.activeMove;
+    const multiHit = this.multiHitData;
+    
+    // Check if it's time for the next hit
+    const currentFrame = move.duration - this.attackCooldown;
+    const nextHitFrame = multiHit.hitTiming[multiHit.currentHit];
+    
+    if (currentFrame < nextHitFrame) {
+      return false; // Not time for this hit yet
+    }
+    
+    // Check if we've already hit this target with this specific hit
+    if (multiHit.lastHitTarget === otherPlayer && multiHit.hitCooldown > 0) {
+      return false;
+    }
+    
+    // Check hitbox collision
+    const hit = this.checkHitboxCollision(this.attackHitbox, otherPlayer);
+    
+    if (hit) {
+      // Determine if this is the final hit
+      const isFinalHit = multiHit.currentHit === multiHit.maxHits - 1;
+      
+      // Calculate damage and knockback
+      let damage = move.damage;
+      let knockback = move.knockback;
+      
+      if (isFinalHit) {
+        // Final hit has extra damage and knockback
+        damage = move.finalHitDamage || move.damage * 1.5;
+        knockback = move.finalHitKnockback || move.knockback * 2;
+      }
+      
+      // Apply damage
+      otherPlayer.takeDamage(damage, this);
+      
+      // Set cooldown for this specific hit
+      multiHit.hitCooldown = 8; // 8 frames between hits
+      multiHit.lastHitTarget = otherPlayer;
+      
+      // Move to next hit
+      multiHit.currentHit++;
+      
+      console.log('Phantom Slash hit!', {
+        hitNumber: multiHit.currentHit,
+        isFinalHit: isFinalHit,
+        damage: damage,
+        knockback: knockback,
+        target: otherPlayer.characterName
+      });
+      
+      return true;
+    }
+    
+    return false;
   }
 
   checkHitboxCollision(hitbox, otherPlayer) {
@@ -854,6 +959,25 @@ export class Player extends PhysicsBody {
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
+        this.createAttackHitbox();
+      } else if (move.name === 'Phantom Slash') {
+        // Set up multi-hit data for Phantom Slash
+        this.multiHitData.maxHits = move.multiHit || 4;
+        this.multiHitData.currentHit = 0;
+        this.multiHitData.hitCooldown = 0;
+        this.multiHitData.lastHitTarget = null;
+        
+        // Set up hit timing (hits at frames 8, 16, 24, 32 of the 54-frame duration)
+        this.multiHitData.hitTiming = [8, 16, 24, 32];
+        
+        // Apply self-launch for upward movement
+        if (move.selfLaunch) {
+          const launchForce = move.selfLaunchForce || 16;
+          this.vy = -launchForce;
+          console.log('Phantom Slash self-launch triggered with force:', launchForce);
+        }
+        
+        // Create initial hitbox
         this.createAttackHitbox();
       }
     } else {
