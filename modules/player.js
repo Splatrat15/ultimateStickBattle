@@ -298,28 +298,26 @@ export class Player extends PhysicsBody {
     }
 
     // === DEMON FANG THRUST LOGIC ===
-    if (
-      this.characterName === 'Rakka' &&
-      this.isAttacking &&
-      this.activeMove &&
-      this.activeMove.name === 'Demon Fang' &&
-      this.demonFangEffects &&
-      this.demonFangEffects.thrustDistance > 0
-    ) {
-      // THIS LOGIC IS BEING MOVED TO fireChargedAttack()
-    } else {
-      this.canAct = true;
-      if (this.demonFangEffects && this.demonFangEffects.lockedFacing !== undefined) {
-        delete this.demonFangEffects.lockedFacing;
-      }
-      if (this.demonFangEffects && this.demonFangEffects.dashHitbox) {
-        this.demonFangEffects.dashHitbox = null;
-        this.demonFangEffects.hasHitOpponent = false;
-      }
+    // Demon Fang now uses teleportation, no gradual movement needed
+    this.canAct = true;
+    if (this.demonFangEffects && this.demonFangEffects.lockedFacing !== undefined) {
+      delete this.demonFangEffects.lockedFacing;
+    }
+    if (this.demonFangEffects && this.demonFangEffects.dashHitbox) {
+      this.demonFangEffects.dashHitbox = null;
+      this.demonFangEffects.hasHitOpponent = false;
     }
 
     // Always check collision to prevent passing through other players
-    this.checkPlayerCollision(otherPlayer);
+    // But allow Demon Fang to pass through during dash
+    if (!(this.characterName === 'Rakka' && 
+          this.isAttacking && 
+          this.activeMove && 
+          this.activeMove.name === 'Demon Fang' && 
+          this.demonFangEffects && 
+          this.demonFangEffects.dashSpeed > 0)) {
+      this.checkPlayerCollision(otherPlayer);
+    }
   }
 
   attack(direction, type) {
@@ -428,6 +426,26 @@ export class Player extends PhysicsBody {
         
         // Create initial hitbox
         this.createAttackHitbox();
+      } else if (move.name === 'Demon Fang') {
+        // For Demon Fang, teleport and hit anyone in the path
+        const thrustDistance = 100 + (this.chargeLevel * 200); // 100-300px dash
+        if (this.demonFangEffects) {
+          this.demonFangEffects.originalX = this.x;
+          this.demonFangEffects.thrustDistance = thrustDistance;
+          this.demonFangEffects.startX = this.x;
+          this.demonFangEffects.endX = this.x + (thrustDistance * this.facing);
+          
+          // Teleport to end position
+          this.x = this.demonFangEffects.endX;
+          
+          console.log('Demon Fang teleport executed:', {
+            startX: this.demonFangEffects.startX,
+            endX: this.demonFangEffects.endX,
+            thrustDistance: thrustDistance,
+            facing: this.facing,
+            chargeLevel: this.chargeLevel
+          });
+        }
       }
     }
   }
@@ -437,6 +455,13 @@ export class Player extends PhysicsBody {
 
     // For Demon Fang, do not create a normal attack hitbox; use body collision during thrust instead
     if (this.characterName === 'Rakka' && this.activeMove.name === 'Demon Fang') {
+      this.attackHitbox = null;
+      this.attackHitbox2 = null;
+      return;
+    }
+
+    // For Void Splitter, do not create a normal attack hitbox; only the shadow wave is the hitbox
+    if (this.characterName === 'Rakka' && this.activeMove.name === 'Void Splitter') {
       this.attackHitbox = null;
       this.attackHitbox2 = null;
       return;
@@ -562,6 +587,11 @@ export class Player extends PhysicsBody {
       return this.checkDemonFangHit(otherPlayer);
     }
     
+    // Special handling for Void Splitter wave (no normal hitbox)
+    if (this.activeMove && this.activeMove.name === 'Void Splitter') {
+      return this.checkVoidSplitterHit(otherPlayer);
+    }
+    
     if (!this.isAttacking || !this.attackHitbox) return false;
     
     // Check if we've already hit this target recently (prevent spam damage)
@@ -595,35 +625,111 @@ export class Player extends PhysicsBody {
   }
 
   checkDemonFangHit(otherPlayer) {
+    console.log('checkDemonFangHit called:', {
+      attackerX: this.x,
+      attackerY: this.y,
+      targetX: otherPlayer.x,
+      targetY: otherPlayer.y,
+      isAttacking: this.isAttacking,
+      attackCooldown: this.attackCooldown
+    });
+    
     // Check if we've already hit this target recently (prevent spam damage)
     if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
+      console.log('Demon Fang hit blocked by cooldown');
       return false;
     }
     
-    // For Demon Fang, check if the player's body collides with the opponent during the dash
-    const hit = this.checkHitboxCollision({
-      x: this.x,
-      y: this.y,
-      width: this.width,
-      height: this.height
-    }, otherPlayer);
-    
-    if (hit) {
-      // Apply damage to the opponent
-      otherPlayer.takeDamage(this.activeMove.damage, this);
+    // For Demon Fang, check if the teleport path intersects with the opponent
+    if (this.demonFangEffects && this.demonFangEffects.startX !== undefined) {
+      const startX = this.demonFangEffects.startX;
+      const endX = this.demonFangEffects.endX;
+      const pathStart = Math.min(startX, endX);
+      const pathEnd = Math.max(startX, endX);
       
-      this.lastHitTarget = otherPlayer;
-      this.hitCooldown = 10; // 10 frames cooldown between hits on same target
+      // Check if opponent is in the horizontal path of the teleport
+      const opponentStart = otherPlayer.x;
+      const opponentEnd = otherPlayer.x + otherPlayer.width;
       
-      console.log('Demon Fang dash hit detected!', {
-        attacker: this.characterName,
-        target: otherPlayer.characterName,
-        damage: this.activeMove.damage,
-        cooldownSet: this.hitCooldown
+      const horizontalHit = (opponentStart < pathEnd && opponentEnd > pathStart);
+      
+      // Check if opponent is at the same vertical level (with some tolerance)
+      const verticalHit = (otherPlayer.y < this.y + this.height && 
+                          otherPlayer.y + otherPlayer.height > this.y);
+      
+      const hit = horizontalHit && verticalHit;
+      
+      console.log('Demon Fang path collision check:', {
+        pathStart: pathStart,
+        pathEnd: pathEnd,
+        opponentStart: opponentStart,
+        opponentEnd: opponentEnd,
+        horizontalHit: horizontalHit,
+        verticalHit: verticalHit,
+        finalHit: hit
       });
+      
+      if (hit) {
+        // Apply damage to the opponent
+        otherPlayer.takeDamage(this.activeMove.damage, this);
+        
+        this.lastHitTarget = otherPlayer;
+        this.hitCooldown = 10; // 10 frames cooldown between hits on same target
+        
+        console.log('Demon Fang teleport hit detected!', {
+          attacker: this.characterName,
+          target: otherPlayer.characterName,
+          damage: this.activeMove.damage,
+          cooldownSet: this.hitCooldown
+        });
+        
+        return true;
+      }
     }
     
-    return hit;
+    return false;
+  }
+
+  checkVoidSplitterHit(otherPlayer) {
+    // For Void Splitter, check if the shadow wave hits the opponent
+    if (this.voidSplitterEffects && this.voidSplitterEffects.wave.isActive) {
+      const wave = this.voidSplitterEffects.wave;
+      const move = this.activeMove;
+      
+      // Check if this opponent has already been hit by this wave
+      if (wave.lastHitTarget === otherPlayer) {
+        return false;
+      }
+      
+      // Check collision with the wave
+      const waveX = wave.x - move.wave.width / 2;
+      const waveY = wave.y - move.wave.height / 2;
+      
+      const hit = (
+        waveX < otherPlayer.x + otherPlayer.width &&
+        waveX + move.wave.width > otherPlayer.x &&
+        waveY < otherPlayer.y + otherPlayer.height &&
+        waveY + move.wave.height > otherPlayer.y
+      );
+      
+      if (hit) {
+        // Apply damage to the opponent
+        otherPlayer.takeDamage(move.wave.damage, this);
+        
+        // Mark this opponent as hit by this wave
+        wave.lastHitTarget = otherPlayer;
+        
+        console.log('Void Splitter wave hit detected!', {
+          attacker: this.characterName,
+          target: otherPlayer.characterName,
+          damage: move.wave.damage
+        });
+        
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   checkHitboxCollision(hitbox, otherPlayer) {
@@ -882,12 +988,24 @@ export class Player extends PhysicsBody {
     // Handle character-specific charged attacks
     if (this.characterName === 'Rakka') {
       if (move.name === 'Demon Fang') {
-        // For Demon Fang, add dash movement based on charge level
+        // For Demon Fang, teleport and hit anyone in the path
         const thrustDistance = 100 + (this.chargeLevel * 200); // 100-300px dash
         if (this.demonFangEffects) {
           this.demonFangEffects.originalX = this.x;
           this.demonFangEffects.thrustDistance = thrustDistance;
-          this.x += thrustDistance * this.facing;
+          this.demonFangEffects.startX = this.x;
+          this.demonFangEffects.endX = this.x + (thrustDistance * this.facing);
+          
+          // Teleport to end position
+          this.x = this.demonFangEffects.endX;
+          
+          console.log('Demon Fang teleport executed:', {
+            startX: this.demonFangEffects.startX,
+            endX: this.demonFangEffects.endX,
+            thrustDistance: thrustDistance,
+            facing: this.facing,
+            chargeLevel: this.chargeLevel
+          });
         }
       } else if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
