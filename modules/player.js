@@ -1,4 +1,4 @@
-import { PhysicsBody, JUMP_FORCE, SECOND_JUMP_FORCE } from './physics.js';
+import { PhysicsBody, JUMP_FORCE, SECOND_JUMP_FORCE, VERTICAL_KNOCKBACK, BASE_KNOCKBACK, KNOCKBACK_SCALING } from './physics.js';
 import { initializeKaon, updateKaon } from '../characters/Kaon/designKaon.js';
 import { initializeRakka, updateRakka } from '../characters/Rakka/designRakka.js';
 
@@ -59,8 +59,14 @@ export class Player extends PhysicsBody {
       hitTiming: [] // Array of frame numbers when hits should occur
     };
 
+    // --- Rakka Jab Combo State ---
+    this.rakkaJabComboStep = 1; // 1, 2, or 3
+    this.rakkaJabComboTimer = 0; // Frames left to continue combo
+
     // Set initial state
     this.fullReset();
+
+    this.hitstun = 0; // Frames remaining in hitstun
   }
 
   fullReset() {
@@ -129,6 +135,10 @@ export class Player extends PhysicsBody {
       lastHitTarget: null,
       hitTiming: []
     };
+
+    // --- Rakka Jab Combo State ---
+    this.rakkaJabComboStep = 1; // 1, 2, or 3
+    this.rakkaJabComboTimer = 0; // Frames left to continue combo
 
     console.log('Player state has been fully reset for:', this.color);
   }
@@ -318,9 +328,101 @@ export class Player extends PhysicsBody {
           this.demonFangEffects.dashSpeed > 0)) {
       this.checkPlayerCollision(otherPlayer);
     }
+
+    // --- Rakka Jab Combo Timer Update ---
+    if (this.characterName === 'Rakka' && this.rakkaJabComboTimer > 0) {
+      this.rakkaJabComboTimer--;
+      if (this.rakkaJabComboTimer === 0) {
+        this.rakkaJabComboStep = 1;
+      }
+    }
+
+    // Update hitstun timer
+    if (this.hitstun > 0) {
+      this.hitstun--;
+    }
   }
 
   attack(direction, type) {
+    // Don't allow attacking if in hitstun
+    if (this.hitstun > 0) return;
+
+    // --- Rakka Quick Draw Jab Combo Logic ---
+    if (this.characterName === 'Rakka' && direction === 'neutral' && type === 'light') {
+      // Only allow a new jab if not already attacking and if not holding the button
+      if (this.isAttacking || this.rakkaJabJustPressed) return;
+      this.rakkaJabJustPressed = true; // Mark that the button is being held
+      // Jab combo logic
+      if (this.rakkaJabComboTimer > 0) {
+        this.rakkaJabComboStep = Math.min(this.rakkaJabComboStep + 1, 3);
+      } else {
+        this.rakkaJabComboStep = 1;
+      }
+      this.rakkaJabComboTimer = 180; // 3 seconds (3 mississippis) to continue combo
+
+      // Define jab variants with unique sword swing angles
+      const jabVariants = [
+        {
+          name: 'Quick Draw 1',
+          type: 'light',
+          damage: 1.5,
+          knockback: 0.5, // Very low knockback
+          duration: 36, // Much slower jab
+          cooldown: 34,
+          hitbox: { width: 38, height: 18, offsetX: 60, offsetY: 10 },
+          pull: true,
+          // Full vertical slash: up to down
+          swing: { start: -Math.PI / 2, end: Math.PI / 2 } 
+        },
+        {
+          name: 'Quick Draw 2',
+          type: 'light',
+          damage: 1.5,
+          knockback: 0.7, // Still low knockback
+          duration: 38, // Much slower jab
+          cooldown: 36,
+          hitbox: { width: 38, height: 18, offsetX: 60, offsetY: 10 },
+          pull: true,
+          // Full vertical slash: down to up
+          swing: { start: Math.PI / 2, end: -Math.PI / 2 } 
+        },
+        {
+          name: 'Quick Draw 3',
+          type: 'light',
+          damage: 2.5,
+          knockback: 3.5, // Stronger knockback
+          duration: 44, // Slowest jab
+          cooldown: 44,
+          hitbox: { width: 44, height: 22, offsetX: 64, offsetY: 8 },
+          pull: false,
+          // Strong horizontal slash: slightly above to slightly below horizontal
+          swing: { start: -Math.PI / 6, end: Math.PI / 6 } // -30deg to +30deg
+        }
+      ];
+      const jab = jabVariants[this.rakkaJabComboStep - 1];
+      this.isAttacking = true;
+      this.attackType = 'light';
+      this.activeMove = jab;
+      this.attackCooldown = jab.duration;
+      this.lightAttackCooldown = jab.cooldown;
+      this.createAttackHitbox();
+      // Trigger sword swing animation for each jab
+      if (this.swordSwing) {
+        this.swordSwing.isActive = true;
+        this.swordSwing.frame = 0;
+        this.swordSwing.startAngle = jab.swing.start;
+        this.swordSwing.endAngle = jab.swing.end;
+        this.swordSwing.angle = jab.swing.start;
+        this.swordSwing.glowIntensity = 0;
+      }
+      // After jab 3, reset combo step
+      if (this.rakkaJabComboStep === 3) {
+        this.rakkaJabComboStep = 1;
+        this.rakkaJabComboTimer = 0;
+      }
+      return;
+    }
+
     const moveName = `${direction}${type.charAt(0).toUpperCase() + type.slice(1)}`; // e.g., "sideLight"
     const move = this.moveset[moveName];
 
@@ -541,6 +643,44 @@ export class Player extends PhysicsBody {
   }
 
   updateAttackHitbox() {
+    // --- Rakka Jab Sword-Following Hitbox ---
+    if (
+      this.characterName === 'Rakka' &&
+      this.activeMove &&
+      this.activeMove.name &&
+      this.activeMove.name.startsWith('Quick Draw') &&
+      this.swordSwing && this.swordSwing.isActive
+    ) {
+      // Calculate sword blade as a hitbox along the full blade
+      const centerX = this.x + this.width / 2;
+      const baseY = this.y + this.height;
+      const armX = centerX + (24 * this.facing);
+      const armY = baseY - 22;
+      const sword = this.sword;
+      const swing = this.swordSwing;
+      const angle = swing.angle;
+      // The blade is a long, thin rectangle from the arm to the tip
+      const bladeLength = sword.length;
+      const bladeWidth = sword.width * 1.8;
+      // Calculate the top-left corner of the blade hitbox
+      const x1 = armX;
+      const y1 = armY;
+      const x2 = armX + Math.cos(angle) * bladeLength * this.facing;
+      const y2 = armY + Math.sin(angle) * bladeLength;
+      // The hitbox is a rectangle that covers the blade from (x1, y1) to (x2, y2)
+      // For simplicity, use a bounding box that covers the whole blade
+      const minX = Math.min(x1, x2) - bladeWidth / 2;
+      const minY = Math.min(y1, y2) - bladeWidth / 2;
+      const maxX = Math.max(x1, x2) + bladeWidth / 2;
+      const maxY = Math.max(y1, y2) + bladeWidth / 2;
+      this.attackHitbox = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY
+      };
+      return;
+    }
     if (!this.activeMove || !this.activeMove.hitbox || !this.attackHitbox) return;
     
     const hitboxData = this.activeMove.hitbox;
@@ -582,34 +722,55 @@ export class Player extends PhysicsBody {
   }
 
   checkAttackHit(otherPlayer) {
+    // --- Rakka Jab Pull/Launch Effect (PRIORITY: run this first) ---
+    if (
+      this.characterName === 'Rakka' &&
+      this.activeMove &&
+      this.activeMove.name &&
+      this.activeMove.name.startsWith('Quick Draw') &&
+      this.isAttacking &&
+      this.attackHitbox &&
+      this.checkHitboxCollision(this.attackHitbox, otherPlayer)
+    ) {
+      // Only allow one hit per jab
+      if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
+        return false;
+      }
+      this.lastHitTarget = otherPlayer;
+      this.hitCooldown = this.activeMove.duration; // Prevent multiple hits per swing
+      // Pull effect for jab 1 and 2
+      if (this.activeMove.pull) {
+        // Pull opponent toward Rakka (set vx toward Rakka, small value)
+        const pullStrength = 4;
+        const dir = this.facing;
+        otherPlayer.vx = dir * pullStrength;
+      }
+      // Let the main game loop handle damage/knockback
+      return true;
+    }
+    // --- END Rakka Jab block ---
+
     // Special handling for Demon Fang dash collision
     if (this.activeMove && this.activeMove.name === 'Demon Fang') {
       return this.checkDemonFangHit(otherPlayer);
     }
-    
     // Special handling for Void Splitter wave (no normal hitbox)
     if (this.activeMove && this.activeMove.name === 'Void Splitter') {
       return this.checkVoidSplitterHit(otherPlayer);
     }
-    
     if (!this.isAttacking || !this.attackHitbox) return false;
-    
     // Check if we've already hit this target recently (prevent spam damage)
     if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
       return false;
     }
-
     // Check primary hitbox
     const hit = this.checkHitboxCollision(this.attackHitbox, otherPlayer);
-    
     // Check secondary hitbox if it exists
     const hit2 = this.attackHitbox2 ? this.checkHitboxCollision(this.attackHitbox2, otherPlayer) : false;
-    
     // If either hitbox hits, set cooldown and mark target
     if (hit || hit2) {
       this.lastHitTarget = otherPlayer;
       this.hitCooldown = 10; // 10 frames cooldown between hits on same target
-      
       console.log('Attack hit detected!', {
         attacker: this.characterName,
         move: this.activeMove.name,
@@ -620,7 +781,6 @@ export class Player extends PhysicsBody {
         cooldownSet: this.hitCooldown
       });
     }
-    
     return hit || hit2;
   }
 
@@ -751,7 +911,6 @@ export class Player extends PhysicsBody {
       });
       return;
     }
-    
     // Check if shield is active and block the attack
     if (this.isShielding) {
       console.log('Attack blocked by shield:', {
@@ -761,36 +920,43 @@ export class Player extends PhysicsBody {
       });
       return; // Shield blocks all damage and knockback
     }
-    
     // Add damage but cap at 999%
     this.damage = Math.min(this.damage + amount, 999);
     this.invincibilityFrames = 30; // 30 frames of invincibility after being hit (reduced from 120)
-    
     // Handle special knockback effects
     let knockbackDirection = attacker.facing;
     let knockbackForce = attacker.activeMove ? (attacker.activeMove.knockback || 1) : 1;
-    
+    // --- Rakka Jab Combo Custom Knockback ---
+    if (
+      attacker.characterName === 'Rakka' &&
+      attacker.activeMove &&
+      attacker.activeMove.name &&
+      attacker.activeMove.name.startsWith('Quick Draw')
+    ) {
+      if (attacker.activeMove.name === 'Quick Draw 1' || attacker.activeMove.name === 'Quick Draw 2') {
+        // Pull or keep opponent in place for first two jabs
+        knockbackForce = 0; // No knockback
+      }
+      // Quick Draw 3 uses its normal knockback
+    }
     // Handle spike knockback (downward force)
     if (attacker.activeMove && attacker.activeMove.spikeKnockback) {
       knockbackDirection = 0; // No horizontal knockback
       knockbackForce = 15; // Strong downward force
       this.vy = Math.abs(knockbackForce); // Force downward movement
     }
-    
     // Handle upward knockback (Ki Blast)
     if (attacker.activeMove && attacker.activeMove.upwardKnockback) {
       knockbackDirection = 0; // No horizontal knockback
       knockbackForce = 15; // Strong upward force
       this.vy = -Math.abs(knockbackForce); // Force upward movement
     }
-    
     // Handle self-launch for the attacker (Gravity Spike)
     if (attacker.activeMove && attacker.activeMove.selfLaunch) {
       const launchForce = attacker.activeMove.selfLaunchForce || 20; // Use custom force or default
       attacker.vy = -launchForce; // Launch the attacker upward
       console.log('Self-launch triggered for:', attacker.characterName, 'with force:', launchForce);
     }
-    
     console.log('Taking damage:', {
       target: this.characterName,
       attacker: attacker.characterName,
@@ -802,11 +968,13 @@ export class Player extends PhysicsBody {
       upwardKnockback: attacker.activeMove?.upwardKnockback || false,
       selfLaunch: attacker.activeMove?.selfLaunch || false
     });
-    
     // Apply knockback (skip if it's a spike or upward blast)
     if (!attacker.activeMove?.spikeKnockback && !attacker.activeMove?.upwardKnockback) {
-      this.applyKnockback(knockbackDirection, this.damage);
+      this.applyKnockback(knockbackDirection, this.damage, knockbackForce);
     }
+
+    // Add hitstun on hit (1 second = 60 frames)
+    this.hitstun = 60;
   }
 
   jump() {
@@ -817,9 +985,9 @@ export class Player extends PhysicsBody {
     console.log('Is shielding:', this.isShielding);
     console.log('Is attacking:', this.isAttacking);
     
-    // Don't allow jumping if shielding or attacking
-    if (this.isShielding || this.isAttacking) {
-      console.log('Jump blocked - shielding or attacking');
+    // Don't allow jumping if shielding, attacking, or in hitstun
+    if (this.isShielding || this.isAttacking || this.hitstun > 0) {
+      console.log('Jump blocked - shielding, attacking, or in hitstun');
       return;
     }
     
@@ -899,6 +1067,8 @@ export class Player extends PhysicsBody {
   }
 
   activateShield() {
+    // Don't allow shielding if in hitstun
+    if (this.hitstun > 0) return;
     // Can only shield if not on cooldown and shield duration is available
     if (this.shieldCooldown === 0 && this.shieldDuration < this.maxShieldDuration) {
       this.isShielding = true;
@@ -1036,5 +1206,31 @@ export class Player extends PhysicsBody {
     this.createAttackHitbox();
     
     console.log('Fired charged attack with level:', this.chargeLevel.toFixed(3), 'damage:', this.activeMove.damage, 'multiplier:', chargeMultiplier.toFixed(3));
+  }
+
+  // Add a method to reset the jab press state on keyup
+  onJabKeyUp() {
+    if (this.characterName === 'Rakka') {
+      this.rakkaJabJustPressed = false;
+    }
+  }
+
+  // Update applyKnockback to accept custom force
+  applyKnockback(direction, damage, customForce = null) {
+    // Calculate knockback based on damage
+    const knockbackForce = customForce !== null ? customForce : (BASE_KNOCKBACK + (damage * KNOCKBACK_SCALING));
+    // Apply moderate horizontal knockback (reduced for more balanced gameplay)
+    this.vx = direction * knockbackForce * 1.8; // Reduced from 2.5
+    // Apply minimal vertical knockback (just a tiny upward boost)
+    this.vy = -knockbackForce * VERTICAL_KNOCKBACK;
+    // Ensure the player is not grounded when knocked back
+    this.isGrounded = false;
+    console.log('Knockback applied:', {
+      direction: direction,
+      damage: damage,
+      knockbackForce: knockbackForce,
+      vx: this.vx,
+      vy: this.vy
+    });
   }
 }

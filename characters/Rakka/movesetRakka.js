@@ -3,7 +3,7 @@ export const rakkaMoveset = {
   neutralLight: {
     name: 'Quick Draw',
     type: 'light',
-    damage: 1.5, // Each hit, 3 hits rapid
+    damage: 2, // Each hit, 3 hits rapid
     knockback: 1.2,
     duration: 18, // Fast
     cooldown: 16,

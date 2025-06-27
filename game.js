@@ -151,12 +151,13 @@ function drawStage() {
         // Don't draw red box for Shadow Sneak - the sword swing is the visual
         if (player.activeMove && player.activeMove.name === 'Shadow Sneak') {
           // Skip drawing hitbox for Shadow Sneak
+        } else if (player.activeMove && player.activeMove.name && player.activeMove.name.startsWith('Quick Draw')) {
+          // Skip drawing hitbox for Rakka's jab (Quick Draw)
         } else {
           // Set color based on attack type
           ctx.fillStyle = player.attackType === 'heavy' ? 
             'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
             'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
-          
           // Draw primary hitbox
           ctx.fillRect(
             player.attackHitbox.x,
@@ -164,7 +165,6 @@ function drawStage() {
             player.attackHitbox.width,
             player.attackHitbox.height
           );
-          
           // Draw secondary hitbox if it exists (for Dual Blast)
           if (player.attackHitbox2) {
             ctx.fillRect(
@@ -441,6 +441,9 @@ window.addEventListener('keyup', (e) => {
     if (e.key === 'w') player1.isJumpKeyPressed = false;
     if (e.key === 'ArrowUp') player2.isJumpKeyPressed = false;
   }
+  // --- Reset jab press state for Rakka jab combo ---
+  if (!window.player1IsCPU && e.key === 'g' && player1.onJabKeyUp) player1.onJabKeyUp();
+  if (!window.player2IsCPU && e.key === 'k' && player2.onJabKeyUp) player2.onJabKeyUp();
   
   // Release charged attacks
   if (!window.player1IsCPU) {
