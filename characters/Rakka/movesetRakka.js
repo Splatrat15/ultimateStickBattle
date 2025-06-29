@@ -35,15 +35,28 @@ export const rakkaMoveset = {
     description: 'Diagonal anti-air slash, sword glows red.'
   },
   downLight: {
-    name: 'Leg Sweep',
+    name: 'Ground Poke',
     type: 'light',
     damage: 2.5,
     knockback: 1.8,
-    duration: 28, // Increased from 20 to 28 for longer crouching sweep
+    duration: 28,
     cooldown: 26,
     useSwordHitbox: true, // Flag to use dynamic sword hitbox instead of static hitbox
     hitbox: { width: 60, height: 18, offsetX: 10, offsetY: 38 }, // This will be overridden by sword hitbox
-    description: 'Low spinning sweep, shadowy effect.'
+    // Ground version: sword poke near the ground
+    groundSwing: {
+      startAngle: Math.PI / 6, // 30 degrees down and forward
+      endAngle: Math.PI / 3, // 60 degrees down and forward
+      description: 'Low sword poke near the ground, shadowy effect.'
+    },
+    // Aerial version: downward sword slash
+    aerialSwing: {
+      startAngle: -Math.PI / 6, // 30 degrees up and forward
+      endAngle: Math.PI / 2, // 90 degrees straight down
+      spikeKnockback: true, // Send opponent down
+      description: 'Downward sword slash that sends opponents down.'
+    },
+    description: 'Ground poke when grounded, downward slash when aerial.'
   },
   // Heavy Attacks
   neutralHeavy: {
@@ -144,4 +157,14 @@ export const rakkaMoveset = {
   weight: 1.0, // Standard
   jumpForce: -15, // Agile
   moveSpeed: 5.5, // Fast
+  
+  // Shield (Special)
+  shield: {
+    name: 'Demon Shadow Shield',
+    type: 'shield',
+    duration: 60, // frames
+    cooldown: 90, // frames
+    description: 'Rakka channels his demonic energy to create a shadow samurai shield. Dark energy swirls around him, forming a protective barrier with demonic runes and shadow particles.',
+    visual: 'Dark shadow energy swirls around Rakka, forming a demonic shield with red runes and shadow particles. The shield pulses with demonic energy.'
+  }
 }; 
