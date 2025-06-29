@@ -153,6 +153,8 @@ function drawStage() {
           // Skip drawing hitbox for Shadow Sneak
         } else if (player.activeMove && player.activeMove.name && player.activeMove.name.startsWith('Quick Draw')) {
           // Skip drawing hitbox for Rakka's jab (Quick Draw)
+        } else if (player.activeMove && player.activeMove.name === 'Shadow Slice') {
+          // Skip drawing hitbox for Shadow Slice - the sword swing is the visual
         } else {
           // Set color based on attack type
           ctx.fillStyle = player.attackType === 'heavy' ? 

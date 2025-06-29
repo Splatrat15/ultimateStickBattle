@@ -16,9 +16,10 @@ export const rakkaMoveset = {
     type: 'light',
     damage: 4,
     knockback: 2.5,
-    duration: 22,
+    duration: 35, // Increased from 22 to 35 for longer dash
     cooldown: 24,
-    hitbox: { width: 48, height: 20, offsetX: 70, offsetY: 12 },
+    useSwordHitbox: true, // Flag to use dynamic sword hitbox instead of static hitbox
+    hitbox: { width: 48, height: 20, offsetX: 70, offsetY: 12 }, // This will be overridden by sword hitbox
     description: 'Lunging cut, leaves a shadow trail.'
   },
   upLight: {
