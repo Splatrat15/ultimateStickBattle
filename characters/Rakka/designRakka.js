@@ -1974,3 +1974,125 @@ function drawDownLightSword(ctx, x, y, width, height, facing, player) {
   
   ctx.restore();
 } 
+
+// Draw Rakka's demon shadow samurai shield
+export function drawRakkaShield(ctx, player) {
+  const centerX = player.x + player.width / 2;
+  const centerY = player.y + player.height / 2;
+  const time = Date.now() * 0.01;
+  
+  // Draw outer shadow aura (bigger)
+  ctx.save();
+  const outerPulse = 65 + Math.sin(time * 0.5) * 8; // Increased from 45 to 65
+  ctx.globalAlpha = 0.15 + 0.05 * Math.abs(Math.sin(time * 0.3));
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 25; // Increased from 20 to 25
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, outerPulse, 0, Math.PI * 2);
+  ctx.fillStyle = '#300';
+  ctx.fill();
+  ctx.restore();
+  
+  // Draw inner demonic shield (bigger)
+  ctx.save();
+  const innerPulse = 50 + Math.sin(time * 0.4) * 5; // Increased from 35 to 50
+  ctx.globalAlpha = 0.25 + 0.1 * Math.abs(Math.sin(time * 0.4));
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 20; // Increased from 15 to 20
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, innerPulse, 0, Math.PI * 2);
+  ctx.fillStyle = '#600';
+  ctx.fill();
+  ctx.restore();
+  
+  // Draw swirling shadow energy (bigger radius)
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 + time * 0.8;
+    const radius = 45 + Math.sin(time * 0.6 + i) * 12; // Increased from 30 to 45
+    const swirlX = centerX + Math.cos(angle) * radius;
+    const swirlY = centerY + Math.sin(angle) * radius;
+    
+    ctx.save();
+    ctx.globalAlpha = 0.4 + 0.2 * Math.abs(Math.sin(time * 0.5 + i));
+    ctx.shadowColor = '#f00';
+    ctx.shadowBlur = 10; // Increased from 8 to 10
+    ctx.beginPath();
+    ctx.arc(swirlX, swirlY, 6 + Math.sin(time * 0.3 + i) * 3, 0, Math.PI * 2); // Increased from 4 to 6
+    ctx.fillStyle = '#f00';
+    ctx.fill();
+    ctx.restore();
+  }
+  
+  // Draw demonic runes around the shield (bigger radius)
+  const runeCount = 6;
+  for (let i = 0; i < runeCount; i++) {
+    const runeAngle = (i / runeCount) * Math.PI * 2 + time * 0.2;
+    const runeRadius = 55; // Increased from 40 to 55
+    const runeX = centerX + Math.cos(runeAngle) * runeRadius;
+    const runeY = centerY + Math.sin(runeAngle) * runeRadius;
+    
+    ctx.save();
+    ctx.translate(runeX, runeY);
+    ctx.rotate(runeAngle + Math.PI / 2);
+    ctx.globalAlpha = 0.7 + 0.3 * Math.abs(Math.sin(time * 0.4 + i));
+    ctx.shadowColor = '#f00';
+    ctx.shadowBlur = 8; // Increased from 6 to 8
+    ctx.strokeStyle = '#f00';
+    ctx.lineWidth = 3; // Increased from 2 to 3
+    
+    // Draw demonic rune symbol (bigger)
+    ctx.beginPath();
+    ctx.moveTo(-4, -8); // Increased from -3,-6 to -4,-8
+    ctx.lineTo(4, -8);  // Increased from 3,-6 to 4,-8
+    ctx.moveTo(0, -8);  // Increased from 0,-6 to 0,-8
+    ctx.lineTo(0, 8);   // Increased from 0,6 to 0,8
+    ctx.moveTo(-4, 0);  // Increased from -3,0 to -4,0
+    ctx.lineTo(4, 0);   // Increased from 3,0 to 4,0
+    ctx.stroke();
+    
+    ctx.restore();
+  }
+  
+  // Draw shadow particles (bigger radius)
+  for (let i = 0; i < 12; i++) {
+    const particleAngle = (i / 12) * Math.PI * 2 + time * 0.3;
+    const particleRadius = 35 + Math.random() * 20; // Increased from 25+15 to 35+20
+    const particleX = centerX + Math.cos(particleAngle) * particleRadius;
+    const particleY = centerY + Math.sin(particleAngle) * particleRadius;
+    
+    ctx.save();
+    ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(time * 0.2 + i));
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 6; // Increased from 4 to 6
+    ctx.beginPath();
+    ctx.arc(particleX, particleY, 3 + Math.sin(time * 0.1 + i), 0, Math.PI * 2); // Increased from 2 to 3
+    ctx.fillStyle = '#111';
+    ctx.fill();
+    ctx.restore();
+  }
+  
+  // Draw shield energy bar
+  const shieldBarWidth = 60;
+  const shieldBarHeight = 8;
+  const shieldBarX = player.x;
+  const shieldBarY = player.y - 15;
+  
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
+  
+  const shieldPercentage = player.shieldDuration / player.maxShieldDuration;
+  const gradient = ctx.createLinearGradient(shieldBarX, shieldBarY, shieldBarX + shieldBarWidth * shieldPercentage, shieldBarY);
+  gradient.addColorStop(0, '#600');
+  gradient.addColorStop(1, '#f00');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth * shieldPercentage, shieldBarHeight);
+  
+  // Add demonic glow to shield bar
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = '#f00';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
+  ctx.restore();
+}

@@ -4,6 +4,7 @@ import { CPU } from './modules/cpu.js';
 import { drawKaon } from './characters/Kaon/designKaon.js';
 import { drawKaonShield } from './characters/Kaon/movesetKaon.js';
 import { drawRakka } from './characters/Rakka/designRakka.js';
+import { drawRakkaShield } from './characters/Rakka/designRakka.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -116,16 +117,8 @@ function drawStage() {
     if (player.isShielding) {
       if (player.characterName === 'Kaon') {
         drawKaonShield(ctx, player);
-        // Draw shield energy bar (same as default)
-        const shieldBarWidth = 60;
-        const shieldBarHeight = 8;
-        const shieldBarX = player.x;
-        const shieldBarY = player.y - 15;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
-        const shieldPercentage = player.shieldDuration / player.maxShieldDuration;
-        ctx.fillStyle = 'rgba(255, 229, 59, 0.8)';
-        ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth * shieldPercentage, shieldBarHeight);
+      } else if (player.characterName === 'Rakka') {
+        drawRakkaShield(ctx, player);
       } else {
         ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; // Cyan shield outline
         ctx.lineWidth = 4;
