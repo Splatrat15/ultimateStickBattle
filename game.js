@@ -3,6 +3,8 @@ import { characters } from './modules/characters.js';
 import { CPU } from './modules/cpu.js';
 import { drawKaon } from './characters/Kaon/designKaon.js';
 import { drawKaonShield } from './characters/Kaon/movesetKaon.js';
+import { drawRakka } from './characters/Rakka/designRakka.js';
+import { drawRakkaShield } from './characters/Rakka/designRakka.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -103,6 +105,8 @@ function drawStage() {
     if (!player.isBlinking) {
       if (player.characterName === 'Kaon') {
         drawKaon(ctx, player);
+      } else if (player.characterName === 'Rakka') {
+        drawRakka(ctx, player);
       } else {
         ctx.fillStyle = playerColor;
         ctx.fillRect(player.x, player.y, player.width, player.height);
@@ -113,16 +117,8 @@ function drawStage() {
     if (player.isShielding) {
       if (player.characterName === 'Kaon') {
         drawKaonShield(ctx, player);
-        // Draw shield energy bar (same as default)
-        const shieldBarWidth = 60;
-        const shieldBarHeight = 8;
-        const shieldBarX = player.x;
-        const shieldBarY = player.y - 15;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
-        const shieldPercentage = player.shieldDuration / player.maxShieldDuration;
-        ctx.fillStyle = 'rgba(255, 229, 59, 0.8)';
-        ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth * shieldPercentage, shieldBarHeight);
+      } else if (player.characterName === 'Rakka') {
+        drawRakkaShield(ctx, player);
       } else {
         ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; // Cyan shield outline
         ctx.lineWidth = 4;
@@ -145,27 +141,38 @@ function drawStage() {
       // Kaon's drawing function handles his own attack visuals.
       // We only need to draw hitboxes for other characters.
       if (player.characterName !== 'Kaon') {
-        // Set color based on attack type
-        ctx.fillStyle = player.attackType === 'heavy' ? 
-          'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
-          'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
-        
-        // Draw primary hitbox
-        ctx.fillRect(
-          player.attackHitbox.x,
-          player.attackHitbox.y,
-          player.attackHitbox.width,
-          player.attackHitbox.height
-        );
-        
-        // Draw secondary hitbox if it exists (for Dual Blast)
-        if (player.attackHitbox2) {
+        // Don't draw red box for Shadow Sneak - the sword swing is the visual
+        if (player.activeMove && player.activeMove.name === 'Shadow Sneak') {
+          // Skip drawing hitbox for Shadow Sneak
+        } else if (player.activeMove && player.activeMove.name && player.activeMove.name.startsWith('Quick Draw')) {
+          // Skip drawing hitbox for Rakka's jab (Quick Draw)
+        } else if (player.activeMove && player.activeMove.name === 'Shadow Slice') {
+          // Skip drawing hitbox for Shadow Slice - the sword swing is the visual
+        } else if (player.activeMove && player.activeMove.name === 'Rising Cut') {
+          // Skip drawing hitbox for Rising Cut - the sword swing is the visual
+        } else if (player.activeMove && player.activeMove.name === 'Ground Poke') {
+          // Skip drawing hitbox for Ground Poke - the sword swing is the visual
+        } else {
+          // Set color based on attack type
+          ctx.fillStyle = player.attackType === 'heavy' ? 
+            'rgba(255, 0, 0, 0.3)' : // Red for heavy attacks
+            'rgba(255, 255, 0, 0.3)'; // Yellow for light attacks
+          // Draw primary hitbox
           ctx.fillRect(
-            player.attackHitbox2.x,
-            player.attackHitbox2.y,
-            player.attackHitbox2.width,
-            player.attackHitbox2.height
+            player.attackHitbox.x,
+            player.attackHitbox.y,
+            player.attackHitbox.width,
+            player.attackHitbox.height
           );
+          // Draw secondary hitbox if it exists (for Dual Blast)
+          if (player.attackHitbox2) {
+            ctx.fillRect(
+              player.attackHitbox2.x,
+              player.attackHitbox2.y,
+              player.attackHitbox2.width,
+              player.attackHitbox2.height
+            );
+          }
         }
       }
     }
@@ -433,6 +440,9 @@ window.addEventListener('keyup', (e) => {
     if (e.key === 'w') player1.isJumpKeyPressed = false;
     if (e.key === 'ArrowUp') player2.isJumpKeyPressed = false;
   }
+  // --- Reset jab press state for Rakka jab combo ---
+  if (!window.player1IsCPU && e.key === 'g' && player1.onJabKeyUp) player1.onJabKeyUp();
+  if (!window.player2IsCPU && e.key === 'k' && player2.onJabKeyUp) player2.onJabKeyUp();
   
   // Release charged attacks
   if (!window.player1IsCPU) {

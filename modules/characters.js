@@ -1,5 +1,10 @@
 // modules/characters.js
 import { kaonMoveset } from '../characters/Kaon/movesetKaon.js';
+import { rakkaMoveset } from '../characters/Rakka/movesetRakka.js';
+import { drawKaon } from '../characters/Kaon/designKaon.js';
+import { drawRakka } from '../characters/Rakka/designRakka.js';
+import { drawKaonShield } from '../characters/Kaon/movesetKaon.js';
+import { drawRakkaShield } from '../characters/Rakka/designRakka.js';
 
 // A default moveset for characters without a unique one
 const defaultMoveset = {
@@ -18,12 +23,14 @@ export const characters = {
   kaon: {
     name: 'Kaon',
     image: 'path/to/kaon/image.png', // Replace with actual image path
-    moveset: kaonMoveset
+    moveset: kaonMoveset,
+    draw: drawKaon
   },
   rakka: {
     name: 'Rakka',
     image: 'path/to/rakka/image.png', // Replace with actual image path
-    moveset: defaultMoveset,
+    moveset: rakkaMoveset,
+    draw: drawRakka
   },
   vanta: {
     name: 'Vanta',
