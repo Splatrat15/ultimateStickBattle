@@ -28,9 +28,10 @@ export const rakkaMoveset = {
     damage: 3.5,
     knockback: 3.5,
     verticalKnockback: true,
-    duration: 20,
+    duration: 30, // Increased from 20 to 30 for longer diagonal slash
     cooldown: 22,
-    hitbox: { width: 32, height: 48, offsetX: 18, offsetY: -38 },
+    useSwordHitbox: true, // Flag to use dynamic sword hitbox instead of static hitbox
+    hitbox: { width: 32, height: 48, offsetX: 18, offsetY: -38 }, // This will be overridden by sword hitbox
     description: 'Diagonal anti-air slash, sword glows red.'
   },
   downLight: {
@@ -38,9 +39,10 @@ export const rakkaMoveset = {
     type: 'light',
     damage: 2.5,
     knockback: 1.8,
-    duration: 20,
+    duration: 28, // Increased from 20 to 28 for longer crouching sweep
     cooldown: 26,
-    hitbox: { width: 60, height: 18, offsetX: 10, offsetY: 38 },
+    useSwordHitbox: true, // Flag to use dynamic sword hitbox instead of static hitbox
+    hitbox: { width: 60, height: 18, offsetX: 10, offsetY: 38 }, // This will be overridden by sword hitbox
     description: 'Low spinning sweep, shadowy effect.'
   },
   // Heavy Attacks

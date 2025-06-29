@@ -266,6 +266,14 @@ export class Player extends PhysicsBody {
           this.shadowSliceSwing.glowIntensity = 0;
           this.shadowSliceSwing.shadowTrails = [];
         }
+        
+        // Reset Rising Cut sword animation when attack ends
+        if (this.risingCutSwing) {
+          this.risingCutSwing.isActive = false;
+          this.risingCutSwing.frame = 0;
+          this.risingCutSwing.glowIntensity = 0;
+          this.risingCutSwing.shadowTrails = [];
+        }
       }
     }
     
@@ -543,6 +551,16 @@ export class Player extends PhysicsBody {
         };
         this.activeMove.hitbox = swingHitbox;
         this.createAttackHitbox();
+      } else if (move.name === 'Rising Cut') {
+        // Start Rising Cut sword swing animation
+        if (this.risingCutSwing) {
+          this.risingCutSwing.isActive = true;
+          this.risingCutSwing.frame = 0;
+          this.risingCutSwing.angle = this.risingCutSwing.startAngle;
+          this.risingCutSwing.glowIntensity = 0;
+          this.risingCutSwing.shadowTrails = [];
+          this.risingCutSwing.trailFrame = 0;
+        }
       } else if (move.name === 'Phantom Slash') {
         // Set up multi-hit data for Phantom Slash
         this.multiHitData.maxHits = move.multiHit || 4;
@@ -605,6 +623,19 @@ export class Player extends PhysicsBody {
 
     // For Shadow Slice, create a placeholder hitbox that will be overridden by dynamic sword hitbox
     if (this.characterName === 'Rakka' && this.activeMove.name === 'Shadow Slice') {
+      // Create a small placeholder hitbox that will be immediately replaced by the sword hitbox
+      this.attackHitbox = {
+        x: this.x,
+        y: this.y,
+        width: 10,
+        height: 10
+      };
+      this.attackHitbox2 = null;
+      return;
+    }
+
+    // For Rising Cut, create a placeholder hitbox that will be overridden by dynamic sword hitbox
+    if (this.characterName === 'Rakka' && this.activeMove.name === 'Rising Cut') {
       // Create a small placeholder hitbox that will be immediately replaced by the sword hitbox
       this.attackHitbox = {
         x: this.x,
@@ -743,6 +774,44 @@ export class Player extends PhysicsBody {
       const armY = baseY - 22;
       const sword = this.sword;
       const swing = this.shadowSliceSwing;
+      const angle = swing.angle;
+      // The blade is a long, thin rectangle from the arm to the tip
+      const bladeLength = sword.length;
+      const bladeWidth = sword.width * 1.8;
+      // Calculate the top-left corner of the blade hitbox
+      const x1 = armX;
+      const y1 = armY;
+      const x2 = armX + Math.cos(angle) * bladeLength * this.facing;
+      const y2 = armY + Math.sin(angle) * bladeLength;
+      // The hitbox is a rectangle that covers the blade from (x1, y1) to (x2, y2)
+      // For simplicity, use a bounding box that covers the whole blade
+      const minX = Math.min(x1, x2) - bladeWidth / 2;
+      const minY = Math.min(y1, y2) - bladeWidth / 2;
+      const maxX = Math.max(x1, x2) + bladeWidth / 2;
+      const maxY = Math.max(y1, y2) + bladeWidth / 2;
+      this.attackHitbox = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY
+      };
+      return;
+    }
+    
+    // --- Rakka Rising Cut Sword-Following Hitbox ---
+    if (
+      this.characterName === 'Rakka' &&
+      this.activeMove &&
+      this.activeMove.name === 'Rising Cut' &&
+      this.risingCutSwing && this.risingCutSwing.isActive
+    ) {
+      // Calculate sword blade as a hitbox along the full blade
+      const centerX = this.x + this.width / 2;
+      const baseY = this.y + this.height;
+      const armX = centerX + (24 * this.facing);
+      const armY = baseY - 22;
+      const sword = this.sword;
+      const swing = this.risingCutSwing;
       const angle = swing.angle;
       // The blade is a long, thin rectangle from the arm to the tip
       const bladeLength = sword.length;

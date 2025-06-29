@@ -75,6 +75,18 @@ export function initializeRakka(player) {
     shadowTrails: [], // Array of shadow trail effects
     trailFrame: 0
   };
+  // Rising Cut sword swing animation
+  player.risingCutSwing = {
+    isActive: false,
+    frame: 0,
+    maxFrames: 30, // Duration of the Rising Cut move
+    angle: 0,
+    startAngle: -Math.PI / 2, // Start angle (90 degrees up - from top of head)
+    endAngle: Math.PI / 6, // End angle (30 degrees forward and down - higher on the side)
+    glowIntensity: 0,
+    shadowTrails: [], // Array of shadow trail effects
+    trailFrame: 0
+  };
   player.sword = {
     length: 54,
     width: 7,
@@ -225,6 +237,59 @@ export function updateRakka(player) {
       player.shadowSliceSwing.frame = 0;
       player.shadowSliceSwing.glowIntensity = 0;
       player.shadowSliceSwing.shadowTrails = [];
+    }
+  }
+
+  // Update Rising Cut sword swing animation
+  if (player.risingCutSwing.isActive) {
+    player.risingCutSwing.frame++;
+    player.risingCutSwing.trailFrame++;
+    
+    // Calculate swing progress (0 to 1)
+    const progress = player.risingCutSwing.frame / player.risingCutSwing.maxFrames;
+    
+    // Use ease-out function for smooth swing
+    const easeProgress = 1 - Math.pow(1 - progress, 2);
+    
+    // Interpolate angle from start to end
+    player.risingCutSwing.angle = player.risingCutSwing.startAngle + 
+      (player.risingCutSwing.endAngle - player.risingCutSwing.startAngle) * easeProgress;
+    
+    // Calculate glow intensity (peak at middle of swing)
+    const glowProgress = Math.sin(progress * Math.PI);
+    player.risingCutSwing.glowIntensity = glowProgress;
+    
+    // Create shadow trails every few frames
+    if (player.risingCutSwing.trailFrame % 3 === 0) { // Every 3 frames
+      player.risingCutSwing.shadowTrails.push({
+        angle: player.risingCutSwing.angle,
+        alpha: 0.8,
+        scale: 1.0,
+        glowIntensity: player.risingCutSwing.glowIntensity * 0.7
+      });
+    }
+    
+    // Limit trail count
+    if (player.risingCutSwing.shadowTrails.length > 8) {
+      player.risingCutSwing.shadowTrails.shift();
+    }
+    
+    // Update shadow trails
+    player.risingCutSwing.shadowTrails.forEach((trail, i) => {
+      trail.alpha -= 0.08;
+      trail.scale -= 0.02;
+      trail.glowIntensity *= 0.95;
+    });
+    
+    // Remove faded trails
+    player.risingCutSwing.shadowTrails = player.risingCutSwing.shadowTrails.filter(trail => trail.alpha > 0);
+    
+    // End animation when complete
+    if (player.risingCutSwing.frame >= player.risingCutSwing.maxFrames) {
+      player.risingCutSwing.isActive = false;
+      player.risingCutSwing.frame = 0;
+      player.risingCutSwing.glowIntensity = 0;
+      player.risingCutSwing.shadowTrails = [];
     }
   }
 
@@ -633,6 +698,9 @@ export function drawRakka(ctx, player) {
   } else if (player.shadowSliceSwing.isActive) {
     // Draw Shadow Slice sword animation with shadow trails
     drawShadowSliceSword(ctx, x, y - 26, width, height, facing, player);
+  } else if (player.risingCutSwing.isActive) {
+    // Draw Rising Cut sword animation with shadow trails
+    drawRisingCutSword(ctx, x, y - 26, width, height, facing, player);
   } else if (player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter') {
     // Draw slamming sword for Void Splitter
     drawVoidSplitterSword(ctx, x, y - 26, width, height, facing, player);
@@ -1586,6 +1654,92 @@ function drawShadowSliceSword(ctx, x, y, width, height, facing, player) {
   const baseY = y + height;
   const sword = player.sword;
   const swing = player.shadowSliceSwing;
+  
+  ctx.save();
+  
+  // Position at the sword arm (right arm when facing right, left when facing left)
+  const armX = centerX + (24 * facing);
+  const armY = baseY - 22;
+  
+  ctx.translate(armX, armY);
+  
+  // Apply facing direction
+  if (facing < 0) {
+    ctx.scale(-1, 1);
+  }
+  
+  // Draw shadow trails first (behind the main sword)
+  swing.shadowTrails.forEach((trail, i) => {
+    ctx.save();
+    ctx.rotate(trail.angle);
+    
+    // Shadow trail glow
+    ctx.shadowColor = '#f00';
+    ctx.shadowBlur = 8 + (trail.glowIntensity * 8);
+    
+    // Shadow trail blade (slightly transparent and smaller)
+    ctx.globalAlpha = trail.alpha * 0.6;
+    ctx.fillStyle = '#600';
+    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    
+    // Add red energy glow to shadow trail
+    const gradient = ctx.createLinearGradient(0, 0, sword.length * trail.scale, 0);
+    gradient.addColorStop(0, `rgba(255,0,0,${trail.alpha * 0.4})`);
+    gradient.addColorStop(0.5, `rgba(255,0,0,${trail.alpha * 0.2})`);
+    gradient.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    
+    ctx.restore();
+  });
+  
+  // Apply main sword swing angle
+  ctx.rotate(swing.angle);
+  
+  // Draw main sword with glow effect
+  const glowIntensity = swing.glowIntensity;
+  
+  // Outer glow
+  ctx.shadowColor = '#f00';
+  ctx.shadowBlur = 12 + (glowIntensity * 8);
+  
+  // Sword blade
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  
+  // Red energy glow along the blade
+  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.9})`);
+  gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.6})`);
+  gradient.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  
+  // Hilt
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = sword.hiltColor;
+  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  
+  // Add motion blur effect (trail) when swinging
+  if (glowIntensity > 0.4) {
+    ctx.save();
+    ctx.globalAlpha = glowIntensity * 0.4;
+    ctx.translate(-sword.length * 0.25, 0);
+    ctx.rotate(-0.15);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(0, -sword.width/2, sword.length * 0.5, sword.width);
+    ctx.restore();
+  }
+  
+  ctx.restore();
+}
+
+// Draw Rising Cut sword animation with shadow trails
+function drawRisingCutSword(ctx, x, y, width, height, facing, player) {
+  const centerX = x + width / 2;
+  const baseY = y + height;
+  const sword = player.sword;
+  const swing = player.risingCutSwing;
   
   ctx.save();
   
