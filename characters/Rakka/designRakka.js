@@ -128,6 +128,26 @@ export function updateRakka(player) {
     player.shadowSneak.active = false;
   }
 
+  // --- Shadow Slice (sideLight) shadow trail effect ---
+  if (player.rakkaShadowSliceActive) {
+    if (!player._shadowSliceTrailFrame) player._shadowSliceTrailFrame = 0;
+    player._shadowSliceTrailFrame++;
+    if (player._shadowSliceTrailFrame % 2 === 0) { // Every 2 frames
+      player.shadowAfterimages.push({
+        x: player.x,
+        y: player.y,
+        alpha: 0.5,
+        facing: player.facing
+      });
+    }
+    // Limit afterimages
+    if (player.shadowAfterimages.length > 6) {
+      player.shadowAfterimages.shift();
+    }
+  } else {
+    player._shadowSliceTrailFrame = 0;
+  }
+
   // Shadowstep afterimages for Side Heavy
   if (player.isAttacking && player.activeMove && player.activeMove.name === 'Shadowstep Strike') {
     if (player.shadowAfterimages.length < 6) {

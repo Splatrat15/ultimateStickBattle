@@ -63,6 +63,11 @@ export class Player extends PhysicsBody {
     this.rakkaJabComboStep = 1; // 1, 2, or 3
     this.rakkaJabComboTimer = 0; // Frames left to continue combo
 
+    // --- Rakka Shadow Slice State ---
+    this.rakkaShadowSliceActive = false;
+    this.rakkaShadowSliceFrames = 0;
+    this.rakkaShadowSliceLungeSpeed = 0;
+
     // Set initial state
     this.fullReset();
 
@@ -139,6 +144,11 @@ export class Player extends PhysicsBody {
     // --- Rakka Jab Combo State ---
     this.rakkaJabComboStep = 1; // 1, 2, or 3
     this.rakkaJabComboTimer = 0; // Frames left to continue combo
+
+    // --- Rakka Shadow Slice State ---
+    this.rakkaShadowSliceActive = false;
+    this.rakkaShadowSliceFrames = 0;
+    this.rakkaShadowSliceLungeSpeed = 0;
 
     console.log('Player state has been fully reset for:', this.color);
   }
@@ -337,6 +347,15 @@ export class Player extends PhysicsBody {
       }
     }
 
+    // --- Rakka Shadow Slice Lunge Update ---
+    if (this.characterName === 'Rakka' && this.rakkaShadowSliceActive) {
+      this.x += this.facing * this.rakkaShadowSliceLungeSpeed;
+      this.rakkaShadowSliceFrames--;
+      if (this.rakkaShadowSliceFrames <= 0 || !this.isAttacking) {
+        this.rakkaShadowSliceActive = false;
+      }
+    }
+
     // Update hitstun timer
     if (this.hitstun > 0) {
       this.hitstun--;
@@ -441,6 +460,13 @@ export class Player extends PhysicsBody {
     if (this.characterName === 'Rakka' && move.name === 'Shadow Sneak') {
       this.startCharge(move);
       return;
+    }
+
+    // --- Rakka Shadow Slice (sideLight) Lunge Logic ---
+    if (this.characterName === 'Rakka' && move.name === 'Shadow Slice') {
+      this.rakkaShadowSliceActive = true;
+      this.rakkaShadowSliceFrames = move.duration; // Lunge for the duration of the move
+      this.rakkaShadowSliceLungeSpeed = 12; // Tweak as needed for lunge distance
     }
 
     // Aerial restrictions for heavy attacks
