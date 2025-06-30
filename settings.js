@@ -64,7 +64,7 @@ class Settings {
           <h3>GAME</h3>
           
           <div class="settingItem">
-            <label>Timer (minutes:seconds)</label>
+            <label>Timer</label>
             <div class="timerControls">
               <button id="decreaseTimer" class="settingsButton">-</button>
               <div class="timerDisplay" id="timerDisplay">5:00</div>
@@ -74,10 +74,8 @@ class Settings {
           
           <div class="settingItem">
             <label>Lives</label>
-            <div class="livesControls">
-              <button id="decreaseLives" class="settingsButton">-</button>
-              <div class="livesDisplay" id="livesDisplay">3</div>
-              <button id="increaseLives" class="settingsButton">+</button>
+            <div class="livesInputContainer">
+              <input type="number" id="livesInput" class="settingsInput" placeholder="3" min="1" max="99">
             </div>
           </div>
         </div>
@@ -113,12 +111,10 @@ class Settings {
       }
     });
 
-    // Lives controls
-    document.addEventListener('click', (e) => {
-      if (e.target.id === 'decreaseLives') {
-        this.decreaseLives();
-      } else if (e.target.id === 'increaseLives') {
-        this.increaseLives();
+    // Lives input validation
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'livesInput') {
+        this.validateLivesInput(e.target);
       }
     });
 
@@ -156,50 +152,34 @@ class Settings {
     this.settingsModal.style.display = 'none';
   }
 
-  decreaseTimer() {
-    if (this.gameSettings.timer > 60) { // Minimum 1 minute
-      this.gameSettings.timer -= 60;
-      this.updateModalDisplay();
-    }
-  }
-
-  increaseTimer() {
-    if (this.gameSettings.timer < 1800) { // Maximum 30 minutes
-      this.gameSettings.timer += 60;
-      this.updateModalDisplay();
-    }
-  }
-
-  decreaseLives() {
-    if (this.gameSettings.lives > 1) {
-      this.gameSettings.lives--;
-      this.updateModalDisplay();
-    }
-  }
-
-  increaseLives() {
-    if (this.gameSettings.lives < 10) {
-      this.gameSettings.lives++;
-      this.updateModalDisplay();
-    }
-  }
-
   updateModalDisplay() {
     const timerDisplay = document.getElementById('timerDisplay');
-    const livesDisplay = document.getElementById('livesDisplay');
+    const livesInput = document.getElementById('livesInput');
     
     if (timerDisplay) {
-      const minutes = Math.floor(this.gameSettings.timer / 60);
-      const seconds = this.gameSettings.timer % 60;
-      timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      if (this.gameSettings.timer > 420) {
+        // Beyond 7:00, show infinity symbol
+        timerDisplay.textContent = '∞';
+      } else {
+        const minutes = Math.floor(this.gameSettings.timer / 60);
+        const seconds = this.gameSettings.timer % 60;
+        timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
     }
     
-    if (livesDisplay) {
-      livesDisplay.textContent = this.gameSettings.lives;
+    if (livesInput) {
+      livesInput.value = this.gameSettings.lives;
     }
   }
 
   applySettings() {
+    // Read lives value from input field
+    const livesInput = document.getElementById('livesInput');
+    
+    if (livesInput) {
+      this.gameSettings.lives = parseInt(livesInput.value) || 3;
+    }
+    
     // Update window variables
     window.gameTimer = this.gameSettings.timer;
     window.gameLives = this.gameSettings.lives;
@@ -219,9 +199,14 @@ class Settings {
   updateCharacterMenuDisplay() {
     const timerLivesText = document.querySelector('.timerLivesText');
     if (timerLivesText) {
-      const minutes = Math.floor(this.gameSettings.timer / 60);
-      const seconds = this.gameSettings.timer % 60;
-      timerLivesText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')} - ${this.gameSettings.lives} Lives`;
+      if (this.gameSettings.timer > 420) {
+        // Beyond 7:00, show infinity symbol
+        timerLivesText.textContent = `∞ - ${this.gameSettings.lives} Lives`;
+      } else {
+        const minutes = Math.floor(this.gameSettings.timer / 60);
+        const seconds = this.gameSettings.timer % 60;
+        timerLivesText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')} - ${this.gameSettings.lives} Lives`;
+      }
     }
   }
 
@@ -231,6 +216,114 @@ class Settings {
       timer: this.gameSettings.timer,
       lives: this.gameSettings.lives
     };
+  }
+
+  validateLivesInput(input) {
+    let value = parseInt(input.value) || 0;
+    
+    // Clamp between 1 and 99
+    if (value < 1) value = 1;
+    if (value > 99) value = 99;
+    
+    input.value = value;
+  }
+
+  decreaseTimer() {
+    // Define the timer increments in seconds
+    const timerIncrements = [
+      60,   // 1:00
+      90,   // 1:30
+      120,  // 2:00
+      150,  // 2:30
+      180,  // 3:00
+      240,  // 4:00
+      300,  // 5:00
+      360,  // 6:00
+      420   // 7:00
+    ];
+    
+    // If currently at infinity (beyond 7:00), go back to 7:00
+    if (this.gameSettings.timer > 420) {
+      this.gameSettings.timer = 420;
+      this.updateModalDisplay();
+      return;
+    }
+    
+    // Find current position in increments
+    let currentIndex = timerIncrements.indexOf(this.gameSettings.timer);
+    
+    if (currentIndex !== -1) {
+      // If current timer is in the predefined increments
+      if (currentIndex > 0) {
+        // Go to previous increment
+        this.gameSettings.timer = timerIncrements[currentIndex - 1];
+      }
+      // If at 1:00 (index 0), don't go below 1:00
+    } else {
+      // Current timer is not in predefined increments
+      if (this.gameSettings.timer > 60) {
+        // Between 1:00 and 7:00, find previous increment
+        const prevIncrement = timerIncrements.filter(increment => increment < this.gameSettings.timer).pop();
+        if (prevIncrement) {
+          this.gameSettings.timer = prevIncrement;
+        } else {
+          // Shouldn't happen, but go to 1:00
+          this.gameSettings.timer = 60;
+        }
+      }
+      // If below 1:00, stay at 1:00 (minimum)
+    }
+    
+    this.updateModalDisplay();
+  }
+
+  increaseTimer() {
+    // Define the timer increments in seconds
+    const timerIncrements = [
+      60,   // 1:00
+      90,   // 1:30
+      120,  // 2:00
+      150,  // 2:30
+      180,  // 3:00
+      240,  // 4:00
+      300,  // 5:00
+      360,  // 6:00
+      420   // 7:00
+    ];
+    
+    // Find current position in increments
+    let currentIndex = timerIncrements.indexOf(this.gameSettings.timer);
+    
+    if (currentIndex !== -1) {
+      // If current timer is in the predefined increments
+      if (currentIndex < timerIncrements.length - 1) {
+        // Go to next increment
+        this.gameSettings.timer = timerIncrements[currentIndex + 1];
+      } else {
+        // At 7:00, go to 8:00 (480 seconds) - start infinite progression
+        this.gameSettings.timer = 480;
+      }
+    } else {
+      // Current timer is not in predefined increments
+      if (this.gameSettings.timer < 60) {
+        // Below 1:00, go to 1:00
+        this.gameSettings.timer = 60;
+      } else if (this.gameSettings.timer < 420) {
+        // Between 1:00 and 7:00, find next increment
+        const nextIncrement = timerIncrements.find(increment => increment > this.gameSettings.timer);
+        if (nextIncrement) {
+          this.gameSettings.timer = nextIncrement;
+        } else {
+          // Shouldn't happen, but go to 7:00
+          this.gameSettings.timer = 420;
+        }
+      } else {
+        // At or beyond 7:00, add 60 seconds (1 minute) for infinite progression
+        this.gameSettings.timer += 60;
+      }
+    }
+    
+    this.updateModalDisplay();
   }
 }
 

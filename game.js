@@ -23,6 +23,7 @@ let gameTimer = 300; // 5 minutes in seconds (default)
 let gameLives = 3; // Default lives
 let player1Lives = 3;
 let player2Lives = 3;
+let lastTimerUpdate = 0; // Track last timer update in milliseconds
 
 // Blast zone constants (areas outside screen where players die)
 const BLAST_ZONE_LEFT = -100;   // 100px left of screen
@@ -211,12 +212,18 @@ function drawStage() {
   ctx.fillText('Lives: ' + player2Lives, canvas.width - 20, 110);
 
   // Draw timer in middle top
-  const minutes = Math.floor(gameTimer / 60);
-  const seconds = gameTimer % 60;
-  const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  let timerText;
+  if (gameTimer > 420) {
+    // Beyond 7:00 (infinity), show infinity symbol
+    timerText = '∞';
+  } else {
+    const minutes = Math.floor(gameTimer / 60);
+    const seconds = gameTimer % 60;
+    timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
   ctx.font = 'bold 36px Arial';
   ctx.textAlign = 'center';
-  ctx.fillStyle = gameTimer <= 30 ? '#ff4444' : '#ffffff'; // Red when 30 seconds or less
+  ctx.fillStyle = gameTimer <= 30 && gameTimer <= 420 ? '#ff4444' : '#ffffff'; // Red when 30 seconds or less (but not infinity)
   ctx.fillText(timerText, canvas.width / 2, 50);
 }
 
@@ -235,6 +242,7 @@ function resetGame() {
   gameLives = window.gameLives || 3;
   player1Lives = gameLives;
   player2Lives = gameLives;
+  lastTimerUpdate = 0; // Reset timer to initialize on first frame
   
   // Fully reset player objects to their initial state
   player1.fullReset();
@@ -288,19 +296,26 @@ function update() {
     return;
   }
 
-  // Update timer (60 FPS = 1 second every 60 frames)
-  if (frameCount % 60 === 0 && gameTimer > 0) {
+  // Update timer using real-time (independent of FPS)
+  const currentTime = Date.now();
+  if (lastTimerUpdate === 0) {
+    lastTimerUpdate = currentTime; // Initialize on first frame
+  }
+  
+  // Check if 1000ms (1 second) has passed
+  if (currentTime - lastTimerUpdate >= 1000 && gameTimer > 0 && gameTimer <= 420) {
     gameTimer--;
+    lastTimerUpdate = currentTime;
   }
 
   // Check for win conditions
-  if (gameTimer <= 0 || player1Lives <= 0 || player2Lives <= 0) {
+  if ((gameTimer <= 0 && gameTimer <= 420) || player1Lives <= 0 || player2Lives <= 0) {
     let winner = null;
     let winnerName = '';
     let winnerCharacter = '';
     
-    if (gameTimer <= 0) {
-      // Time ran out - winner is player with most lives, then most damage
+    if (gameTimer <= 0 && gameTimer <= 420) {
+      // Time ran out (but not infinity) - winner is player with most lives, then most damage
       if (player1Lives > player2Lives) {
         winner = player1;
         winnerName = window.player1IsCPU ? 'CPU' : 'Player 1';
@@ -565,6 +580,7 @@ window.addEventListener('startGame', (e) => {
   gameLives = window.gameLives || 3;
   player1Lives = gameLives;
   player2Lives = gameLives;
+  lastTimerUpdate = 0; // Reset timer to initialize on first frame
   
   console.log('Game starting...');
   console.log('Player 1:', character1, 'CPU:', player1IsCPU);
