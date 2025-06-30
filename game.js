@@ -18,6 +18,12 @@ const RESET_COOLDOWN = 30; // Frames to wait between resets
 // Pause state
 let isPaused = false;
 
+// Timer and lives state
+let gameTimer = 300; // 5 minutes in seconds (default)
+let gameLives = 3; // Default lives
+let player1Lives = 3;
+let player2Lives = 3;
+
 // Blast zone constants (areas outside screen where players die)
 const BLAST_ZONE_LEFT = -100;   // 100px left of screen
 const BLAST_ZONE_RIGHT = 100;   // 100px right of screen  
@@ -195,14 +201,23 @@ function drawStage() {
     (window.selectedCharacter2 || 'Player 2');
   ctx.fillText(player2Name, canvas.width - 20, 40);
 
-  // Draw damage percentages and scores
+  // Draw damage percentages and lives
   ctx.font = 'bold 28px Arial';
   ctx.textAlign = 'left';
   ctx.fillText(player1.damage + '%', 20, 75);
-  ctx.fillText('Score: ' + player1.score, 20, 110);
+  ctx.fillText('Lives: ' + player1Lives, 20, 110);
   ctx.textAlign = 'right';
   ctx.fillText(player2.damage + '%', canvas.width - 20, 75);
-  ctx.fillText('Score: ' + player2.score, canvas.width - 20, 110);
+  ctx.fillText('Lives: ' + player2Lives, canvas.width - 20, 110);
+
+  // Draw timer in middle top
+  const minutes = Math.floor(gameTimer / 60);
+  const seconds = gameTimer % 60;
+  const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  ctx.font = 'bold 36px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = gameTimer <= 30 ? '#ff4444' : '#ffffff'; // Red when 30 seconds or less
+  ctx.fillText(timerText, canvas.width / 2, 50);
 }
 
 function resetGame() {
@@ -214,6 +229,12 @@ function resetGame() {
   isPaused = false; // Reset pause state
   frameCount = 0;
   lastResetFrame = 0;
+  
+  // Reset timer and lives
+  gameTimer = window.gameTimer || 300;
+  gameLives = window.gameLives || 3;
+  player1Lives = gameLives;
+  player2Lives = gameLives;
   
   // Fully reset player objects to their initial state
   player1.fullReset();
@@ -267,22 +288,61 @@ function update() {
     return;
   }
 
-  // Check for win condition
-  const winScore = window.winScore || 5; // Default to 5 if not set
-  if (player1.score >= winScore || player2.score >= winScore) {
-    const winner = player1.score >= winScore ? player1 : player2;
-    const winnerName = winner === player1 ? 
-      (window.player1IsCPU ? 'CPU' : 'Player 1') : 
-      (window.player2IsCPU ? 'CPU' : 'Player 2');
-    const winnerCharacter = winner === player1 ? 
-      window.selectedCharacter1 : window.selectedCharacter2;
+  // Update timer (60 FPS = 1 second every 60 frames)
+  if (frameCount % 60 === 0 && gameTimer > 0) {
+    gameTimer--;
+  }
+
+  // Check for win conditions
+  if (gameTimer <= 0 || player1Lives <= 0 || player2Lives <= 0) {
+    let winner = null;
+    let winnerName = '';
+    let winnerCharacter = '';
+    
+    if (gameTimer <= 0) {
+      // Time ran out - winner is player with most lives, then most damage
+      if (player1Lives > player2Lives) {
+        winner = player1;
+        winnerName = window.player1IsCPU ? 'CPU' : 'Player 1';
+        winnerCharacter = window.selectedCharacter1;
+      } else if (player2Lives > player1Lives) {
+        winner = player2;
+        winnerName = window.player2IsCPU ? 'CPU' : 'Player 2';
+        winnerCharacter = window.selectedCharacter2;
+      } else {
+        // Same lives - check damage (lower damage wins)
+        if (player1.damage < player2.damage) {
+          winner = player1;
+          winnerName = window.player1IsCPU ? 'CPU' : 'Player 1';
+          winnerCharacter = window.selectedCharacter1;
+        } else if (player2.damage < player1.damage) {
+          winner = player2;
+          winnerName = window.player2IsCPU ? 'CPU' : 'Player 2';
+          winnerCharacter = window.selectedCharacter2;
+        } else {
+          // Tie
+          winnerName = 'Tie';
+          winnerCharacter = 'Both Players';
+        }
+      }
+    } else if (player1Lives <= 0) {
+      winner = player2;
+      winnerName = window.player2IsCPU ? 'CPU' : 'Player 2';
+      winnerCharacter = window.selectedCharacter2;
+    } else if (player2Lives <= 0) {
+      winner = player1;
+      winnerName = window.player1IsCPU ? 'CPU' : 'Player 1';
+      winnerCharacter = window.selectedCharacter1;
+    }
     
     console.log(`=== GAME OVER ===`);
-    console.log(`Winner: ${winnerName} (${winnerCharacter})`);
-    console.log(`Final Score - Player 1: ${player1.score}, Player 2: ${player2.score}`);
-    
-    // Show winner announcement
-    alert(`${winnerName} (${winnerCharacter}) wins! Final Score - Player 1: ${player1.score}, Player 2: ${player2.score}`);
+    if (winnerName === 'Tie') {
+      console.log(`Result: Tie!`);
+      alert(`Game Over - Tie! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
+    } else {
+      console.log(`Winner: ${winnerName} (${winnerCharacter})`);
+      alert(`${winnerName} (${winnerCharacter}) wins! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
+    }
     
     // Reset game and return to character menu
     resetGame();
@@ -360,9 +420,9 @@ function update() {
         player1.x > canvas.width + BLAST_ZONE_RIGHT ||
         player1.y + player1.height < BLAST_ZONE_TOP ||
         player1.y > canvas.height + BLAST_ZONE_BOTTOM) {
+      player1Lives--;
       player1.resetPosition(platform.x + 50, platform.y - player1.height);
       player1.damage = 0; // Reset damage
-      player2.score++;
       lastResetFrame = frameCount;
     }
     
@@ -371,9 +431,9 @@ function update() {
         player2.x > canvas.width + BLAST_ZONE_RIGHT ||
         player2.y + player2.height < BLAST_ZONE_TOP ||
         player2.y > canvas.height + BLAST_ZONE_BOTTOM) {
+      player2Lives--;
       player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
       player2.damage = 0; // Reset damage
-      player1.score++;
       lastResetFrame = frameCount;
     }
   }
@@ -500,10 +560,16 @@ window.addEventListener('startGame', (e) => {
   gameStarted = true;
   window.gameStarted = true; // Expose to window for pause menu
   
+  // Initialize timer and lives from settings
+  gameTimer = window.gameTimer || 300;
+  gameLives = window.gameLives || 3;
+  player1Lives = gameLives;
+  player2Lives = gameLives;
+  
   console.log('Game starting...');
   console.log('Player 1:', character1, 'CPU:', player1IsCPU);
   console.log('Player 2:', character2, 'CPU:', player2IsCPU);
-  console.log('Win Score:', winScore);
+  console.log('Timer:', gameTimer, 'seconds, Lives:', gameLives);
   
   // Re-initialize players with the correct character data
   player1 = new Player(100, 100, '#2196f3', 1, characters[character1.toLowerCase()]);
