@@ -222,4 +222,17 @@ window.addEventListener('DOMContentLoaded', () => {
   // Show initial character names
   showCharacterName(selectedCharacter1, '1');
   showCharacterName(selectedCharacter2, '2');
+  
+  // Add escape key listener to open settings
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      // Only handle escape if character menu is visible
+      if (menu.style.display !== 'none') {
+        // Check if settings system exists and toggle it
+        if (window.settings && typeof window.settings.toggleSettings === 'function') {
+          window.settings.toggleSettings();
+        }
+      }
+    }
+  });
 });

@@ -338,6 +338,11 @@ function resetGame() {
   // This will trigger the characterMenu.js to reset its internal state
   window.dispatchEvent(new CustomEvent('gameReset'));
   
+  // Reset pause menu state
+  if (window.pauseMenu && typeof window.pauseMenu.resetPauseState === 'function') {
+    window.pauseMenu.resetPauseState();
+  }
+  
   console.log('Game reset complete - returning to character menu');
 }
 
