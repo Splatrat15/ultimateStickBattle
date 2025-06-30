@@ -61,7 +61,7 @@ window.addEventListener('DOMContentLoaded', () => {
     player2Selected = false;
     
     // Reset choice text visibility
-    if (player1Choice) player1Choice.style.display = 'block';
+    if (player1Choice) player1Choice.style.display = 'none';
     if (player2Choice) player2Choice.style.display = 'none';
     if (startButton) startButton.style.display = 'none';
     
@@ -200,28 +200,184 @@ window.addEventListener('DOMContentLoaded', () => {
 
   createCharacterBoxes();
 
+  // Remove player1Choice and player2Choice elements from the UI
+  if (player1Choice) player1Choice.remove();
+  if (player2Choice) player2Choice.remove();
+
+  // Create player tokens after character boxes are created
+  const p1Token = document.createElement('div');
+  p1Token.id = 'p1Token';
+  p1Token.className = 'playerToken p1';
+  p1Token.innerText = 'P1';
+  p1Token.style.position = 'absolute';
+  p1Token.style.zIndex = '10';
+  p1Token.style.background = 'rgba(0, 0, 255, 0.7)';
+  p1Token.style.color = '#fff';
+  p1Token.style.padding = '4px 10px';
+  p1Token.style.borderRadius = '8px';
+  p1Token.style.fontWeight = 'bold';
+  p1Token.style.pointerEvents = 'auto';
+
+  const p2Token = document.createElement('div');
+  p2Token.id = 'p2Token';
+  p2Token.className = 'playerToken p2';
+  p2Token.innerText = 'P2';
+  p2Token.style.position = 'absolute';
+  p2Token.style.zIndex = '10';
+  p2Token.style.background = 'rgba(255, 0, 0, 0.7)';
+  p2Token.style.color = '#fff';
+  p2Token.style.padding = '4px 10px';
+  p2Token.style.borderRadius = '8px';
+  p2Token.style.fontWeight = 'bold';
+  p2Token.style.pointerEvents = 'auto';
+
+  characterGrid.style.position = 'relative';
+  characterGrid.appendChild(p1Token);
+  characterGrid.appendChild(p2Token);
+
+  // Now initialize characterBoxElements and indices
+  let characterBoxElements = Array.from(characterGrid.getElementsByClassName('characterBox'));
+  let randomIndex = characterBoxElements.findIndex(box => box.id.toLowerCase().includes('random'));
+  if (randomIndex === -1) randomIndex = 0; // fallback
+  let p1Index = randomIndex;
+  let p2Index = randomIndex;
+
+  function positionToken(token, index) {
+    const box = characterBoxElements[index];
+    if (box) {
+      const rect = box.getBoundingClientRect();
+      const gridRect = characterGrid.getBoundingClientRect();
+      if (token === p1Token) {
+        // Top left
+        token.style.left = (rect.left - gridRect.left + 4) + 'px';
+        token.style.top = (rect.top - gridRect.top + 4) + 'px';
+      } else if (token === p2Token) {
+        // Top right
+        token.style.left = (rect.left - gridRect.left + rect.width - token.offsetWidth - 4) + 'px';
+        token.style.top = (rect.top - gridRect.top + 4) + 'px';
+      }
+    }
+  }
+
+  // Initial placement on Random
+  positionToken(p1Token, p1Index);
+  positionToken(p2Token, p2Index);
+
+  // Drag-and-drop logic for tokens
+  let draggingToken = null;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  function getNearestCharacterBox(mouseX, mouseY) {
+    let minDist = Infinity;
+    let nearestIdx = 0;
+    characterBoxElements.forEach((box, idx) => {
+      const rect = box.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dist = Math.hypot(centerX - mouseX, centerY - mouseY);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestIdx = idx;
+      }
+    });
+    return nearestIdx;
+  }
+
+  function onTokenMouseDown(e, token, tokenName) {
+    e.preventDefault();
+    draggingToken = tokenName;
+    const rect = token.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    document.body.style.userSelect = 'none';
+  }
+
+  function onMouseMove(e) {
+    if (!draggingToken) return;
+    const token = draggingToken === 'p1' ? p1Token : p2Token;
+    const gridRect = characterGrid.getBoundingClientRect();
+    token.style.left = (e.clientX - gridRect.left - dragOffsetX + token.offsetWidth / 2) + 'px';
+    token.style.top = (e.clientY - gridRect.top - dragOffsetY + token.offsetHeight / 2) + 'px';
+    token.style.pointerEvents = 'none';
+  }
+
+  function onMouseUp(e) {
+    if (!draggingToken) return;
+    const token = draggingToken === 'p1' ? p1Token : p2Token;
+    const idx = getNearestCharacterBox(e.clientX, e.clientY);
+    if (draggingToken === 'p1') {
+      p1Index = idx;
+      // Update player 1 presentation
+      const characterName = characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent;
+      showCharacterName(characterName, '1');
+    } else {
+      p2Index = idx;
+      // Update player 2 presentation
+      const characterName = characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent;
+      showCharacterName(characterName, '2');
+    }
+    positionToken(token, idx);
+    draggingToken = null;
+    document.body.style.userSelect = '';
+    token.style.pointerEvents = 'auto'; // Allow token to be picked up again
+    updateStartButtonState();
+  }
+
+  // Remove any click event listeners from character boxes (if any were set)
+  characterBoxElements.forEach((box) => {
+    box.onclick = null;
+    box.onmousedown = null;
+    box.onmouseup = null;
+  });
+
+  p1Token.addEventListener('mousedown', (e) => onTokenMouseDown(e, p1Token, 'p1'));
+  p2Token.addEventListener('mousedown', (e) => onTokenMouseDown(e, p2Token, 'p2'));
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+
+  // Update Start Game button state
+  function updateStartButtonState() {
+    // Both tokens must be on a character box and not being dragged
+    const bothPlaced = !draggingToken && typeof p1Index === 'number' && typeof p2Index === 'number';
+    if (bothPlaced && p1Index !== null && p2Index !== null) {
+      startButton.disabled = false;
+      startButton.style.opacity = '1';
+      startButton.style.pointerEvents = 'auto';
+      startButton.style.filter = '';
+    } else {
+      startButton.disabled = true;
+      startButton.style.opacity = '0.5';
+      startButton.style.pointerEvents = 'none';
+      startButton.style.filter = 'grayscale(1)';
+    }
+  }
+
+  // Always show start button, but unlit by default
+  startButton.style.display = 'block';
+  updateStartButtonState();
+
+  // On start, use the character under each token
   startButton.addEventListener('click', () => {
-    // Dispatch an event with all the game settings
+    const character1 = characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent;
+    const character2 = characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent;
     const event = new CustomEvent('startGame', {
       detail: {
-        character1: selectedCharacter1,
-        character2: selectedCharacter2,
+        character1,
+        character2,
         player1IsCPU: window.player1IsCPU,
         player2IsCPU: window.player2IsCPU,
         winScore: window.winScore,
       }
     });
     window.dispatchEvent(event);
-
     menu.style.display = 'none';
-
-    // Log to verify game start
     console.log('=== GAME START EVENT DISPATCHED ===');
   });
 
-  // Show initial character names
-  showCharacterName(selectedCharacter1, '1');
-  showCharacterName(selectedCharacter2, '2');
+  // On initial placement, show both as Random (or whatever is under the token)
+  showCharacterName(characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent, '1');
+  showCharacterName(characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent, '2');
   
   // Add escape key listener to open settings
   window.addEventListener('keydown', (e) => {
