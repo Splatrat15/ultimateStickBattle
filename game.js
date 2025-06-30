@@ -15,6 +15,9 @@ let frameCount = 0;
 let lastResetFrame = 0;
 const RESET_COOLDOWN = 30; // Frames to wait between resets
 
+// Pause state
+let isPaused = false;
+
 // Blast zone constants (areas outside screen where players die)
 const BLAST_ZONE_LEFT = -100;   // 100px left of screen
 const BLAST_ZONE_RIGHT = 100;   // 100px right of screen  
@@ -207,6 +210,8 @@ function resetGame() {
   
   // Reset game state
   gameStarted = false;
+  window.gameStarted = false; // Reset for pause menu
+  isPaused = false; // Reset pause state
   frameCount = 0;
   lastResetFrame = 0;
   
@@ -250,6 +255,14 @@ function update() {
   frameCount++;
   
   if (!gameStarted) {
+    requestAnimationFrame(update);
+    return;
+  }
+
+  // Check if game is paused
+  if (isPaused) {
+    // Still draw the stage but don't update game logic
+    drawStage();
     requestAnimationFrame(update);
     return;
   }
@@ -372,6 +385,10 @@ function update() {
 // Input handling
 window.addEventListener('keydown', (e) => {
   if (!gameStarted) return;
+  
+  // Don't process game input if paused
+  if (isPaused) return;
+  
   if (e.key in keys) {
     keys[e.key] = true;
   }
@@ -481,6 +498,7 @@ window.addEventListener('startGame', (e) => {
   window.winScore = winScore;
 
   gameStarted = true;
+  window.gameStarted = true; // Expose to window for pause menu
   
   console.log('Game starting...');
   console.log('Player 1:', character1, 'CPU:', player1IsCPU);
@@ -517,3 +535,14 @@ window.addEventListener('startGame', (e) => {
 
 // Start game loop
 update();
+
+// Pause menu event listeners
+window.addEventListener('gamePaused', () => {
+  console.log('Game paused');
+  isPaused = true;
+});
+
+window.addEventListener('gameResumed', () => {
+  console.log('Game resumed');
+  isPaused = false;
+});

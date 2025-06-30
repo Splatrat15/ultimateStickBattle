@@ -429,3 +429,114 @@ canvas {
   color: #ccc;
   font-family: Arial, sans-serif;
 }
+
+/* Pause Menu Styles */
+.pauseMenu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.pauseMenuContent {
+  background: linear-gradient(135deg, #222 0%, #444 100%);
+  border: 4px solid #fff;
+  border-radius: 16px;
+  padding: 3rem 4rem;
+  text-align: center;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: scale(1);
+  transition: transform 0.2s ease-out;
+}
+
+.pauseMenuContent:hover {
+  transform: scale(1.02);
+}
+
+.pauseTitle {
+  font-size: 3.5rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 0.15em;
+  text-shadow: 
+    0 4px 16px #000,
+    0 2px 8px #e53935,
+    0 0 2px #fff,
+    0 0 30px #ffe53b99;
+  margin: 0 0 2rem 0;
+  transform: skew(-2deg, -1deg);
+  border-radius: 12px;
+  padding: 0.3em 1em;
+  border: 2px solid #fff3;
+  background: linear-gradient(90deg, #333 0%, #555 100%);
+  box-shadow: 0 4px 16px #000a;
+}
+
+.pauseMenuButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.pauseMenuButton {
+  font-size: 1.8rem;
+  padding: 0.8em 2em;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #e53935 0%, #ff6b6b 100%);
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(229, 57, 53, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  min-width: 200px;
+}
+
+.pauseMenuButton:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(229, 57, 53, 0.5),
+    0 0 20px rgba(229, 57, 53, 0.3);
+  background: linear-gradient(90deg, #ff4444 0%, #ff8a8a 100%);
+}
+
+.pauseMenuButton:active {
+  transform: scale(0.98) translateY(0);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 1px 4px rgba(229, 57, 53, 0.3);
+}
+
+/* Animation for pause menu appearance */
+@keyframes pauseMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pauseMenu {
+  animation: pauseMenuFadeIn 0.3s ease-out;
+}
