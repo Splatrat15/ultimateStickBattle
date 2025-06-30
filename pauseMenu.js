@@ -47,9 +47,9 @@ class PauseMenu {
   }
 
   addEventListeners() {
-    // Listen for Escape key to toggle pause
+    // Listen for Escape key to toggle pause (only when game is running)
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && window.gameStarted && this.gameCanvas && this.gameCanvas.style.display !== 'none') {
         this.togglePause();
       }
     });
@@ -63,11 +63,6 @@ class PauseMenu {
   }
 
   togglePause() {
-    // Only allow pausing if game is actually running
-    if (!window.gameStarted) {
-      return;
-    }
-
     this.isPaused = !this.isPaused;
     
     if (this.isPaused) {
@@ -117,6 +112,12 @@ class PauseMenu {
   // Public method to check if game is paused
   isGamePaused() {
     return this.isPaused;
+  }
+
+  // Public method to reset pause menu state
+  resetPauseState() {
+    this.isPaused = false;
+    this.hidePauseMenu();
   }
 }
 

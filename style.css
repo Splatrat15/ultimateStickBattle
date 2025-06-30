@@ -540,3 +540,530 @@ canvas {
 .pauseMenu {
   animation: pauseMenuFadeIn 0.3s ease-out;
 }
+
+/* Timer and Lives Display Styles */
+.timerLivesDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1rem 0;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.timerLivesText {
+  font-size: 2rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 0.1em;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 8px rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+/* Settings System Styles */
+.settingsButton {
+  font-size: 2rem;
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #444 0%, #666 100%);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settingsButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(135deg, #555 0%, #777 100%);
+}
+
+.settingsButton:active {
+  transform: scale(0.95);
+}
+
+.settingsModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.settingsContent {
+  background: linear-gradient(135deg, #222 0%, #444 100%);
+  border: 4px solid #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  min-width: 500px;
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: scale(1);
+  transition: transform 0.2s ease-out;
+}
+
+.settingsContent:hover {
+  transform: scale(1.02);
+}
+
+.settingsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.settingsHeader h2 {
+  font-size: 2.5rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 0.1em;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 8px rgba(255, 255, 255, 0.3);
+  margin: 0;
+}
+
+.closeButton {
+  font-size: 2rem;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e53935 0%, #ff6b6b 100%);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.closeButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.settingsSection {
+  margin-bottom: 2rem;
+}
+
+.settingsSection h3 {
+  font-size: 1.8rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  margin: 0 0 1.5rem 0;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.settingItem {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settingItem label {
+  display: block;
+  font-size: 1.4rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  color: #fff;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.timerControls,
+.livesControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.timerControls .settingsButton,
+.livesControls .settingsButton {
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+}
+
+.timerControls .settingsButton:hover,
+.livesControls .settingsButton:hover {
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+}
+
+.timerDisplay,
+.livesDisplay {
+  font-size: 2rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 8px rgba(255, 255, 255, 0.3);
+  min-width: 80px;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.settingsFooter {
+  display: flex;
+  justify-content: center;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.applyButton {
+  font-size: 1.5rem;
+  padding: 0.8em 2em;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%);
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(76, 175, 80, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  min-width: 150px;
+}
+
+.applyButton:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(76, 175, 80, 0.5),
+    0 0 20px rgba(76, 175, 80, 0.3);
+  background: linear-gradient(90deg, #66bb6a 0%, #81c784 100%);
+}
+
+.applyButton:active {
+  transform: scale(0.98) translateY(0);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 1px 4px rgba(76, 175, 80, 0.3);
+}
+
+/* Animation for settings modal appearance */
+@keyframes settingsModalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.settingsModal {
+  animation: settingsModalFadeIn 0.3s ease-out;
+}
+
+.timerInputContainer,
+.livesInputContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.settingsInput {
+  font-size: 2rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  min-width: 120px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.settingsInput:focus {
+  border-color: #2196f3;
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.settingsInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.settingsInput::-webkit-outer-spin-button,
+.settingsInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.settingsInput[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Settings Tab Styles */
+.settingsTabs {
+  display: flex;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 2rem;
+}
+
+.tabButton {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.tabButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tabButton.active {
+  background: rgba(33, 150, 243, 0.2);
+  border-bottom-color: #2196f3;
+  color: #2196f3;
+}
+
+.tabContent {
+  position: relative;
+  min-height: 300px;
+}
+
+.tabPanel {
+  display: none;
+  animation: tabFadeIn 0.3s ease-out;
+}
+
+.tabPanel.active {
+  display: block;
+}
+
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Volume Slider Styles */
+.volumeContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.volumeSlider {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.volumeSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.volumeSlider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volumeSlider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.volumeValue {
+  font-size: 1.2rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  min-width: 50px;
+  text-align: right;
+}
+
+/* Toggle Switch Styles */
+.toggleContainer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.toggleSwitch {
+  display: none;
+}
+
+.toggleLabel {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.toggleLabel::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.toggleSwitch:checked + .toggleLabel {
+  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  border-color: #4caf50;
+}
+
+.toggleSwitch:checked + .toggleLabel::after {
+  transform: translateX(30px);
+  background: #fff;
+}
+
+.toggleLabel:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.toggleSwitch:checked + .toggleLabel:hover {
+  background: linear-gradient(135deg, #66bb6a 0%, #81c784 100%);
+}
+
+/* Select Dropdown Styles */
+.qualityContainer,
+.displayModeContainer,
+.deviceContainer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.settingsSelect {
+  font-size: 1.3rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.8rem 1.2rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.settingsSelect:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.settingsSelect:focus {
+  border-color: #2196f3;
+  box-shadow: 0 0 15px rgba(33, 150, 243, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.settingsSelect option {
+  background: #333;
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  font-size: 1.2rem;
+  text-transform: none;
+  padding: 0.5rem;
+}

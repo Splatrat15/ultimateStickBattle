@@ -42,38 +42,16 @@ window.addEventListener('DOMContentLoaded', () => {
   let winScore = 5; // Default win score
   if (window.winScore === undefined) window.winScore = 5;
 
-  // Create win condition selector
-  const winConditionSelector = document.createElement('div');
-  winConditionSelector.className = 'winConditionSelector';
-  winConditionSelector.innerHTML = `
-    <div class="winConditionTitle">Win Condition</div>
-    <div class="winConditionControls">
-      <button class="winConditionButton" id="decreaseWinScore">-</button>
-      <div class="winConditionValue" id="winScoreValue">${winScore}</div>
-      <button class="winConditionButton" id="increaseWinScore">+</button>
-    </div>
+  // Create timer and lives display
+  const timerLivesDisplay = document.createElement('div');
+  timerLivesDisplay.className = 'timerLivesDisplay';
+  timerLivesDisplay.innerHTML = `
+    <div class="timerLivesText">5:00 - 3 Lives</div>
   `;
   
   // Insert after the title
   const title = menu.querySelector('h1');
-  title.parentNode.insertBefore(winConditionSelector, title.nextSibling);
-
-  // Add event listeners for win condition buttons
-  document.getElementById('decreaseWinScore').addEventListener('click', () => {
-    if (winScore > 1) {
-      winScore--;
-      window.winScore = winScore;
-      document.getElementById('winScoreValue').textContent = winScore;
-    }
-  });
-
-  document.getElementById('increaseWinScore').addEventListener('click', () => {
-    if (winScore < 20) {
-      winScore++;
-      window.winScore = winScore;
-      document.getElementById('winScoreValue').textContent = winScore;
-    }
-  });
+  title.parentNode.insertBefore(timerLivesDisplay, title.nextSibling);
 
   // Function to reset character selection state
   function resetCharacterSelection() {
@@ -244,4 +222,17 @@ window.addEventListener('DOMContentLoaded', () => {
   // Show initial character names
   showCharacterName(selectedCharacter1, '1');
   showCharacterName(selectedCharacter2, '2');
+  
+  // Add escape key listener to open settings
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      // Only handle escape if character menu is visible
+      if (menu.style.display !== 'none') {
+        // Check if settings system exists and toggle it
+        if (window.settings && typeof window.settings.toggleSettings === 'function') {
+          window.settings.toggleSettings();
+        }
+      }
+    }
+  });
 });
