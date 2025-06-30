@@ -12,12 +12,18 @@ class Settings {
     // Default settings
     this.gameSettings = {
       timer: 300, // 5 minutes in seconds
-      lives: 3
+      lives: 3,
+      displayMode: 'windowed',
+      showFPS: false,
+      audioDevice: 'default'
     };
     
     // Initialize window variables if they don't exist
     if (window.gameTimer === undefined) window.gameTimer = this.gameSettings.timer;
     if (window.gameLives === undefined) window.gameLives = this.gameSettings.lives;
+    if (window.displayMode === undefined) window.displayMode = this.gameSettings.displayMode;
+    if (window.showFPS === undefined) window.showFPS = this.gameSettings.showFPS;
+    if (window.audioDevice === undefined) window.audioDevice = this.gameSettings.audioDevice;
     
     this.init();
   }
@@ -27,8 +33,62 @@ class Settings {
     this.createSettingsModal();
     this.addEventListeners();
     this.updateCharacterMenuDisplay();
+    this.loadAudioDevices();
     
     console.log('Settings system initialized');
+  }
+
+  async loadAudioDevices() {
+    try {
+      // Request permission to access audio devices
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Stop the stream immediately
+      
+      // Get available audio devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      // Filter for audio output devices only and remove duplicates
+      const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+      const uniqueDevices = [];
+      const seenLabels = new Set();
+      
+      audioOutputs.forEach(device => {
+        // Clean up device label
+        let cleanLabel = device.label || `Audio Device ${device.deviceId.slice(0, 8)}`;
+        
+        // Remove common prefixes that make labels too long
+        cleanLabel = cleanLabel.replace(/^(Default - |System Default - |Default Device - )/i, '');
+        
+        // If we haven't seen this label before, add it
+        if (!seenLabels.has(cleanLabel)) {
+          seenLabels.add(cleanLabel);
+          uniqueDevices.push({
+            deviceId: device.deviceId,
+            label: cleanLabel
+          });
+        }
+      });
+      
+      // Populate the audio device dropdown
+      const audioDeviceSelect = document.getElementById('audioDevice');
+      if (audioDeviceSelect) {
+        // Clear existing options except the first one
+        audioDeviceSelect.innerHTML = '<option value="default">Default Device</option>';
+        
+        // Add available audio output devices
+        uniqueDevices.forEach(device => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.textContent = device.label;
+          audioDeviceSelect.appendChild(option);
+        });
+        
+        console.log(`Found ${uniqueDevices.length} unique audio output devices`);
+      }
+    } catch (error) {
+      console.log('Could not access audio devices:', error);
+      // Keep the default option if we can't access devices
+    }
   }
 
   createSettingsButton() {
@@ -60,22 +120,90 @@ class Settings {
           <button id="closeSettings" class="closeButton">×</button>
         </div>
         
-        <div class="settingsSection">
-          <h3>GAME</h3>
-          
-          <div class="settingItem">
-            <label>Timer</label>
-            <div class="timerControls">
-              <button id="decreaseTimer" class="settingsButton">-</button>
-              <div class="timerDisplay" id="timerDisplay">5:00</div>
-              <button id="increaseTimer" class="settingsButton">+</button>
+        <div class="settingsTabs">
+          <button class="tabButton active" data-tab="game">Game</button>
+          <button class="tabButton" data-tab="audio">Audio</button>
+          <button class="tabButton" data-tab="display">Display</button>
+        </div>
+        
+        <div class="tabContent">
+          <div id="gameTab" class="tabPanel active">
+            <div class="settingsSection">
+              <div class="settingItem">
+                <label>Timer</label>
+                <div class="timerControls">
+                  <button id="decreaseTimer" class="settingsButton">-</button>
+                  <div class="timerDisplay" id="timerDisplay">5:00</div>
+                  <button id="increaseTimer" class="settingsButton">+</button>
+                </div>
+              </div>
+              
+              <div class="settingItem">
+                <label>Lives</label>
+                <div class="livesInputContainer">
+                  <input type="number" id="livesInput" class="settingsInput" placeholder="3" min="1" max="99">
+                </div>
+              </div>
             </div>
           </div>
           
-          <div class="settingItem">
-            <label>Lives</label>
-            <div class="livesInputContainer">
-              <input type="number" id="livesInput" class="settingsInput" placeholder="3" min="1" max="99">
+          <div id="audioTab" class="tabPanel">
+            <div class="settingsSection">
+              <div class="settingItem">
+                <label>Output Device</label>
+                <div class="deviceContainer">
+                  <select id="audioDevice" class="settingsSelect">
+                    <option value="default">Default Device</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="settingItem">
+                <label>Master Volume</label>
+                <div class="volumeContainer">
+                  <input type="range" id="masterVolume" class="volumeSlider" min="0" max="100" value="100">
+                  <span class="volumeValue" id="masterVolumeValue">100%</span>
+                </div>
+              </div>
+              
+              <div class="settingItem">
+                <label>Music Volume</label>
+                <div class="volumeContainer">
+                  <input type="range" id="musicVolume" class="volumeSlider" min="0" max="100" value="80">
+                  <span class="volumeValue" id="musicVolumeValue">80%</span>
+                </div>
+              </div>
+              
+              <div class="settingItem">
+                <label>SFX Volume</label>
+                <div class="volumeContainer">
+                  <input type="range" id="sfxVolume" class="volumeSlider" min="0" max="100" value="90">
+                  <span class="volumeValue" id="sfxVolumeValue">90%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="displayTab" class="tabPanel">
+            <div class="settingsSection">
+              <div class="settingItem">
+                <label>Display Mode</label>
+                <div class="displayModeContainer">
+                  <select id="displayMode" class="settingsSelect">
+                    <option value="windowed">Windowed</option>
+                    <option value="borderless">Borderless</option>
+                    <option value="fullscreen">Fullscreen</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="settingItem">
+                <label>Show FPS</label>
+                <div class="toggleContainer">
+                  <input type="checkbox" id="fpsToggle" class="toggleSwitch">
+                  <label for="fpsToggle" class="toggleLabel"></label>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -102,6 +230,13 @@ class Settings {
       }
     });
 
+    // Tab switching
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tabButton')) {
+        this.switchTab(e.target.dataset.tab);
+      }
+    });
+
     // Timer controls
     document.addEventListener('click', (e) => {
       if (e.target.id === 'decreaseTimer') {
@@ -115,6 +250,13 @@ class Settings {
     document.addEventListener('input', (e) => {
       if (e.target.id === 'livesInput') {
         this.validateLivesInput(e.target);
+      }
+    });
+
+    // Volume sliders
+    document.addEventListener('input', (e) => {
+      if (e.target.classList.contains('volumeSlider')) {
+        this.updateVolumeDisplay(e.target);
       }
     });
 
@@ -155,6 +297,9 @@ class Settings {
   updateModalDisplay() {
     const timerDisplay = document.getElementById('timerDisplay');
     const livesInput = document.getElementById('livesInput');
+    const displayMode = document.getElementById('displayMode');
+    const fpsToggle = document.getElementById('fpsToggle');
+    const audioDevice = document.getElementById('audioDevice');
     
     if (timerDisplay) {
       if (this.gameSettings.timer > 420) {
@@ -170,6 +315,18 @@ class Settings {
     if (livesInput) {
       livesInput.value = this.gameSettings.lives;
     }
+    
+    if (displayMode) {
+      displayMode.value = this.gameSettings.displayMode;
+    }
+    
+    if (fpsToggle) {
+      fpsToggle.checked = this.gameSettings.showFPS;
+    }
+    
+    if (audioDevice) {
+      audioDevice.value = this.gameSettings.audioDevice;
+    }
   }
 
   applySettings() {
@@ -180,9 +337,33 @@ class Settings {
       this.gameSettings.lives = parseInt(livesInput.value) || 3;
     }
     
+    // Read display settings
+    const displayMode = document.getElementById('displayMode');
+    const fpsToggle = document.getElementById('fpsToggle');
+    
+    if (displayMode) {
+      this.gameSettings.displayMode = displayMode.value;
+    }
+    
+    if (fpsToggle) {
+      this.gameSettings.showFPS = fpsToggle.checked;
+    }
+    
+    // Read audio device setting
+    const audioDevice = document.getElementById('audioDevice');
+    if (audioDevice) {
+      this.gameSettings.audioDevice = audioDevice.value;
+    }
+    
     // Update window variables
     window.gameTimer = this.gameSettings.timer;
     window.gameLives = this.gameSettings.lives;
+    window.displayMode = this.gameSettings.displayMode;
+    window.showFPS = this.gameSettings.showFPS;
+    window.audioDevice = this.gameSettings.audioDevice;
+    
+    // Apply display mode immediately
+    this.applyDisplayMode();
     
     // Update character menu display
     this.updateCharacterMenuDisplay();
@@ -192,8 +373,81 @@ class Settings {
     
     console.log('Settings applied:', {
       timer: this.gameSettings.timer,
-      lives: this.gameSettings.lives
+      lives: this.gameSettings.lives,
+      displayMode: this.gameSettings.displayMode,
+      showFPS: this.gameSettings.showFPS,
+      audioDevice: this.gameSettings.audioDevice
     });
+  }
+
+  applyDisplayMode() {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) return;
+    
+    switch (this.gameSettings.displayMode) {
+      case 'fullscreen':
+        this.enterFullscreen();
+        break;
+      case 'borderless':
+        this.enterBorderless();
+        break;
+      case 'windowed':
+        this.exitFullscreen();
+        break;
+    }
+  }
+
+  enterFullscreen() {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) return;
+    
+    if (canvas.requestFullscreen) {
+      canvas.requestFullscreen();
+    } else if (canvas.webkitRequestFullscreen) {
+      canvas.webkitRequestFullscreen();
+    } else if (canvas.msRequestFullscreen) {
+      canvas.msRequestFullscreen();
+    }
+  }
+
+  enterBorderless() {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) return;
+    
+    // Exit fullscreen first if in fullscreen
+    this.exitFullscreen();
+    
+    // Set canvas to fill the entire screen
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.border = 'none';
+  }
+
+  exitFullscreen() {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) return;
+    
+    // Exit fullscreen if in fullscreen mode
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+    
+    // Reset canvas to normal windowed mode
+    canvas.style.position = 'relative';
+    canvas.style.top = '';
+    canvas.style.left = '';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.border = '8px solid white';
   }
 
   updateCharacterMenuDisplay() {
@@ -214,7 +468,10 @@ class Settings {
   getSettings() {
     return {
       timer: this.gameSettings.timer,
-      lives: this.gameSettings.lives
+      lives: this.gameSettings.lives,
+      displayMode: this.gameSettings.displayMode,
+      showFPS: this.gameSettings.showFPS,
+      audioDevice: this.gameSettings.audioDevice
     };
   }
 
@@ -324,6 +581,27 @@ class Settings {
     }
     
     this.updateModalDisplay();
+  }
+
+  switchTab(tabName) {
+    // Remove active class from all tabs and panels
+    document.querySelectorAll('.tabButton').forEach(button => {
+      button.classList.remove('active');
+    });
+    document.querySelectorAll('.tabPanel').forEach(panel => {
+      panel.classList.remove('active');
+    });
+    
+    // Add active class to selected tab and panel
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+  }
+
+  updateVolumeDisplay(slider) {
+    const valueDisplay = document.getElementById(`${slider.id}Value`);
+    if (valueDisplay) {
+      valueDisplay.textContent = `${slider.value}%`;
+    }
   }
 }
 

@@ -24,6 +24,13 @@ let gameLives = 3; // Default lives
 let player1Lives = 3;
 let player2Lives = 3;
 let lastTimerUpdate = 0; // Track last timer update in milliseconds
+let lastFrameTime = 0; // Track last frame time for FPS calculation
+
+// FPS calculation variables
+let fpsSamples = []; // Array to store FPS samples
+let fpsUpdateTime = 0; // Track when to update FPS display
+const FPS_SAMPLE_COUNT = 30; // Number of samples to average over
+const FPS_UPDATE_INTERVAL = 500; // Update FPS display every 500ms
 
 // Blast zone constants (areas outside screen where players die)
 const BLAST_ZONE_LEFT = -100;   // 100px left of screen
@@ -225,6 +232,60 @@ function drawStage() {
   ctx.textAlign = 'center';
   ctx.fillStyle = gameTimer <= 30 && gameTimer <= 420 ? '#ff4444' : '#ffffff'; // Red when 30 seconds or less (but not infinity)
   ctx.fillText(timerText, canvas.width / 2, 50);
+
+  // Draw FPS if enabled
+  if (window.showFPS) {
+    const currentTime = Date.now();
+    
+    // Calculate instantaneous FPS
+    if (lastFrameTime > 0) {
+      const frameTime = currentTime - lastFrameTime;
+      const instantFPS = frameTime > 0 ? Math.round(1000 / frameTime) : 0;
+      
+      // Add to samples array
+      fpsSamples.push(instantFPS);
+      
+      // Keep only the last N samples
+      if (fpsSamples.length > FPS_SAMPLE_COUNT) {
+        fpsSamples.shift();
+      }
+    }
+    
+    lastFrameTime = currentTime;
+    
+    // Update FPS display periodically
+    if (currentTime - fpsUpdateTime >= FPS_UPDATE_INTERVAL) {
+      fpsUpdateTime = currentTime;
+    }
+    
+    // Calculate average FPS
+    let averageFPS = 0;
+    if (fpsSamples.length > 0) {
+      const sum = fpsSamples.reduce((acc, fps) => acc + fps, 0);
+      averageFPS = Math.round(sum / fpsSamples.length);
+    }
+    
+    // Draw FPS box in bottom left
+    const fpsBoxWidth = 80;
+    const fpsBoxHeight = 30;
+    const fpsBoxX = 10;
+    const fpsBoxY = canvas.height - fpsBoxHeight - 10;
+    
+    // Draw background box
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(fpsBoxX, fpsBoxY, fpsBoxWidth, fpsBoxHeight);
+    
+    // Draw border
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(fpsBoxX, fpsBoxY, fpsBoxWidth, fpsBoxHeight);
+    
+    // Draw FPS text
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#00ff00';
+    ctx.fillText(`${averageFPS} FPS`, fpsBoxX + fpsBoxWidth / 2, fpsBoxY + fpsBoxHeight / 2 + 5);
+  }
 }
 
 function resetGame() {
