@@ -191,63 +191,160 @@ export class PhysicsBody {
     const thisCenterY = this.y + this.height / 2;
     const otherCenterY = other.y + other.height / 2;
 
+    // Calculate momentum-based push forces
+    const thisMomentum = this.calculateMomentum();
+    const otherMomentum = other.calculateMomentum();
+    
+    // Determine which player has more "push power" based on weight and speed
+    const thisPushPower = this.calculatePushPower();
+    const otherPushPower = other.calculatePushPower();
+    
+    // Check for extreme power differences
+    const powerRatio = Math.max(thisPushPower, otherPushPower) / Math.min(thisPushPower, otherPushPower);
+    const isExtremeDifference = powerRatio > 3; // If one player has 3x more push power
+    
+    console.log('Collision physics:', {
+      thisPlayer: this.constructor.name,
+      otherPlayer: other.constructor.name,
+      thisWeight: this.weight,
+      otherWeight: other.weight,
+      thisSpeed: this.moveSpeed || 5,
+      otherSpeed: other.moveSpeed || 5,
+      thisPushPower: thisPushPower.toFixed(2),
+      otherPushPower: otherPushPower.toFixed(2),
+      thisMomentum: thisMomentum.toFixed(2),
+      otherMomentum: otherMomentum.toFixed(2),
+      powerRatio: powerRatio.toFixed(2),
+      isExtremeDifference: isExtremeDifference
+    });
+
     // Determine which direction has the smaller overlap
     if (verticalOverlap < horizontalOverlap) {
       // Resolve vertical overlap
       if (thisCenterY < otherCenterY) {
         // This player is above
         this.y = other.y - this.height;
-        // Push both players apart horizontally with reduced force
-        const pushForce = 4; // Reduced push force to prevent excessive movement
-        if (thisCenterX < otherCenterX) {
-          this.vx = -pushForce;
-          other.vx = pushForce;
-        } else {
-          this.vx = pushForce;
-          other.vx = -pushForce;
-        }
-        // Don't reset vertical velocity or grounding state here
-        // Let the physics system handle it naturally
+        // Apply momentum-based horizontal push
+        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
       } else {
         // This player is below
         this.y = other.y + other.height;
-        // Push both players apart horizontally with reduced force
-        const pushForce = 4; // Reduced push force to prevent excessive movement
-        if (thisCenterX < otherCenterX) {
-          this.vx = -pushForce;
-          other.vx = pushForce;
-        } else {
-          this.vx = pushForce;
-          other.vx = -pushForce;
-        }
-        // Don't reset vertical velocity here
-        // Let the physics system handle it naturally
+        // Apply momentum-based horizontal push
+        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
       }
     } else {
       // Resolve horizontal overlap - prioritize this for charging players
       if (thisCenterX < otherCenterX) {
         // This player is to the left
         this.x = other.x - this.width;
-        // Stop horizontal movement if moving into the other player
-        if (this.vx > 0) {
-          this.vx = 0;
-        }
-        // Also stop the other player if they're moving into this player
-        if (other.vx < 0) {
-          other.vx = 0;
-        }
+        // Apply momentum-based push
+        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
       } else {
         // This player is to the right
         this.x = other.x + other.width;
-        // Stop horizontal movement if moving into the other player
-        if (this.vx < 0) {
-          this.vx = 0;
-        }
-        // Also stop the other player if they're moving into this player
-        if (other.vx > 0) {
-          other.vx = 0;
-        }
+        // Apply momentum-based push
+        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
       }
     }
+  }
+
+  // Calculate momentum (mass * velocity)
+  calculateMomentum() {
+    const mass = this.weight;
+    const velocity = Math.abs(this.vx) + Math.abs(this.vy);
+    return mass * velocity;
+  }
+
+  // Calculate push power based on weight and speed
+  calculatePushPower() {
+    const weight = this.weight;
+    const speed = this.moveSpeed || 5; // Default speed if not set
+    const velocity = Math.abs(this.vx) + Math.abs(this.vy);
+    
+    // Enhanced push power calculation:
+    // - Weight has a stronger influence (squared)
+    // - Speed has moderate influence
+    // - Current velocity adds to push power
+    // - Minimum push power even when stationary
+    const weightFactor = weight * weight; // Square the weight for stronger effect
+    const speedFactor = speed / 5; // Normalize speed around 5
+    const velocityFactor = (velocity + 2) / 10; // Add minimum velocity and normalize
+    
+    const pushPower = (weightFactor * speedFactor * velocityFactor);
+    
+    console.log('Push power calculation:', {
+      weight: weight,
+      speed: speed,
+      velocity: velocity.toFixed(2),
+      weightFactor: weightFactor.toFixed(2),
+      speedFactor: speedFactor.toFixed(2),
+      velocityFactor: velocityFactor.toFixed(2),
+      finalPushPower: pushPower.toFixed(2)
+    });
+    
+    return pushPower;
+  }
+
+  // Apply momentum-based push between two players
+  applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference) {
+    const totalPushPower = thisPushPower + otherPushPower;
+    if (totalPushPower === 0) return;
+
+    // Calculate push ratio (how much each player contributes to the push)
+    let thisPushRatio = thisPushPower / totalPushPower;
+    let otherPushRatio = otherPushPower / totalPushPower;
+
+    // Handle extreme power differences
+    if (isExtremeDifference) {
+      if (thisPushPower > otherPushPower) {
+        // This player is much stronger
+        thisPushRatio = 0.8; // Give this player 80% of the push power
+        otherPushRatio = 0.2; // Other player only gets 20%
+      } else {
+        // Other player is much stronger
+        thisPushRatio = 0.2; // This player only gets 20%
+        otherPushRatio = 0.8; // Other player gets 80% of the push power
+      }
+    }
+
+    // Base push force with some randomization to prevent predictable behavior
+    const basePushForce = 4 + (Math.random() * 3); // 4-7 range
+    
+    // Calculate individual push forces
+    const thisPushForce = basePushForce * thisPushRatio;
+    const otherPushForce = basePushForce * otherPushRatio;
+
+    // Determine push direction based on relative positions
+    const thisCenterX = this.x + this.width / 2;
+    const otherCenterX = other.x + other.width / 2;
+    
+    // Add some vertical push variation for more dynamic interactions
+    const verticalPush = (Math.random() - 0.5) * 2; // Small random vertical push
+    
+    if (thisCenterX < otherCenterX) {
+      // This player is to the left, push them left and other right
+      this.vx = -thisPushForce;
+      other.vx = otherPushForce;
+      // Add small vertical push
+      this.vy += verticalPush;
+      other.vy -= verticalPush;
+    } else {
+      // This player is to the right, push them right and other left
+      this.vx = thisPushForce;
+      other.vx = -otherPushForce;
+      // Add small vertical push
+      this.vy += verticalPush;
+      other.vy -= verticalPush;
+    }
+
+    console.log('Momentum push applied:', {
+      thisPushForce: thisPushForce.toFixed(2),
+      otherPushForce: otherPushForce.toFixed(2),
+      thisPushRatio: thisPushRatio.toFixed(2),
+      otherPushRatio: otherPushRatio.toFixed(2),
+      verticalPush: verticalPush.toFixed(2),
+      basePushForce: basePushForce.toFixed(2),
+      isExtremeDifference: isExtremeDifference
+    });
   }
 } 
