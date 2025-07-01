@@ -57,6 +57,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Function to reset character selection state
   function resetCharacterSelection() {
+    // Only ensure the character menu is visible after a game reset
+    menu.style.display = '';
     selectedCharacter1 = null;
     selectedCharacter2 = null;
     player1Selected = false;
@@ -65,7 +67,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // Reset choice text visibility
     if (player1Choice) player1Choice.style.display = 'none';
     if (player2Choice) player2Choice.style.display = 'none';
-    if (startButton) startButton.style.display = 'none';
+    if (startButton) startButton.style.display = '';
+    // Do NOT hide the start button; keep it visible and update its state below
+    // if (startButton) startButton.style.display = 'none';
     
     // Clear any existing character selections
     const characterBoxes = document.querySelectorAll('.characterBox');
@@ -77,6 +81,22 @@ window.addEventListener('DOMContentLoaded', () => {
     // Reset player boxes to their initial state
     showCharacterName(null, '1');
     showCharacterName(null, '2');
+
+    // Move tokens back to 'Random' (or index 0 if not found)
+    characterBoxElements = Array.from(characterGrid.getElementsByClassName('characterBox'));
+    let randomIndex = characterBoxElements.findIndex(box => box.id.toLowerCase().includes('random'));
+    if (randomIndex === -1) randomIndex = 0;
+    p1Index = randomIndex;
+    p2Index = randomIndex;
+    positionToken(p1Token, p1Index);
+    positionToken(p2Token, p2Index);
+
+    // Set playerPresentation panels to blank (initial state)
+    showCharacterName(null, '1');
+    showCharacterName(null, '2');
+
+    // Update Start button state (enabled/disabled)
+    updateStartButtonState();
     
     console.log('Character selection reset complete');
   }
@@ -176,27 +196,8 @@ window.addEventListener('DOMContentLoaded', () => {
       characterGrid.appendChild(characterBox);
       console.log(`Character box created for: ${characters[key].name}`);
 
-      // Add click event listener to each character box
-      characterBox.addEventListener('click', () => {
-        if (!selectedCharacter1) {
-          // If Player 1 is not selected, set this character
-          selectedCharacter1 = characters[key].name;
-          showCharacterName(selectedCharacter1, '1');
-          document.getElementById('player1Choice').style.display = 'none'; // Hide Player 1 Choose text
-          document.getElementById('player2Choice').style.display = 'block'; // Show Player 2 Choose text
-          player1Selected = true;
-          updatePlayerBoxes(); // Update to show CPU toggle capability
-          checkGameStart();
-        } else if (!selectedCharacter2) {
-          // If Player 2 is not selected, set this character
-          selectedCharacter2 = characters[key].name;
-          showCharacterName(selectedCharacter2, '2');
-          document.getElementById('player2Choice').style.display = 'none'; // Hide Player 2 Choose text
-          player2Selected = true;
-          updatePlayerBoxes(); // Update to show CPU toggle capability
-          checkGameStart();
-        }
-      });
+      // Removed click event listener so clicking does nothing
+      // characterBox.addEventListener('click', ... );
     }
   }
 
