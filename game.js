@@ -93,6 +93,10 @@ let prevGamepadStates = [{}, {}]; // For debouncing per player
 let controllerActiveForPlayer1 = false;
 let controllerActiveForPlayer2 = false;
 
+// Debounce state for pause/leave game per player
+let lastPauseButtonState = [false, false];
+let lastLeaveButtonState = [false, false];
+
 function resetKeys() {
   for (const key in keys) {
     if (Object.hasOwnProperty.call(keys, key)) {
@@ -365,38 +369,13 @@ function resetGame() {
   console.log('Game reset complete - returning to character menu');
 }
 
-function pollGamepads() {
-  controllerActiveForPlayer1 = false;
-  controllerActiveForPlayer2 = false;
-  const gamepadsRaw = navigator.getGamepads ? navigator.getGamepads() : [];
-  // Filter out null/undefined gamepads and only allow real game controllers
-  const controllerKeywords = [
-    'xbox', 'playstation', 'dualshock', 'switch', 'pro controller', '8bitdo', 'logitech', 'nintendo', 'controller', 'ps4', 'ps5', 'sony', 'gamepad'
-  ];
-  const connectedGamepads = [];
-  for (let i = 0; i < gamepadsRaw.length; i++) {
-    const gp = gamepadsRaw[i];
-    if (!gp) continue;
-    // Only allow mapping === 'standard' and id contains a controller keyword
-    const idLower = gp.id ? gp.id.toLowerCase() : '';
-    const isController = gp.mapping === 'standard' && controllerKeywords.some(keyword => idLower.includes(keyword));
-    if (isController) connectedGamepads.push(gp);
-  }
-  // Assign controllers in order: first to player 1, second to player 2
-  let padIndex = 0;
-  if (!window.player1IsCPU && connectedGamepads[padIndex]) {
-    handleGamepadForPlayer(connectedGamepads[padIndex], player1, 0);
-    controllerActiveForPlayer1 = true;
-    padIndex++;
-  }
-  if (!window.player2IsCPU && connectedGamepads[padIndex]) {
-    handleGamepadForPlayer(connectedGamepads[padIndex], player2, 1);
-    controllerActiveForPlayer2 = true;
-    padIndex++;
-  }
+// --- GLOBAL GAMEPAD POLLING LOOP ---
+function pollGamepadsLoop() {
+  pollGamepads();
+  requestAnimationFrame(pollGamepadsLoop);
 }
+requestAnimationFrame(pollGamepadsLoop);
 
-// Extracted from previous pollGamepads loop, now per player
 function handleGamepadForPlayer(gp, player, prevIndex) {
   // Axes: 0 = left/right, 1 = up/down
   const lx = gp.axes[0] || 0;
@@ -411,24 +390,38 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
     player.vy = Math.min(player.vy + 0.8, 15);
   }
   // --- BUTTONS ---
-  // 0: A (jump), 2: X (heavy), 6: L2 (shield), 7: R2 (light)
+  // 0: A (jump), 1: B (leave game), 2: X (heavy), 6: L2 (shield), 7: R2 (light), 9: Menu/Start (pause)
   const btnA = gp.buttons[0]?.pressed;
+  const btnB = gp.buttons[1]?.pressed;
   const btnX = gp.buttons[2]?.pressed;
   const btnL2 = gp.buttons[6]?.pressed;
   const btnR2 = gp.buttons[7]?.pressed;
+  const btnMenu = gp.buttons[9]?.pressed;
   // Debounce state
   const prev = prevGamepadStates[prevIndex] || {};
-  // --- Direction for attacks ---
-  let direction = 'neutral';
-  if (Math.abs(lx) > Math.abs(ly)) {
-    if (lx < -DEADZONE) direction = 'side';
-    else if (lx > DEADZONE) direction = 'side';
-  } else {
-    if (ly < -0.5) direction = 'up';
-    else if (ly > 0.5) direction = 'down';
+  // --- Detect UI context ---
+  const characterMenu = document.getElementById('characterMenu');
+  const gameCanvas = document.getElementById('gameCanvas');
+  const menuVisible = characterMenu && characterMenu.style.display !== 'none';
+  const gameVisible = gameCanvas && gameCanvas.style.display !== 'none';
+  // --- Pause/Settings logic ---
+  if (btnMenu && !lastPauseButtonState[prevIndex]) {
+    if (menuVisible && window.settings && typeof window.settings.toggleSettings === 'function') {
+      window.settings.toggleSettings();
+    } else if (gameVisible && window.pauseMenu && typeof window.pauseMenu.togglePause === 'function') {
+      window.pauseMenu.togglePause();
+    }
   }
+  lastPauseButtonState[prevIndex] = btnMenu;
+  // --- Leave Game (A or B button while paused, only if game is visible) ---
+  if (gameVisible && window.pauseMenu && window.pauseMenu.isPaused && ((btnA && !lastLeaveButtonState[prevIndex]) || (btnB && !lastLeaveButtonState[prevIndex]))) {
+    if (typeof window.pauseMenu.leaveGame === 'function') {
+      window.pauseMenu.leaveGame();
+    }
+  }
+  lastLeaveButtonState[prevIndex] = btnA || btnB;
   // --- Jump (A) ---
-  if (btnA && !prev.btnA) {
+  if (btnA && !prev.btnA && !(window.pauseMenu && window.pauseMenu.isPaused)) {
     player.jump();
   }
   // --- Reset jump key state on A release (for double jump/grounded jump logic) ---
@@ -436,11 +429,11 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
     player.isJumpKeyPressed = false;
   }
   // --- Light Attack (R2) ---
-  if (btnR2 && !prev.btnR2) {
+  if (btnR2 && !prev.btnR2 && !(window.pauseMenu && window.pauseMenu.isPaused)) {
     player.attack(direction, 'light');
   }
   // --- Heavy Attack (X) ---
-  if (btnX && !prev.btnX) {
+  if (btnX && !prev.btnX && !(window.pauseMenu && window.pauseMenu.isPaused)) {
     // For neutral heavy, start charging; for others, attack
     if (direction !== 'neutral') {
       player.attack(direction, 'heavy');
@@ -453,7 +446,7 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
     player.releaseCharge();
   }
   // --- Shield (L2) ---
-  if (btnL2 && !prev.btnL2) {
+  if (btnL2 && !prev.btnL2 && !(window.pauseMenu && window.pauseMenu.isPaused)) {
     player.activateShield();
   }
   if (!btnL2 && prev.btnL2) {
@@ -464,7 +457,7 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
     player.onJabKeyUp();
   }
   // Update previous state
-  prevGamepadStates[prevIndex] = { btnA, btnX, btnL2, btnR2 };
+  prevGamepadStates[prevIndex] = { btnA, btnB, btnX, btnL2, btnR2, btnMenu };
 }
 
 function update() {
@@ -856,3 +849,34 @@ window.addEventListener('gameResumed', () => {
   console.log('Game resumed');
   isPaused = false;
 });
+
+function pollGamepads() {
+  controllerActiveForPlayer1 = false;
+  controllerActiveForPlayer2 = false;
+  const gamepadsRaw = navigator.getGamepads ? navigator.getGamepads() : [];
+  // Filter out null/undefined gamepads and only allow real game controllers
+  const controllerKeywords = [
+    'xbox', 'playstation', 'dualshock', 'switch', 'pro controller', '8bitdo', 'logitech', 'nintendo', 'controller', 'ps4', 'ps5', 'sony', 'gamepad'
+  ];
+  const connectedGamepads = [];
+  for (let i = 0; i < gamepadsRaw.length; i++) {
+    const gp = gamepadsRaw[i];
+    if (!gp) continue;
+    // Only allow mapping === 'standard' and id contains a controller keyword
+    const idLower = gp.id ? gp.id.toLowerCase() : '';
+    const isController = gp.mapping === 'standard' && controllerKeywords.some(keyword => idLower.includes(keyword));
+    if (isController) connectedGamepads.push(gp);
+  }
+  // Assign controllers in order: first to player 1, second to player 2
+  let padIndex = 0;
+  if (!window.player1IsCPU && connectedGamepads[padIndex]) {
+    handleGamepadForPlayer(connectedGamepads[padIndex], player1, 0);
+    controllerActiveForPlayer1 = true;
+    padIndex++;
+  }
+  if (!window.player2IsCPU && connectedGamepads[padIndex]) {
+    handleGamepadForPlayer(connectedGamepads[padIndex], player2, 1);
+    controllerActiveForPlayer2 = true;
+    padIndex++;
+  }
+}
