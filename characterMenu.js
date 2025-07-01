@@ -193,6 +193,21 @@ window.addEventListener('DOMContentLoaded', () => {
       characterName.className = 'characterName';
 
       characterBox.appendChild(characterName);
+
+      // Add UNDER CONSTRUCTION overlay and disable for all except Kaon, Rakka, and Random
+      const isPlayable = (key === 'kaon' || key === 'rakka' || key === 'random');
+      if (!isPlayable) {
+        // Add yellow tape overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'underConstructionOverlay';
+        overlay.innerText = 'UNDER CONSTRUCTION';
+        characterBox.appendChild(overlay);
+        // Visually gray out
+        characterBox.style.filter = 'grayscale(1) brightness(1.3)';
+        characterBox.style.position = 'relative';
+        characterBox.style.pointerEvents = 'none'; // Prevent mouse events
+      }
+
       characterGrid.appendChild(characterBox);
       console.log(`Character box created for: ${characters[key].name}`);
 
@@ -240,6 +255,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Now initialize characterBoxElements and indices
   let characterBoxElements = Array.from(characterGrid.getElementsByClassName('characterBox'));
+  // Mark unselectable indices for under construction characters
+  let unselectableIndices = characterBoxElements.map((box, idx) => {
+    const id = box.id.toLowerCase();
+    return (id.includes('kaon') || id.includes('rakka') || id.includes('random')) ? null : idx;
+  }).filter(idx => idx !== null);
   let randomIndex = characterBoxElements.findIndex(box => box.id.toLowerCase().includes('random'));
   if (randomIndex === -1) randomIndex = 0; // fallback
   let p1Index = randomIndex;
@@ -275,6 +295,8 @@ window.addEventListener('DOMContentLoaded', () => {
     let minDist = Infinity;
     let nearestIdx = 0;
     characterBoxElements.forEach((box, idx) => {
+      // Skip unselectable boxes
+      if (unselectableIndices.includes(idx)) return;
       const rect = box.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
@@ -378,8 +400,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // On start, use the character under each token
   startButton.addEventListener('click', () => {
-    const character1 = characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent;
-    const character2 = characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent;
+    // List of playable character names (not under construction, not Random)
+    const playableNames = ['Kaon', 'Rakka'];
+    // Get selected character names
+    let character1 = characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent;
+    let character2 = characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent;
+    // If Random, pick a random playable character
+    if (character1 === 'Random') {
+      character1 = playableNames[Math.floor(Math.random() * playableNames.length)];
+    }
+    if (character2 === 'Random') {
+      character2 = playableNames[Math.floor(Math.random() * playableNames.length)];
+    }
     const event = new CustomEvent('startGame', {
       detail: {
         character1,
