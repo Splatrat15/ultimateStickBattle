@@ -382,6 +382,11 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
   const ly = gp.axes[1] || 0;
   // Deadzone for stick
   const DEADZONE = 0.22;
+  // --- Direction for attacks ---
+  let direction = 'neutral';
+  if (lx < -DEADZONE || lx > DEADZONE) direction = 'side';
+  else if (ly < -DEADZONE) direction = 'up';
+  else if (ly > DEADZONE) direction = 'down';
   // Movement
   if (lx < -DEADZONE) player.move(-1);
   else if (lx > DEADZONE) player.move(1);
