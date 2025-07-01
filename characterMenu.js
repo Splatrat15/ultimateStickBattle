@@ -37,6 +37,8 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialize window variables if they don't exist
   if (window.player1IsCPU === undefined) window.player1IsCPU = false;
   if (window.player2IsCPU === undefined) window.player2IsCPU = false;
+  if (window.player1CPULevel === undefined) window.player1CPULevel = 1;
+  if (window.player2CPULevel === undefined) window.player2CPULevel = 1;
 
   // Win condition state
   let winScore = 5; // Default win score
@@ -357,6 +359,22 @@ window.addEventListener('DOMContentLoaded', () => {
   startButton.style.display = 'block';
   updateStartButtonState();
 
+  // --- Always-visible CPU Difficulty Controls ---
+  if (window.player1CPUDifficulty === undefined) window.player1CPUDifficulty = 'EASY';
+  if (window.player2CPUDifficulty === undefined) window.player2CPUDifficulty = 'EASY';
+  const cpuDifficulties = ['EASY', 'MEDIUM', 'HARD', 'EXPERT'];
+
+  // Remove any old CPU controls (cpuAlwaysBox, cpuToggleBox) for both player boxes
+  const oldCPUBox1 = player1Box.querySelector('.cpuAlwaysBox');
+  if (oldCPUBox1) oldCPUBox1.remove();
+  const oldCPUBox2 = player2Box.querySelector('.cpuAlwaysBox');
+  if (oldCPUBox2) oldCPUBox2.remove();
+  const oldToggleBox1 = player1Box.querySelector('.cpuToggleBox');
+  if (oldToggleBox1) oldToggleBox1.remove();
+  const oldToggleBox2 = player2Box.querySelector('.cpuToggleBox');
+  if (oldToggleBox2) oldToggleBox2.remove();
+  // Do NOT call createAlwaysVisibleCPUBox or append its result to either player box
+
   // On start, use the character under each token
   startButton.addEventListener('click', () => {
     const character1 = characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent;
@@ -368,6 +386,8 @@ window.addEventListener('DOMContentLoaded', () => {
         player1IsCPU: window.player1IsCPU,
         player2IsCPU: window.player2IsCPU,
         winScore: window.winScore,
+        player1CPUDifficulty: window.player1CPUDifficulty,
+        player2CPUDifficulty: window.player2CPUDifficulty,
       }
     });
     window.dispatchEvent(event);
@@ -391,4 +411,11 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Remove any old controls for player label boxes (these are now handled by showCharacterName)
+  const oldP1Controls = player1Box.querySelector('.playerLabelBox');
+  if (oldP1Controls) oldP1Controls.remove();
+  const oldP2Controls = player2Box.querySelector('.playerLabelBox');
+  if (oldP2Controls) oldP2Controls.remove();
+  // Do NOT create or append any new playerLabelBox here for either player1Box or player2Box
 });
