@@ -623,6 +623,43 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
+// Stop all movement if window loses focus
+window.addEventListener('blur', () => {
+  // Reset all movement keys
+  for (const key in keys) {
+    keys[key] = false;
+  }
+  // Stop player movement immediately
+  if (player1) {
+    player1.vx = 0;
+    player1.isJumpKeyPressed = false;
+  }
+  if (player2) {
+    player2.vx = 0;
+    player2.isJumpKeyPressed = false;
+  }
+});
+
+// Stop all movement if a modifier/special key is pressed (e.g., CapsLock, Tab, Alt, Control, Meta, Escape)
+window.addEventListener('keydown', (e) => {
+  const resetKeys = [
+    'CapsLock', 'Tab', 'Alt', 'AltGraph', 'Control', 'Meta', 'Escape'
+  ];
+  if (resetKeys.includes(e.key)) {
+    for (const key in keys) {
+      keys[key] = false;
+    }
+    if (player1) {
+      player1.vx = 0;
+      player1.isJumpKeyPressed = false;
+    }
+    if (player2) {
+      player2.vx = 0;
+      player2.isJumpKeyPressed = false;
+    }
+  }
+});
+
 // Initialize game
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
