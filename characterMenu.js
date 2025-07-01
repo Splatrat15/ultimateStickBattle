@@ -103,6 +103,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Listen for game reset event
   window.addEventListener('gameReset', () => {
+    // Always reset CPU flags to false unless toggled by user
+    window.player1IsCPU = false;
+    window.player2IsCPU = false;
     console.log('=== CHARACTER MENU RESET ===');
     resetCharacterSelection();
   });

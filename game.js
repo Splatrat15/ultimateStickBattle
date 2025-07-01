@@ -74,6 +74,25 @@ const keys = {
   ArrowRight: false
 };
 
+// --- GAMEPAD SUPPORT ---
+// Gamepad button mappings (standard mapping):
+// 0: A (bottom, A on Xbox, Cross on PS) - JUMP
+// 1: B (right, B on Xbox, Circle on PS)
+// 2: X (left, X on Xbox, Square on PS) - HEAVY ATTACK
+// 3: Y (top, Y on Xbox, Triangle on PS)
+// 4: L1, 5: R1, 6: L2 (shield), 7: R2 (light attack), 8: Select, 9: Start
+// We'll use:
+// 0: A (jump)
+// 2: X (heavy attack)
+// 6: L2 (shield)
+// 7: R2 (light attack)
+
+let prevGamepadStates = [{}, {}]; // For debouncing per player
+
+// Controller active flags
+let controllerActiveForPlayer1 = false;
+let controllerActiveForPlayer2 = false;
+
 function resetKeys() {
   for (const key in keys) {
     if (Object.hasOwnProperty.call(keys, key)) {
@@ -346,6 +365,108 @@ function resetGame() {
   console.log('Game reset complete - returning to character menu');
 }
 
+function pollGamepads() {
+  controllerActiveForPlayer1 = false;
+  controllerActiveForPlayer2 = false;
+  const gamepadsRaw = navigator.getGamepads ? navigator.getGamepads() : [];
+  // Filter out null/undefined gamepads and only allow real game controllers
+  const controllerKeywords = [
+    'xbox', 'playstation', 'dualshock', 'switch', 'pro controller', '8bitdo', 'logitech', 'nintendo', 'controller', 'ps4', 'ps5', 'sony', 'gamepad'
+  ];
+  const connectedGamepads = [];
+  for (let i = 0; i < gamepadsRaw.length; i++) {
+    const gp = gamepadsRaw[i];
+    if (!gp) continue;
+    // Only allow mapping === 'standard' and id contains a controller keyword
+    const idLower = gp.id ? gp.id.toLowerCase() : '';
+    const isController = gp.mapping === 'standard' && controllerKeywords.some(keyword => idLower.includes(keyword));
+    if (isController) connectedGamepads.push(gp);
+  }
+  // Assign controllers in order: first to player 1, second to player 2
+  let padIndex = 0;
+  if (!window.player1IsCPU && connectedGamepads[padIndex]) {
+    handleGamepadForPlayer(connectedGamepads[padIndex], player1, 0);
+    controllerActiveForPlayer1 = true;
+    padIndex++;
+  }
+  if (!window.player2IsCPU && connectedGamepads[padIndex]) {
+    handleGamepadForPlayer(connectedGamepads[padIndex], player2, 1);
+    controllerActiveForPlayer2 = true;
+    padIndex++;
+  }
+}
+
+// Extracted from previous pollGamepads loop, now per player
+function handleGamepadForPlayer(gp, player, prevIndex) {
+  // Axes: 0 = left/right, 1 = up/down
+  const lx = gp.axes[0] || 0;
+  const ly = gp.axes[1] || 0;
+  // Deadzone for stick
+  const DEADZONE = 0.22;
+  // Movement
+  if (lx < -DEADZONE) player.move(-1);
+  else if (lx > DEADZONE) player.move(1);
+  // Fast fall (down on stick)
+  if (ly > 0.5 && !player.isGrounded) {
+    player.vy = Math.min(player.vy + 0.8, 15);
+  }
+  // --- BUTTONS ---
+  // 0: A (jump), 2: X (heavy), 6: L2 (shield), 7: R2 (light)
+  const btnA = gp.buttons[0]?.pressed;
+  const btnX = gp.buttons[2]?.pressed;
+  const btnL2 = gp.buttons[6]?.pressed;
+  const btnR2 = gp.buttons[7]?.pressed;
+  // Debounce state
+  const prev = prevGamepadStates[prevIndex] || {};
+  // --- Direction for attacks ---
+  let direction = 'neutral';
+  if (Math.abs(lx) > Math.abs(ly)) {
+    if (lx < -DEADZONE) direction = 'side';
+    else if (lx > DEADZONE) direction = 'side';
+  } else {
+    if (ly < -0.5) direction = 'up';
+    else if (ly > 0.5) direction = 'down';
+  }
+  // --- Jump (A) ---
+  if (btnA && !prev.btnA) {
+    player.jump();
+  }
+  // --- Reset jump key state on A release (for double jump/grounded jump logic) ---
+  if (!btnA && prev.btnA) {
+    player.isJumpKeyPressed = false;
+  }
+  // --- Light Attack (R2) ---
+  if (btnR2 && !prev.btnR2) {
+    player.attack(direction, 'light');
+  }
+  // --- Heavy Attack (X) ---
+  if (btnX && !prev.btnX) {
+    // For neutral heavy, start charging; for others, attack
+    if (direction !== 'neutral') {
+      player.attack(direction, 'heavy');
+    } else {
+      player.startCharge();
+    }
+  }
+  // --- Release charge on X release ---
+  if (!btnX && prev.btnX) {
+    player.releaseCharge();
+  }
+  // --- Shield (L2) ---
+  if (btnL2 && !prev.btnL2) {
+    player.activateShield();
+  }
+  if (!btnL2 && prev.btnL2) {
+    player.deactivateShield();
+  }
+  // --- Jab combo keyup for Rakka ---
+  if (!btnR2 && prev.btnR2 && player.onJabKeyUp) {
+    player.onJabKeyUp();
+  }
+  // Update previous state
+  prevGamepadStates[prevIndex] = { btnA, btnX, btnL2, btnR2 };
+}
+
 function update() {
   frameCount++;
   
@@ -440,9 +561,12 @@ function update() {
     console.log('========================');
   }
 
+  // --- POLL GAMEPADS ---
+  pollGamepads();
+
   // Handle Player 1 movement (WASD) - Blue cube
-  if (!window.player1IsCPU) {
-    // Human player - handle input
+  if (!window.player1IsCPU && !controllerActiveForPlayer1) {
+    // Human player - handle input (keyboard only if no controller)
     if (keys.a) player1.move(-1);
     if (keys.d) player1.move(1);
     if (keys.w) player1.jump();
@@ -450,7 +574,7 @@ function update() {
     if (keys.s && !player1.isGrounded) {
       player1.vy = Math.min(player1.vy + 0.8, 15); // Increase fall speed
     }
-  } else {
+  } else if (window.player1IsCPU) {
     // CPU player - update AI
     if (cpu1) {
       cpu1.update();
@@ -461,8 +585,8 @@ function update() {
   }
 
   // Handle Player 2 movement (Arrow keys) - Red cube
-  if (!window.player2IsCPU) {
-    // Human player - handle input
+  if (!window.player2IsCPU && !controllerActiveForPlayer2) {
+    // Human player - handle input (keyboard only if no controller)
     if (keys.ArrowLeft) player2.move(-1);
     if (keys.ArrowRight) player2.move(1);
     if (keys.ArrowUp) player2.jump();
@@ -470,7 +594,7 @@ function update() {
     if (keys.ArrowDown && !player2.isGrounded) {
       player2.vy = Math.min(player2.vy + 0.8, 15); // Increase fall speed
     }
-  } else {
+  } else if (window.player2IsCPU) {
     // CPU player - update AI
     if (cpu2) {
       cpu2.update();
@@ -671,8 +795,8 @@ window.addEventListener('startGame', (e) => {
   // Store settings
   window.selectedCharacter1 = character1;
   window.selectedCharacter2 = character2;
-  window.player1IsCPU = player1IsCPU;
-  window.player2IsCPU = player2IsCPU;
+  window.player1IsCPU = !!player1IsCPU;
+  window.player2IsCPU = !!player2IsCPU;
   window.winScore = winScore;
 
   gameStarted = true;
