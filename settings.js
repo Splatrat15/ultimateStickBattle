@@ -92,19 +92,38 @@ class Settings {
   }
 
   createSettingsButton() {
+    // Only create the button if it doesn't already exist
+    if (document.getElementById('settingsButton')) return;
     this.settingsButton = document.createElement('button');
     this.settingsButton.id = 'settingsButton';
     this.settingsButton.className = 'settingsButton';
     this.settingsButton.innerHTML = '⚙️';
     this.settingsButton.title = 'Settings';
-    
     // Position in top right
     this.settingsButton.style.position = 'fixed';
     this.settingsButton.style.top = '20px';
     this.settingsButton.style.right = '20px';
     this.settingsButton.style.zIndex = '100';
-    
     document.body.appendChild(this.settingsButton);
+    // Only show when characterMenu is visible and gameCanvas is hidden
+    const characterMenu = document.getElementById('characterMenu');
+    const gameCanvas = document.getElementById('gameCanvas');
+    const updateButtonVisibility = () => {
+      if (
+        characterMenu && characterMenu.style.display !== 'none' &&
+        gameCanvas && gameCanvas.style.display === 'none'
+      ) {
+        this.settingsButton.style.display = 'block';
+      } else {
+        this.settingsButton.style.display = 'none';
+      }
+    };
+    // Listen for menu/game show/hide events
+    window.addEventListener('gameReset', () => setTimeout(updateButtonVisibility, 0));
+    window.addEventListener('startGame', updateButtonVisibility);
+    window.addEventListener('DOMContentLoaded', () => setTimeout(updateButtonVisibility, 100));
+    setTimeout(updateButtonVisibility, 200);
+    updateButtonVisibility();
   }
 
   createSettingsModal() {
@@ -273,6 +292,39 @@ class Settings {
         this.closeSettings();
       }
     });
+
+    // --- CONTROLLER TAB SWITCHING ---
+    let lastR1 = false;
+    let lastL1 = false;
+    const tabOrder = ['game', 'audio', 'display'];
+    const pollControllerTabs = () => {
+      // Only if settings modal is open/visible
+      if (this.settingsModal && this.settingsModal.style.display !== 'none') {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < 2; i++) {
+          const gp = gamepads[i];
+          if (!gp || gp.mapping !== 'standard') continue;
+          const btnL1 = gp.buttons[4]?.pressed;
+          const btnR1 = gp.buttons[5]?.pressed;
+          // Find current tab
+          const activeTabBtn = document.querySelector('.tabButton.active');
+          let currentTab = activeTabBtn ? activeTabBtn.dataset.tab : 'game';
+          let idx = tabOrder.indexOf(currentTab);
+          // L1 = left
+          if (btnL1 && !lastL1 && idx > 0) {
+            this.switchTab(tabOrder[idx - 1]);
+          }
+          // R1 = right
+          if (btnR1 && !lastR1 && idx < tabOrder.length - 1) {
+            this.switchTab(tabOrder[idx + 1]);
+          }
+          lastL1 = btnL1;
+          lastR1 = btnR1;
+        }
+      }
+      requestAnimationFrame(pollControllerTabs);
+    };
+    requestAnimationFrame(pollControllerTabs);
   }
 
   toggleSettings() {

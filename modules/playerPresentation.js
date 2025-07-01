@@ -254,3 +254,238 @@ export function hideCharacterName(playerNumber) {
     characterNameDisplay.remove();
   }
 }
+
+// === CONTROLLER CURSOR SUPPORT ===
+const controllerCursors = [
+  {
+    x: window.innerWidth * 0.25,
+    y: window.innerHeight * 0.5,
+    color: '#2196f3', // Blue for player 1
+    el: null,
+    active: false,
+    lastA: false
+  },
+  {
+    x: window.innerWidth * 0.75,
+    y: window.innerHeight * 0.5,
+    color: '#e53935', // Red for player 2
+    el: null,
+    active: false,
+    lastA: false
+  }
+];
+
+function createControllerCursor(idx) {
+  let el = document.createElement('div');
+  el.className = 'controller-cursor';
+  el.style.position = 'fixed';
+  el.style.width = '28px';
+  el.style.height = '28px';
+  el.style.borderRadius = '50%';
+  el.style.background = controllerCursors[idx].color;
+  el.style.boxShadow = `0 0 8px ${controllerCursors[idx].color}88`;
+  el.style.zIndex = 9999;
+  el.style.pointerEvents = 'none';
+  el.style.transition = 'background 0.1s';
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  controllerCursors[idx].el = el;
+}
+createControllerCursor(0);
+createControllerCursor(1);
+
+// Helper to get the connected controllers in the same order as game.js
+function getAssignedControllerIndexForPlayer(playerIdx) {
+  // playerIdx: 0 for player 1, 1 for player 2
+  const gamepadsRaw = navigator.getGamepads ? navigator.getGamepads() : [];
+  const controllerKeywords = [
+    'xbox', 'playstation', 'dualshock', 'switch', 'pro controller', '8bitdo', 'logitech', 'nintendo', 'controller', 'ps4', 'ps5', 'sony', 'gamepad'
+  ];
+  const connectedGamepads = [];
+  for (let i = 0; i < gamepadsRaw.length; i++) {
+    const gp = gamepadsRaw[i];
+    if (!gp) continue;
+    const idLower = gp.id ? gp.id.toLowerCase() : '';
+    const isController = gp.mapping === 'standard' && controllerKeywords.some(keyword => idLower.includes(keyword));
+    if (isController) connectedGamepads.push({ gp, index: i });
+  }
+  // Assign controllers in order: first to player 1, second to player 2
+  if (playerIdx === 0 && !window.player1IsCPU && connectedGamepads[0]) return connectedGamepads[0].index;
+  if (playerIdx === 1 && !window.player2IsCPU && connectedGamepads[1]) return connectedGamepads[1].index;
+  return null;
+}
+
+function updateControllerCursors() {
+  // Only show in character menu/settings
+  const menu = document.getElementById('characterMenu');
+  const settingsModal = document.getElementById('settingsModal');
+  const menuVisible = menu && menu.style.display !== 'none';
+  const settingsVisible = settingsModal && settingsModal.style.display !== 'none';
+  for (let i = 0; i < 2; i++) {
+    const cursor = controllerCursors[i];
+    // Only show if controller is assigned to this player
+    const assignedIndex = getAssignedControllerIndexForPlayer(i);
+    if (cursor.el) {
+      if ((menuVisible || settingsVisible) && assignedIndex !== null) {
+        cursor.el.style.display = 'block';
+        cursor.el.style.left = `${cursor.x - 14}px`;
+        cursor.el.style.top = `${cursor.y - 14}px`;
+      } else {
+        cursor.el.style.display = 'none';
+      }
+    }
+  }
+}
+
+// --- CONTROLLER CURSOR TOKEN DRAG SUPPORT ---
+// These will be set by characterMenu.js, but we need to hook into them
+let characterGrid = null;
+let p1Token = null;
+let p2Token = null;
+let characterBoxElements = null;
+let unselectableIndices = null;
+let draggingToken = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let p1Index = null;
+let p2Index = null;
+let positionToken = null;
+let getNearestCharacterBox = null;
+let updateStartButtonState = null;
+
+// Wait for DOMContentLoaded and characterMenu.js to set up tokens and helpers
+window.addEventListener('DOMContentLoaded', () => {
+  // Try to get references from characterMenu.js scope
+  characterGrid = document.getElementById('characterGrid');
+  p1Token = document.getElementById('p1Token');
+  p2Token = document.getElementById('p2Token');
+  characterBoxElements = characterGrid ? Array.from(characterGrid.getElementsByClassName('characterBox')) : null;
+  // Only assign helpers if not already defined, but DO NOT assign showCharacterName to avoid redeclaration
+  if (!positionToken) positionToken = window.positionToken || null;
+  if (!getNearestCharacterBox) getNearestCharacterBox = window.getNearestCharacterBox || null;
+  if (!updateStartButtonState) updateStartButtonState = window.updateStartButtonState || null;
+  // Try to get indices from window
+  p1Index = window.p1Index;
+  p2Index = window.p2Index;
+  // Try to get unselectableIndices from window
+  unselectableIndices = window.unselectableIndices;
+});
+
+function controllerDragToken(token, cursorX, cursorY, playerNum) {
+  if (!characterGrid || !token) return;
+  const gridRect = characterGrid.getBoundingClientRect();
+  // Use same dragOffset as mouse (centered on token)
+  const offsetX = token.offsetWidth / 2;
+  const offsetY = token.offsetHeight / 2;
+  token.style.left = (cursorX - gridRect.left - offsetX) + 'px';
+  token.style.top = (cursorY - gridRect.top - offsetY) + 'px';
+  token.style.pointerEvents = 'none';
+}
+
+function controllerDropToken(token, cursorX, cursorY, playerNum) {
+  if (!characterBoxElements || !getNearestCharacterBox) return;
+  const idx = getNearestCharacterBox(cursorX, cursorY);
+  if (playerNum === 1) {
+    window.p1Index = idx;
+    if (window.showCharacterName) {
+      const characterName = characterBoxElements[idx]?.querySelector('.characterName')?.textContent;
+      window.showCharacterName(characterName, '1');
+    }
+  } else {
+    window.p2Index = idx;
+    if (window.showCharacterName) {
+      const characterName = characterBoxElements[idx]?.querySelector('.characterName')?.textContent;
+      window.showCharacterName(characterName, '2');
+    }
+  }
+  if (positionToken) positionToken(token, idx);
+  draggingToken = null;
+  document.body.style.userSelect = '';
+  token.style.pointerEvents = 'auto';
+  if (updateStartButtonState) updateStartButtonState();
+}
+
+// --- PATCH CONTROLLER CURSOR LOGIC ---
+function pollControllerCursors() {
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (let i = 0; i < 2; i++) {
+    const assignedIndex = getAssignedControllerIndexForPlayer(i);
+    const cursor = controllerCursors[i];
+    if (assignedIndex === null) {
+      cursor.active = false;
+      continue;
+    }
+    const gp = gamepads[assignedIndex];
+    if (!gp || gp.mapping !== 'standard') {
+      cursor.active = false;
+      continue;
+    }
+    cursor.active = true;
+    // Move with left stick
+    const speed = 13;
+    const lx = gp.axes[0] || 0;
+    const ly = gp.axes[1] || 0;
+    if (Math.abs(lx) > 0.18) cursor.x += lx * speed;
+    if (Math.abs(ly) > 0.18) cursor.y += ly * speed;
+    // Clamp to window
+    cursor.x = Math.max(0, Math.min(window.innerWidth, cursor.x));
+    cursor.y = Math.max(0, Math.min(window.innerHeight, cursor.y));
+    // A button logic
+    const btnA = gp.buttons[0]?.pressed;
+    // --- TOKEN DRAG LOGIC ---
+    // Only allow drag if in character menu and tokens exist
+    const menu = document.getElementById('characterMenu');
+    const menuVisible = menu && menu.style.display !== 'none';
+    if (menuVisible && p1Token && p2Token && characterGrid) {
+      // If A is pressed and not already dragging, check if cursor is over a token
+      if (btnA && !cursor.lastA && !draggingToken) {
+        const el = document.elementFromPoint(cursor.x, cursor.y);
+        if (el === p1Token && i === 0) {
+          draggingToken = 'p1';
+          document.body.style.userSelect = 'none';
+        } else if (el === p2Token && i === 1) {
+          draggingToken = 'p2';
+          document.body.style.userSelect = 'none';
+        }
+      }
+      // If dragging with this controller, update token position
+      if (btnA && draggingToken && ((draggingToken === 'p1' && i === 0) || (draggingToken === 'p2' && i === 1))) {
+        const token = draggingToken === 'p1' ? p1Token : p2Token;
+        controllerDragToken(token, cursor.x, cursor.y, i + 1);
+      }
+      // If A is released and was dragging, drop the token
+      if (!btnA && cursor.lastA && draggingToken && ((draggingToken === 'p1' && i === 0) || (draggingToken === 'p2' && i === 1))) {
+        const token = draggingToken === 'p1' ? p1Token : p2Token;
+        controllerDropToken(token, cursor.x, cursor.y, i + 1);
+      }
+    }
+    // --- END TOKEN DRAG LOGIC ---
+    // If not dragging, do normal click logic for A
+    if (btnA && !cursor.lastA && !draggingToken) {
+      const el = document.elementFromPoint(cursor.x, cursor.y);
+      if (el) {
+        el.focus();
+        // Dispatch mousedown
+        const downEvt = new MouseEvent('mousedown', { bubbles: true, clientX: cursor.x, clientY: cursor.y });
+        el.dispatchEvent(downEvt);
+      }
+      // Visual feedback
+      cursor.el.style.background = '#fff';
+      setTimeout(() => { cursor.el.style.background = cursor.color; }, 120);
+    }
+    if (!btnA && cursor.lastA && !draggingToken) {
+      const el = document.elementFromPoint(cursor.x, cursor.y);
+      if (el) {
+        // Dispatch mouseup and click
+        const upEvt = new MouseEvent('mouseup', { bubbles: true, clientX: cursor.x, clientY: cursor.y });
+        el.dispatchEvent(upEvt);
+        const clickEvt = new MouseEvent('click', { bubbles: true, clientX: cursor.x, clientY: cursor.y });
+        el.dispatchEvent(clickEvt);
+      }
+    }
+    cursor.lastA = btnA;
+  }
+  updateControllerCursors();
+  requestAnimationFrame(pollControllerCursors);
+}
+requestAnimationFrame(pollControllerCursors);
