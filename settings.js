@@ -92,19 +92,38 @@ class Settings {
   }
 
   createSettingsButton() {
+    // Only create the button if it doesn't already exist
+    if (document.getElementById('settingsButton')) return;
     this.settingsButton = document.createElement('button');
     this.settingsButton.id = 'settingsButton';
     this.settingsButton.className = 'settingsButton';
     this.settingsButton.innerHTML = '⚙️';
     this.settingsButton.title = 'Settings';
-    
     // Position in top right
     this.settingsButton.style.position = 'fixed';
     this.settingsButton.style.top = '20px';
     this.settingsButton.style.right = '20px';
     this.settingsButton.style.zIndex = '100';
-    
     document.body.appendChild(this.settingsButton);
+    // Only show when characterMenu is visible and gameCanvas is hidden
+    const characterMenu = document.getElementById('characterMenu');
+    const gameCanvas = document.getElementById('gameCanvas');
+    const updateButtonVisibility = () => {
+      if (
+        characterMenu && characterMenu.style.display !== 'none' &&
+        gameCanvas && gameCanvas.style.display === 'none'
+      ) {
+        this.settingsButton.style.display = 'block';
+      } else {
+        this.settingsButton.style.display = 'none';
+      }
+    };
+    // Listen for menu/game show/hide events
+    window.addEventListener('gameReset', () => setTimeout(updateButtonVisibility, 0));
+    window.addEventListener('startGame', updateButtonVisibility);
+    window.addEventListener('DOMContentLoaded', () => setTimeout(updateButtonVisibility, 100));
+    setTimeout(updateButtonVisibility, 200);
+    updateButtonVisibility();
   }
 
   createSettingsModal() {

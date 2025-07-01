@@ -313,24 +313,17 @@ function drawStage() {
 
 function resetGame() {
   console.log('=== GAME RESET ===');
-  
-  // Reset game state
+  // Prevent update loop from running after leaving game
+  window.gameIsTrulyOver = true;
+  // Set timer and lives to null to fully disable win/timer logic
+  gameTimer = null;
+  player1Lives = null;
+  player2Lives = null;
   gameStarted = false;
-  window.gameStarted = false; // Reset for pause menu
+  window.gameStarted = false;
   isPaused = false; // Reset pause state
   frameCount = 0;
   lastResetFrame = 0;
-  
-  // Reset timer and lives
-  gameTimer = window.gameTimer || 300;
-  gameLives = window.gameLives || 3;
-  player1Lives = gameLives;
-  player2Lives = gameLives;
-  lastTimerUpdate = 0; // Reset timer to initialize on first frame
-  
-  // Fully reset player objects to their initial state
-  player1.fullReset();
-  player2.fullReset();
   
   // Reset input state
   resetKeys();
@@ -466,6 +459,10 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
 }
 
 function update() {
+  // Prevent update loop from running after leaving game
+  if (window.gameIsTrulyOver) return;
+  // If timer or lives are null, do not process win/timer logic
+  if (gameTimer === null || player1Lives === null || player2Lives === null) return;
   frameCount++;
   
   if (!gameStarted) {
@@ -830,6 +827,8 @@ window.addEventListener('startGame', (e) => {
   // Mark that the game has started for both players
   player1.setGameStarted(true);
   player2.setGameStarted(true);
+  // Reset the game over flag so update loop resumes
+  window.gameIsTrulyOver = false;
   
   // Show canvas and resize
   canvas.style.display = 'block';
