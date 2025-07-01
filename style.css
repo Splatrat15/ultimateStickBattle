@@ -1067,3 +1067,22 @@ canvas {
   text-transform: none;
   padding: 0.5rem;
 }
+
+.underConstructionOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-10deg);
+  background: repeating-linear-gradient(135deg, #FFD600, #FFD600 10px, #222 10px, #222 20px);
+  color: #222;
+  font-weight: bold;
+  font-size: 1.1em;
+  padding: 8px 18px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  pointer-events: none;
+  opacity: 0.92;
+  z-index: 2;
+  border: 2px solid #FFD600;
+  text-shadow: 1px 1px 2px #fff, 0 0 2px #FFD600;
+}
