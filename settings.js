@@ -273,6 +273,39 @@ class Settings {
         this.closeSettings();
       }
     });
+
+    // --- CONTROLLER TAB SWITCHING ---
+    let lastR1 = false;
+    let lastL1 = false;
+    const tabOrder = ['game', 'audio', 'display'];
+    const pollControllerTabs = () => {
+      // Only if settings modal is open/visible
+      if (this.settingsModal && this.settingsModal.style.display !== 'none') {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < 2; i++) {
+          const gp = gamepads[i];
+          if (!gp || gp.mapping !== 'standard') continue;
+          const btnL1 = gp.buttons[4]?.pressed;
+          const btnR1 = gp.buttons[5]?.pressed;
+          // Find current tab
+          const activeTabBtn = document.querySelector('.tabButton.active');
+          let currentTab = activeTabBtn ? activeTabBtn.dataset.tab : 'game';
+          let idx = tabOrder.indexOf(currentTab);
+          // L1 = left
+          if (btnL1 && !lastL1 && idx > 0) {
+            this.switchTab(tabOrder[idx - 1]);
+          }
+          // R1 = right
+          if (btnR1 && !lastR1 && idx < tabOrder.length - 1) {
+            this.switchTab(tabOrder[idx + 1]);
+          }
+          lastL1 = btnL1;
+          lastR1 = btnR1;
+        }
+      }
+      requestAnimationFrame(pollControllerTabs);
+    };
+    requestAnimationFrame(pollControllerTabs);
   }
 
   toggleSettings() {
