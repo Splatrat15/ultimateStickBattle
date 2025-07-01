@@ -650,15 +650,18 @@ function update() {
 // Input handling
 window.addEventListener('keydown', (e) => {
   if (!gameStarted) return;
-  
   // Don't process game input if paused
   if (isPaused) return;
-  
+  // --- BLOCK KEYBOARD INPUT IF CONTROLLER IS ACTIVE ---
+  // Player 1 keys: WASD, f, g, e
+  if ((['w','a','s','d','f','g','e','E'].includes(e.key)) && controllerActiveForPlayer1) return;
+  // Player 2 keys: Arrow keys, l, k, o
+  if ((['ArrowUp','ArrowLeft','ArrowDown','ArrowRight','l','k','o','O'].includes(e.key)) && controllerActiveForPlayer2) return;
   if (e.key in keys) {
     keys[e.key] = true;
   }
   // Attack controls - only for human players
-  if (!window.player1IsCPU) {
+  if (!window.player1IsCPU && !controllerActiveForPlayer1) {
     if (e.key === 'g') { // Light Attack
       let direction = 'neutral';
       if (keys.a || keys.d) direction = 'side';
@@ -671,7 +674,6 @@ window.addEventListener('keydown', (e) => {
       if (keys.a || keys.d) direction = 'side';
       else if (keys.w) direction = 'up';
       else if (keys.s) direction = 'down';
-      
       // Use instant attacks for directional heavy
       if (direction !== 'neutral') {
         player1.attack(direction, 'heavy');
@@ -681,7 +683,7 @@ window.addEventListener('keydown', (e) => {
       }
     }
   }
-  if (!window.player2IsCPU) {
+  if (!window.player2IsCPU && !controllerActiveForPlayer2) {
     if (e.key === 'k') { // Light Attack
       let direction = 'neutral';
       if (keys.ArrowLeft || keys.ArrowRight) direction = 'side';
@@ -694,7 +696,6 @@ window.addEventListener('keydown', (e) => {
       if (keys.ArrowLeft || keys.ArrowRight) direction = 'side';
       else if (keys.ArrowUp) direction = 'up';
       else if (keys.ArrowDown) direction = 'down';
-      
       // Use instant attacks for directional heavy
       if (direction !== 'neutral') {
         player2.attack(direction, 'heavy');
@@ -704,18 +705,20 @@ window.addEventListener('keydown', (e) => {
       }
     }
   }
-  
   // Shield controls - only for human players
-  if (!window.player1IsCPU) {
+  if (!window.player1IsCPU && !controllerActiveForPlayer1) {
     if (e.key === 'e' || e.key === 'E') player1.activateShield(); // Player 1 (blue) shield with E
   }
-  if (!window.player2IsCPU) {
+  if (!window.player2IsCPU && !controllerActiveForPlayer2) {
     if (e.key === 'o' || e.key === 'O') player2.activateShield(); // Player 2 (red) shield with O
   }
 });
 
 window.addEventListener('keyup', (e) => {
   if (!gameStarted) return;
+  // --- BLOCK KEYBOARD INPUT IF CONTROLLER IS ACTIVE ---
+  if ((['w','a','s','d','f','g','e','E'].includes(e.key)) && controllerActiveForPlayer1) return;
+  if ((['ArrowUp','ArrowLeft','ArrowDown','ArrowRight','l','k','o','O'].includes(e.key)) && controllerActiveForPlayer2) return;
   if (e.key in keys) {
     keys[e.key] = false;
     // Reset jump key state when key is released
@@ -723,26 +726,24 @@ window.addEventListener('keyup', (e) => {
     if (e.key === 'ArrowUp') player2.isJumpKeyPressed = false;
   }
   // --- Reset jab press state for Rakka jab combo ---
-  if (!window.player1IsCPU && e.key === 'g' && player1.onJabKeyUp) player1.onJabKeyUp();
-  if (!window.player2IsCPU && e.key === 'k' && player2.onJabKeyUp) player2.onJabKeyUp();
-  
+  if (!window.player1IsCPU && !controllerActiveForPlayer1 && e.key === 'g' && player1.onJabKeyUp) player1.onJabKeyUp();
+  if (!window.player2IsCPU && !controllerActiveForPlayer2 && e.key === 'k' && player2.onJabKeyUp) player2.onJabKeyUp();
   // Release charged attacks
-  if (!window.player1IsCPU) {
+  if (!window.player1IsCPU && !controllerActiveForPlayer1) {
     if (e.key === 'f') {
       player1.releaseCharge();
     }
   }
-  if (!window.player2IsCPU) {
+  if (!window.player2IsCPU && !controllerActiveForPlayer2) {
     if (e.key === 'l') {
       player2.releaseCharge();
     }
   }
-  
   // Shield deactivation controls - only for human players
-  if (!window.player1IsCPU) {
+  if (!window.player1IsCPU && !controllerActiveForPlayer1) {
     if (e.key === 'e' || e.key === 'E') player1.deactivateShield(); // Player 1 (blue) deactivate shield
   }
-  if (!window.player2IsCPU) {
+  if (!window.player2IsCPU && !controllerActiveForPlayer2) {
     if (e.key === 'o' || e.key === 'O') player2.deactivateShield(); // Player 2 (red) deactivate shield
   }
 });
