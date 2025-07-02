@@ -391,12 +391,14 @@ export class Player extends PhysicsBody {
     // Update hitstun timer
     if (this.hitstun > 0) {
       this.hitstun--;
+      if (this.hitstun === 0) {
+        this.canAct = true;
+      }
     }
   }
 
   attack(direction, type) {
-    // Don't allow attacking if in hitstun
-    if (this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0) return;
 
     // --- Rakka Quick Draw Jab Combo Logic ---
     if (this.characterName === 'Rakka' && direction === 'neutral' && type === 'light') {
@@ -1156,89 +1158,49 @@ export class Player extends PhysicsBody {
 
   takeDamage(amount, attacker) {
     // Don't take damage if respawn invincibility is active
-    if (this.respawnInvincibilityFrames > 0) {
-      console.log('Damage blocked by respawn invincibility:', {
-        target: this.color,
-        attacker: attacker.color,
-        remainingFrames: this.respawnInvincibilityFrames
-      });
-      return;
-    }
-    // Check if shield is active and block the attack
-    if (this.isShielding) {
-      console.log('Attack blocked by shield:', {
-        target: this.color,
-        attacker: attacker.color,
-        shieldDuration: this.shieldDuration
-      });
-      return; // Shield blocks all damage and knockback
-    }
+    if (this.respawnInvincibilityFrames > 0) return;
+    if (this.isShielding) return;
+    // Get move data
+    const move = attacker.activeMove || attacker.moveset?.neutralLight;
+    // Always use the set damage % for the attack if available
+    let setDamage = (typeof move?.baseDamage === 'number' && isFinite(move.baseDamage)) ? move.baseDamage :
+                    (typeof move?.damage === 'number' && isFinite(move.damage)) ? move.damage :
+                    (typeof amount === 'number' && isFinite(amount) ? amount : 1);
     // Add damage but cap at 999%
-    this.damage = Math.min(this.damage + amount, 999);
-    this.invincibilityFrames = 30; // 30 frames of invincibility after being hit (reduced from 120)
-    // Handle special knockback effects
-    let knockbackDirection = attacker.facing;
-    let knockbackForce = attacker.activeMove ? (attacker.activeMove.knockback || 1) : 1;
-    // --- Rakka Jab Combo Custom Knockback ---
-    if (
-      attacker.characterName === 'Rakka' &&
-      attacker.activeMove &&
-      attacker.activeMove.name &&
-      attacker.activeMove.name.startsWith('Quick Draw')
-    ) {
-      if (attacker.activeMove.name === 'Quick Draw 1' || attacker.activeMove.name === 'Quick Draw 2') {
-        // Pull or keep opponent in place for first two jabs
-        knockbackForce = 0; // No knockback
-      }
-      // Quick Draw 3 uses its normal knockback
-    }
-    // Handle spike knockback (downward force)
-    if (attacker.activeMove && attacker.activeMove.spikeKnockback) {
-      knockbackDirection = 0; // No horizontal knockback
-      knockbackForce = 15; // Strong downward force
-      this.vy = Math.abs(knockbackForce); // Force downward movement
-    }
-    // Handle aerial down light spike knockback
-    if (attacker.characterName === 'Rakka' && 
-        attacker.activeMove && 
-        attacker.activeMove.name === 'Ground Poke' && 
-        attacker.downLightSwing && 
-        !attacker.downLightSwing.isGrounded) {
-      // Aerial version sends opponent down
-      knockbackDirection = 0; // No horizontal knockback
-      knockbackForce = 12; // Strong downward force
-      this.vy = Math.abs(knockbackForce); // Force downward movement
-    }
-    // Handle upward knockback (Ki Blast)
-    if (attacker.activeMove && attacker.activeMove.upwardKnockback) {
-      knockbackDirection = 0; // No horizontal knockback
-      knockbackForce = 15; // Strong upward force
-      this.vy = -Math.abs(knockbackForce); // Force upward movement
-    }
-    // Handle self-launch for the attacker (Gravity Spike)
-    if (attacker.activeMove && attacker.activeMove.selfLaunch) {
-      const launchForce = attacker.activeMove.selfLaunchForce || 20; // Use custom force or default
-      attacker.vy = -launchForce; // Launch the attacker upward
-      console.log('Self-launch triggered for:', attacker.characterName, 'with force:', launchForce);
-    }
-    // --- Rakka heavy attacks: apply diagonal upward knockback only for heavy moves ---
-    if (
-      attacker.characterName === 'Rakka' &&
-      attacker.activeMove &&
-      attacker.activeMove.type === 'heavy' &&
-      !attacker.activeMove.spikeKnockback &&
-      !(attacker.activeMove.name === 'Ground Poke' && attacker.downLightSwing && !attacker.downLightSwing.isGrounded)
-    ) {
-      // Custom upward knockback for Rakka's heavy attacks (stronger vertical)
-      this.applyKnockback(knockbackDirection, this.damage, knockbackForce, 0.5); // 0.5 vertical factor for more KO power
-    } else if (!attacker.activeMove?.spikeKnockback && !attacker.activeMove?.upwardKnockback) {
-      this.applyKnockback(knockbackDirection, this.damage, knockbackForce);
-    }
-    // Add hitstun on hit (1 second = 60 frames)
-    this.hitstun = 60;
+    this.damage = Math.min(this.damage + setDamage, 999);
+    this.invincibilityFrames = 30;
+    // --- SMASH-STYLE KNOCKBACK ---
+    const knockbackMultiplier = (typeof move?.knockbackMultiplier === 'number' && isFinite(move.knockbackMultiplier)) ? move.knockbackMultiplier : 1.0;
+    const chargeLevel = attacker.chargeLevel || 0;
+    const isCharged = attacker.isCharging || false;
+    // Use attack direction for knockback vector
+    let direction = attacker.facing;
+    let angle = 0; // 0 = horizontal, -PI/2 = up, PI/2 = down
+    if (move?.verticalKnockback || move?.upwardKnockback) angle = -Math.PI/2;
+    if (move?.spikeKnockback) angle = Math.PI/2;
+    // Special: Down Light aerial
+    if (attacker.characterName === 'Rakka' && move?.name === 'Ground Poke' && attacker.downLightSwing && !attacker.downLightSwing.isGrounded) angle = Math.PI/2;
+    // --- Knockback formula ---
+    const victimPercent = this.damage;
+    const weight = this.weight || 1.0;
+    const screenScale = Player.getScreenScale();
+    let chargeBonus = 1.0;
+    if (isCharged) chargeBonus += 0.5 * chargeLevel; // Up to +50% for full charge
+    // Reduce knockback by lowering the final multiplier (from 1.0 to 0.3)
+    const rawK = (((((setDamage * 0.1) + (setDamage * victimPercent / 20)) * (200 / (weight * 100 + 100)) * 1.4) + 18) * knockbackMultiplier * chargeBonus) * screenScale * 0.3;
+    // Calculate knockback vector
+    const kx = Math.cos(angle) * rawK * direction;
+    const ky = Math.sin(angle) * rawK;
+    this.vx = kx;
+    this.vy = ky;
+    this.isGrounded = false;
+    // --- Inactive state (hitstun) ---
+    this.hitstun = Math.max(30, Math.floor(rawK * 2)); // More knockback = longer hitstun
+    this.canAct = false;
   }
 
   jump() {
+    if (!this.canAct || this.hitstun > 0) return;
     console.log('=== JUMP ATTEMPT ===');
     console.log('Jumps remaining:', this.jumpsRemaining);
     console.log('Is grounded:', this.isGrounded);
@@ -1328,8 +1290,7 @@ export class Player extends PhysicsBody {
   }
 
   activateShield() {
-    // Don't allow shielding if in hitstun
-    if (this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0) return;
     // Can only shield if not on cooldown and shield duration is available
     if (this.shieldCooldown === 0 && this.shieldDuration < this.maxShieldDuration) {
       this.isShielding = true;
@@ -1342,6 +1303,7 @@ export class Player extends PhysicsBody {
   }
 
   startCharge(move = null) {
+    if (!this.canAct || this.hitstun > 0) return;
     console.log('startCharge called for:', this.characterName, {
       isAttacking: this.isAttacking,
       isShielding: this.isShielding,
@@ -1485,21 +1447,15 @@ export class Player extends PhysicsBody {
 
   // Restore original applyKnockback (remove lastAttacker logic)
   applyKnockback(direction, damage, customForce = null, customVertical = null) {
-    // Calculate knockback based on damage
-    const knockbackForce = customForce !== null ? customForce : (BASE_KNOCKBACK + (damage * KNOCKBACK_SCALING));
-    // Apply moderate horizontal knockback (reduced for more balanced gameplay)
-    this.vx = direction * knockbackForce * 1.8; // Reduced from 2.5
-    // Apply vertical knockback (default or custom for Rakka heavy)
-    const verticalFactor = customVertical !== null ? customVertical : VERTICAL_KNOCKBACK;
-    this.vy = -knockbackForce * verticalFactor;
-    // Ensure the player is not grounded when knocked back
-    this.isGrounded = false;
-    console.log('Knockback applied:', {
-      direction: direction,
-      damage: damage,
-      knockbackForce: knockbackForce,
-      vx: this.vx,
-      vy: this.vy
-    });
+    // Deprecated: use takeDamage's new knockback system
+    // No-op
+  }
+
+  static getScreenScale() {
+    // Use the diagonal length of the canvas as a scale factor
+    const canvas = (typeof window !== 'undefined' && window.gameCanvas) ? window.gameCanvas : document.getElementById('gameCanvas');
+    if (!canvas) return 1.0;
+    const diag = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
+    return diag / 1000; // 1.0 for 1000px diagonal, scales up/down
   }
 }
