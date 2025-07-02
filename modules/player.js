@@ -1002,9 +1002,11 @@ export class Player extends PhysicsBody {
       return this.checkVoidSplitterHit(otherPlayer);
     }
     if (!this.isAttacking || !this.attackHitbox) return false;
-    // Check if we've already hit this target recently (prevent spam damage)
+    // --- Only allow multi-hit if move explicitly has multiHit set ---
+    const isMultiHit = this.activeMove && this.activeMove.multiHit;
     if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
-      return false;
+      // If multiHit, allow more hits, else block
+      if (!isMultiHit) return false;
     }
     // Check primary hitbox
     const hit = this.checkHitboxCollision(this.attackHitbox, otherPlayer);
@@ -1013,7 +1015,8 @@ export class Player extends PhysicsBody {
     // If either hitbox hits, set cooldown and mark target
     if (hit || hit2) {
       this.lastHitTarget = otherPlayer;
-      this.hitCooldown = 10; // 10 frames cooldown between hits on same target
+      // For multi-hit moves, short cooldown; for others, long cooldown to prevent multi-hits
+      this.hitCooldown = isMultiHit ? 10 : this.activeMove.duration;
       console.log('Attack hit detected!', {
         attacker: this.characterName,
         move: this.activeMove.name,
@@ -1028,6 +1031,12 @@ export class Player extends PhysicsBody {
   }
 
   checkDemonFangHit(otherPlayer) {
+    // Only allow hit if actually attacking (not charging)
+    if (!this.isAttacking) return false;
+    // Prevent hitting the same target more than once per Demon Fang
+    if (this.demonFangAlreadyHit && this.demonFangAlreadyHit.has(otherPlayer)) {
+      return false;
+    }
     console.log('checkDemonFangHit called:', {
       attackerX: this.x,
       attackerY: this.y,
@@ -1075,7 +1084,8 @@ export class Player extends PhysicsBody {
       if (hit) {
         // Apply damage to the opponent
         otherPlayer.takeDamage(this.activeMove.damage, this);
-        
+        // Mark as already hit
+        if (this.demonFangAlreadyHit) this.demonFangAlreadyHit.add(otherPlayer);
         this.lastHitTarget = otherPlayer;
         this.hitCooldown = 10; // 10 frames cooldown between hits on same target
         
@@ -1211,22 +1221,19 @@ export class Player extends PhysicsBody {
       attacker.vy = -launchForce; // Launch the attacker upward
       console.log('Self-launch triggered for:', attacker.characterName, 'with force:', launchForce);
     }
-    console.log('Taking damage:', {
-      target: this.characterName,
-      attacker: attacker.characterName,
-      damage: amount,
-      totalDamage: this.damage,
-      knockbackDirection: knockbackDirection,
-      knockbackForce: knockbackForce,
-      spikeKnockback: attacker.activeMove?.spikeKnockback || false,
-      upwardKnockback: attacker.activeMove?.upwardKnockback || false,
-      selfLaunch: attacker.activeMove?.selfLaunch || false
-    });
-    // Apply knockback (skip if it's a spike or upward blast)
-    if (!attacker.activeMove?.spikeKnockback && !attacker.activeMove?.upwardKnockback) {
+    // --- Rakka heavy attacks: apply diagonal upward knockback only for heavy moves ---
+    if (
+      attacker.characterName === 'Rakka' &&
+      attacker.activeMove &&
+      attacker.activeMove.type === 'heavy' &&
+      !attacker.activeMove.spikeKnockback &&
+      !(attacker.activeMove.name === 'Ground Poke' && attacker.downLightSwing && !attacker.downLightSwing.isGrounded)
+    ) {
+      // Custom upward knockback for Rakka's heavy attacks (stronger vertical)
+      this.applyKnockback(knockbackDirection, this.damage, knockbackForce, 0.5); // 0.5 vertical factor for more KO power
+    } else if (!attacker.activeMove?.spikeKnockback && !attacker.activeMove?.upwardKnockback) {
       this.applyKnockback(knockbackDirection, this.damage, knockbackForce);
     }
-
     // Add hitstun on hit (1 second = 60 frames)
     this.hitstun = 60;
   }
@@ -1399,9 +1406,14 @@ export class Player extends PhysicsBody {
     const chargeMultiplier = 0.2 + (this.chargeLevel * 1.8); // 0.2x to 2.0x scaling
     
     // Create scaled properties without overwriting the original move
+    let scaledDamage = Math.floor(move.damage * chargeMultiplier);
+    if (this.characterName === 'Rakka' && move.name === 'Demon Fang') {
+      // Cap Demon Fang's damage at 15
+      scaledDamage = Math.min(scaledDamage, 15);
+    }
     this.activeMove = {
       ...move,
-      damage: Math.floor(move.damage * chargeMultiplier),
+      damage: scaledDamage,
       knockback: move.knockback * chargeMultiplier,
       duration: Math.floor(move.duration * (0.7 + this.chargeLevel * 0.8)) // Longer duration for more charge
     };
@@ -1423,6 +1435,8 @@ export class Player extends PhysicsBody {
           // Teleport to end position
           this.x = this.demonFangEffects.endX;
           
+          // Track already hit targets for this Demon Fang
+          this.demonFangAlreadyHit = new Set();
           console.log('Demon Fang teleport executed:', {
             startX: this.demonFangEffects.startX,
             endX: this.demonFangEffects.endX,
@@ -1469,14 +1483,15 @@ export class Player extends PhysicsBody {
     }
   }
 
-  // Update applyKnockback to accept custom force
-  applyKnockback(direction, damage, customForce = null) {
+  // Restore original applyKnockback (remove lastAttacker logic)
+  applyKnockback(direction, damage, customForce = null, customVertical = null) {
     // Calculate knockback based on damage
     const knockbackForce = customForce !== null ? customForce : (BASE_KNOCKBACK + (damage * KNOCKBACK_SCALING));
     // Apply moderate horizontal knockback (reduced for more balanced gameplay)
     this.vx = direction * knockbackForce * 1.8; // Reduced from 2.5
-    // Apply minimal vertical knockback (just a tiny upward boost)
-    this.vy = -knockbackForce * VERTICAL_KNOCKBACK;
+    // Apply vertical knockback (default or custom for Rakka heavy)
+    const verticalFactor = customVertical !== null ? customVertical : VERTICAL_KNOCKBACK;
+    this.vy = -knockbackForce * verticalFactor;
     // Ensure the player is not grounded when knocked back
     this.isGrounded = false;
     console.log('Knockback applied:', {
