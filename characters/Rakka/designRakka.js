@@ -1296,31 +1296,31 @@ function drawDemonFangStance(ctx, x, y, width, height, facing, player) {
 
 // Draw charge indicator
 function drawChargeIndicator(ctx, player) {
-  const { x, y, width, chargeLevel } = player;
+  const { x, y, width } = player;
+  let chargeLevel = player.chargeLevel;
+  // Clamp chargeLevel to [0,1] and default to 0 if invalid
+  if (typeof chargeLevel !== 'number' || !isFinite(chargeLevel) || chargeLevel < 0) chargeLevel = 0;
+  if (chargeLevel > 1) chargeLevel = 1;
   const barWidth = 60;
   const barHeight = 8;
   const barX = x;
-  const barY = y - 42; // Moved up from -30
-  
-  // Draw background bar
+  const barY = y - 42;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
   ctx.fillRect(barX, barY, barWidth, barHeight);
-  
-  // Draw charge level with demonic color scheme
-  const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth * chargeLevel, barY);
-  gradient.addColorStop(0, '#600');
-  gradient.addColorStop(1, '#f00');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(barX, barY, barWidth * chargeLevel, barHeight);
-  
-  // Add glow effect
+  // Only draw the gradient if chargeLevel > 0
+  if (chargeLevel > 0) {
+    const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth * chargeLevel, barY);
+    gradient.addColorStop(0, '#600');
+    gradient.addColorStop(1, '#f00');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(barX, barY, barWidth * chargeLevel, barHeight);
+  }
   ctx.shadowColor = '#f00';
   ctx.shadowBlur = 8;
   ctx.strokeStyle = '#f00';
   ctx.lineWidth = 1;
   ctx.strokeRect(barX, barY, barWidth, barHeight);
-  
   ctx.restore();
 }
 

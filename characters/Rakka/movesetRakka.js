@@ -3,8 +3,8 @@ export const rakkaMoveset = {
   neutralLight: {
     name: 'Quick Draw',
     type: 'light',
-    damage: 2, // Each hit, 3 hits rapid
-    knockback: 1.2,
+    baseDamage: 2, // Each hit, 3 hits rapid
+    knockbackMultiplier: 1.0,
     duration: 18, // Fast
     cooldown: 16,
     multiHit: 3,
@@ -14,8 +14,8 @@ export const rakkaMoveset = {
   sideLight: {
     name: 'Shadow Slice',
     type: 'light',
-    damage: 4,
-    knockback: 2.5,
+    baseDamage: 4,
+    knockbackMultiplier: 1.0,
     duration: 35, // Increased from 22 to 35 for longer dash
     cooldown: 24,
     useSwordHitbox: true, // Flag to use dynamic sword hitbox instead of static hitbox
@@ -25,8 +25,8 @@ export const rakkaMoveset = {
   upLight: {
     name: 'Rising Cut',
     type: 'light',
-    damage: 3.5,
-    knockback: 3.5,
+    baseDamage: 3.5,
+    knockbackMultiplier: 1.0,
     verticalKnockback: true,
     duration: 30, // Increased from 20 to 30 for longer diagonal slash
     cooldown: 22,
@@ -37,8 +37,8 @@ export const rakkaMoveset = {
   downLight: {
     name: 'Ground Poke',
     type: 'light',
-    damage: 2.5,
-    knockback: 1.8,
+    baseDamage: 2.5,
+    knockbackMultiplier: 1.0,
     duration: 28,
     cooldown: 26,
     useSwordHitbox: true, // Flag to use dynamic sword hitbox instead of static hitbox
@@ -62,8 +62,8 @@ export const rakkaMoveset = {
   neutralHeavy: {
     name: 'Demon Fang',
     type: 'heavy',
-    damage: 10,
-    knockback: 7,
+    baseDamage: 10,
+    knockbackMultiplier: 2.0,
     duration: 45, // Increased to account for charge animation
     cooldown: 70,
     hitbox: { 
@@ -77,8 +77,8 @@ export const rakkaMoveset = {
   sideHeavy: {
     name: 'Shadow Sneak',
     type: 'heavy',
-    damage: 12,
-    knockback: 8,
+    baseDamage: 12,
+    knockbackMultiplier: 1.7,
     duration: 28,
     cooldown: 80,
     blink: true,
@@ -98,8 +98,8 @@ export const rakkaMoveset = {
   upHeavy: {
     name: 'Phantom Slash',
     type: 'heavy',
-    damage: 3, // Per hit, 4 hits total = 12 damage
-    knockback: 2, // Per hit, final hit has stronger knockback
+    baseDamage: 3,
+    knockbackMultiplier: 1.5,
     multiHit: 4, // 4 hits total
     verticalKnockback: true,
     duration: 54, // Increased from 42 to 54 frames for longer attack
@@ -129,8 +129,8 @@ export const rakkaMoveset = {
   downHeavy: {
     name: 'Void Splitter',
     type: 'heavy',
-    damage: 14,
-    knockback: 10,
+    baseDamage: 14,
+    knockbackMultiplier: 1.8,
     duration: 60, // Increased from 40 to 60 frames for slower move
     cooldown: 90,
     hitbox: { width: 100, height: 36, offsetX: 10, offsetY: 50 }, // This will be disabled for shadow hitbox

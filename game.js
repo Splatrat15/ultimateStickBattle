@@ -7,6 +7,7 @@ import { drawRakka } from './characters/Rakka/designRakka.js';
 import { drawRakkaShield } from './characters/Rakka/designRakka.js';
 
 const canvas = document.getElementById('gameCanvas');
+window.gameCanvas = canvas;
 const ctx = canvas.getContext('2d');
 
 // Game state
