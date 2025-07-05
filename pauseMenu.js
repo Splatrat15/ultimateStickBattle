@@ -22,7 +22,7 @@ class PauseMenu {
     // Add event listeners
     this.addEventListeners();
     
-    console.log('Pause menu system initialized');
+
   }
 
   createPauseMenu() {
@@ -71,7 +71,7 @@ class PauseMenu {
       this.hidePauseMenu();
     }
     
-    console.log('Game paused:', this.isPaused);
+
   }
 
   showPauseMenu() {
@@ -89,7 +89,6 @@ class PauseMenu {
   }
 
   leaveGame() {
-    console.log('=== LEAVING GAME ===');
     
     // Hide pause menu
     this.hidePauseMenu();
@@ -106,7 +105,7 @@ class PauseMenu {
       this.characterMenu.style.display = 'flex';
     }
     
-    console.log('Returned to character menu');
+
   }
 
   // Public method to check if game is paused

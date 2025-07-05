@@ -48,13 +48,7 @@ export class PhysicsBody {
     // Ensure the player is not grounded when knocked back
     this.isGrounded = false;
     
-    console.log('Knockback applied:', {
-      direction: direction,
-      damage: damage,
-      knockbackForce: knockbackForce,
-      vx: this.vx,
-      vy: this.vy
-    });
+
   }
 
   update(platforms) {
@@ -150,9 +144,6 @@ export class PhysicsBody {
     if (this.isGrounded && !this.isAttacking && !this.isShielding) {
       this.vy = this.jumpForce;
       this.isGrounded = false;
-      console.log('PhysicsBody jump executed', { jumpForce: this.jumpForce });
-    } else {
-      console.log('Jump blocked - grounded:', this.isGrounded, 'attacking:', this.isAttacking, 'shielding:', this.isShielding);
     }
   }
 
@@ -203,20 +194,7 @@ export class PhysicsBody {
     const powerRatio = Math.max(thisPushPower, otherPushPower) / Math.min(thisPushPower, otherPushPower);
     const isExtremeDifference = powerRatio > 3; // If one player has 3x more push power
     
-    console.log('Collision physics:', {
-      thisPlayer: this.constructor.name,
-      otherPlayer: other.constructor.name,
-      thisWeight: this.weight,
-      otherWeight: other.weight,
-      thisSpeed: this.moveSpeed || 5,
-      otherSpeed: other.moveSpeed || 5,
-      thisPushPower: thisPushPower.toFixed(2),
-      otherPushPower: otherPushPower.toFixed(2),
-      thisMomentum: thisMomentum.toFixed(2),
-      otherMomentum: otherMomentum.toFixed(2),
-      powerRatio: powerRatio.toFixed(2),
-      isExtremeDifference: isExtremeDifference
-    });
+
 
     // Determine which direction has the smaller overlap
     if (verticalOverlap < horizontalOverlap) {
@@ -272,15 +250,7 @@ export class PhysicsBody {
     
     const pushPower = (weightFactor * speedFactor * velocityFactor);
     
-    console.log('Push power calculation:', {
-      weight: weight,
-      speed: speed,
-      velocity: velocity.toFixed(2),
-      weightFactor: weightFactor.toFixed(2),
-      speedFactor: speedFactor.toFixed(2),
-      velocityFactor: velocityFactor.toFixed(2),
-      finalPushPower: pushPower.toFixed(2)
-    });
+
     
     return pushPower;
   }
@@ -337,14 +307,6 @@ export class PhysicsBody {
       other.vy -= verticalPush;
     }
 
-    console.log('Momentum push applied:', {
-      thisPushForce: thisPushForce.toFixed(2),
-      otherPushForce: otherPushForce.toFixed(2),
-      thisPushRatio: thisPushRatio.toFixed(2),
-      otherPushRatio: otherPushRatio.toFixed(2),
-      verticalPush: verticalPush.toFixed(2),
-      basePushForce: basePushForce.toFixed(2),
-      isExtremeDifference: isExtremeDifference
-    });
+
   }
 } 

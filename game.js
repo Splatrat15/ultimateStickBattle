@@ -307,7 +307,6 @@ function drawStage() {
 }
 
 function resetGame() {
-  console.log('=== GAME RESET ===');
   // Prevent update loop from running after leaving game
   window.gameIsTrulyOver = true;
   // Set timer and lives to null to fully disable win/timer logic
@@ -353,8 +352,6 @@ function resetGame() {
   if (window.pauseMenu && typeof window.pauseMenu.resetPauseState === 'function') {
     window.pauseMenu.resetPauseState();
   }
-  
-  console.log('Game reset complete - returning to character menu');
 }
 
 // --- GLOBAL GAMEPAD POLLING LOOP ---
@@ -456,13 +453,11 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
 function update() {
   // Prevent update loop from running after leaving game
   if (window.gameIsTrulyOver) {
-    console.log('Update loop blocked: gameIsTrulyOver = true');
     requestAnimationFrame(update);
     return;
   }
   // If timer or lives are null, do not process win/timer logic
   if (gameTimer === null || player1Lives === null || player2Lives === null) {
-    console.log('Update loop blocked: timer or lives are null', { gameTimer, player1Lives, player2Lives });
     requestAnimationFrame(update);
     return;
   }
@@ -535,12 +530,9 @@ function update() {
       winnerCharacter = window.selectedCharacter1;
     }
     
-    console.log(`=== GAME OVER ===`);
     if (winnerName === 'Tie') {
-      console.log(`Result: Tie!`);
       alert(`Game Over - Tie! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
     } else {
-      console.log(`Winner: ${winnerName} (${winnerCharacter})`);
       alert(`${winnerName} (${winnerCharacter}) wins! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
     }
     
@@ -550,14 +542,7 @@ function update() {
     return;
   }
 
-  // Debug logging for CPU status
-  if (frameCount % 60 === 0) { // Log every 60 frames (once per second)
-    console.log('=== GAME LOOP DEBUG ===');
-    console.log('Frame:', frameCount);
-    console.log('Player 1 CPU:', window.player1IsCPU, 'CPU1 instance:', !!cpu1);
-    console.log('Player 2 CPU:', window.player2IsCPU, 'CPU2 instance:', !!cpu2);
-    console.log('========================');
-  }
+
 
   // --- POLL GAMEPADS ---
   pollGamepads();
@@ -577,8 +562,6 @@ function update() {
     if (cpu1) {
       cpu1.update();
       cpu1.handleEmergency();
-    } else {
-      console.log('CPU1 is null!');
     }
   }
 
@@ -597,8 +580,6 @@ function update() {
     if (cpu2) {
       cpu2.update();
       cpu2.handleEmergency();
-    } else {
-      console.log('CPU2 is null!');
     }
   }
 
@@ -811,31 +792,23 @@ window.addEventListener('startGame', (e) => {
   player2Lives = gameLives;
   lastTimerUpdate = 0; // Reset timer to initialize on first frame
   
-  console.log('Game starting...');
-  console.log('Player 1:', character1, 'CPU:', player1IsCPU);
-  console.log('Player 2:', character2, 'CPU:', player2IsCPU);
-  console.log('Timer:', gameTimer, 'seconds, Lives:', gameLives);
-  console.log('Character data available:', Object.keys(characters));
+
   
   // Re-initialize players with the correct character data
   const player1CharacterData = characters[character1.toLowerCase()];
   const player2CharacterData = characters[character2.toLowerCase()];
   
   if (!player1CharacterData) {
-    console.error('Character data not found for:', character1);
     return;
   }
   if (!player2CharacterData) {
-    console.error('Character data not found for:', character2);
     return;
   }
   
   try {
     player1 = new Player(100, 100, '#2196f3', 1, player1CharacterData);
     player2 = new Player(400, 100, '#e53935', -1, player2CharacterData);
-    console.log('Players created successfully');
   } catch (error) {
-    console.error('Error creating players:', error);
     return;
   }
   
@@ -843,14 +816,11 @@ window.addEventListener('startGame', (e) => {
   try {
     if (player1IsCPU) {
       cpu1 = new CPU(player1, player2, platform);
-      console.log('CPU 1 created successfully');
     }
     if (player2IsCPU) {
       cpu2 = new CPU(player2, player1, platform);
-      console.log('CPU 2 created successfully');
     }
   } catch (error) {
-    console.error('Error creating CPU instances:', error);
     // Continue without CPU if there's an error
     cpu1 = null;
     cpu2 = null;
@@ -867,7 +837,7 @@ window.addEventListener('startGame', (e) => {
   // Set up players on the platform for the new game
   setupPlayersOnPlatform();
   
-  console.log('Game started with CPUs:', { cpu1: !!cpu1, cpu2: !!cpu2 });
+
 });
 
 // Start game loop
@@ -875,12 +845,10 @@ update();
 
 // Pause menu event listeners
 window.addEventListener('gamePaused', () => {
-  console.log('Game paused');
   isPaused = true;
 });
 
 window.addEventListener('gameResumed', () => {
-  console.log('Game resumed');
   isPaused = false;
 });
 
