@@ -35,7 +35,7 @@ class Settings {
     this.updateCharacterMenuDisplay();
     this.loadAudioDevices();
     
-    console.log('Settings system initialized');
+
   }
 
   async loadAudioDevices() {
@@ -83,10 +83,10 @@ class Settings {
           audioDeviceSelect.appendChild(option);
         });
         
-        console.log(`Found ${uniqueDevices.length} unique audio output devices`);
+
       }
     } catch (error) {
-      console.log('Could not access audio devices:', error);
+
       // Keep the default option if we can't access devices
     }
   }
@@ -423,13 +423,7 @@ class Settings {
     // Close settings
     this.closeSettings();
     
-    console.log('Settings applied:', {
-      timer: this.gameSettings.timer,
-      lives: this.gameSettings.lives,
-      displayMode: this.gameSettings.displayMode,
-      showFPS: this.gameSettings.showFPS,
-      audioDevice: this.gameSettings.audioDevice
-    });
+
   }
 
   applyDisplayMode() {

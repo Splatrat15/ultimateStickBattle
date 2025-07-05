@@ -98,7 +98,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Update Start button state (enabled/disabled)
     updateStartButtonState();
     
-    console.log('Character selection reset complete');
+
   }
 
   // Listen for game reset event
@@ -106,7 +106,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Always reset CPU flags to false unless toggled by user
     window.player1IsCPU = false;
     window.player2IsCPU = false;
-    console.log('=== CHARACTER MENU RESET ===');
     resetCharacterSelection();
   });
 
@@ -135,18 +134,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Function to update player boxes with CPU status
   function updatePlayerBoxes() {
-    console.log('=== UPDATING PLAYER BOXES ===');
-    console.log('Player 1 selected:', player1Selected, 'CPU:', window.player1IsCPU);
-    console.log('Player 2 selected:', player2Selected, 'CPU:', window.player2IsCPU);
-    
     // Update Player 1 box
     if (player1Selected) {
       const player1NameBox = player1Box.querySelector('.playerNameBox');
-      console.log('Player 1 name box found:', !!player1NameBox);
       if (player1NameBox) {
-        console.log('Player 1 name box text before:', player1NameBox.innerText);
-        console.log('Player 1 name box classes before:', player1NameBox.className);
-        
         if (window.player1IsCPU) {
           player1NameBox.innerText = 'CPU';
           player1NameBox.classList.add('cpu');
@@ -154,21 +145,13 @@ window.addEventListener('DOMContentLoaded', () => {
           player1NameBox.innerText = 'Player 1';
           player1NameBox.classList.remove('cpu');
         }
-        
-        console.log('Player 1 name box text after:', player1NameBox.innerText);
-        console.log('Player 1 name box classes after:', player1NameBox.className);
-        console.log('Player 1 updated:', window.player1IsCPU ? 'CPU' : 'Human');
       }
     }
 
     // Update Player 2 box
     if (player2Selected) {
       const player2NameBox = player2Box.querySelector('.playerNameBox');
-      console.log('Player 2 name box found:', !!player2NameBox);
       if (player2NameBox) {
-        console.log('Player 2 name box text before:', player2NameBox.innerText);
-        console.log('Player 2 name box classes before:', player2NameBox.className);
-        
         if (window.player2IsCPU) {
           player2NameBox.innerText = 'CPU';
           player2NameBox.classList.add('cpu');
@@ -176,10 +159,6 @@ window.addEventListener('DOMContentLoaded', () => {
           player2NameBox.innerText = 'Player 2';
           player2NameBox.classList.remove('cpu');
         }
-        
-        console.log('Player 2 name box text after:', player2NameBox.innerText);
-        console.log('Player 2 name box classes after:', player2NameBox.className);
-        console.log('Player 2 updated:', window.player2IsCPU ? 'CPU' : 'Human');
       }
     }
   }
@@ -212,7 +191,6 @@ window.addEventListener('DOMContentLoaded', () => {
       }
 
       characterGrid.appendChild(characterBox);
-      console.log(`Character box created for: ${characters[key].name}`);
 
       // Removed click event listener so clicking does nothing
       // characterBox.addEventListener('click', ... );
@@ -428,7 +406,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     window.dispatchEvent(event);
     menu.style.display = 'none';
-    console.log('=== GAME START EVENT DISPATCHED ===');
   });
 
   // On initial placement, show both as Random (or whatever is under the token)

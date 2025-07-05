@@ -39,12 +39,6 @@ const BLAST_ZONE_RIGHT = 100;   // 100px right of screen
 const BLAST_ZONE_TOP = -400;    // 400px above screen (increased to prevent self-kills)
 const BLAST_ZONE_BOTTOM = 100;  // 100px below screen
 
-// Access selected characters
-const player1CharacterName = window.selectedCharacter1 || 'kaon';
-const player2CharacterName = window.selectedCharacter2 || 'rakka';
-const player1CharacterData = characters[player1CharacterName.toLowerCase()];
-const player2CharacterData = characters[player2CharacterName.toLowerCase()];
-
 // Platform properties
 const platform = {
   x: 0,
@@ -53,9 +47,9 @@ const platform = {
   height: 32
 };
 
-// Initialize players with explicit positions
-let player1 = new Player(100, 100, '#2196f3', 1, player1CharacterData);  // Blue for player1
-let player2 = new Player(400, 100, '#e53935', -1, player2CharacterData); // Red for player2
+// Initialize players with default character data (will be re-initialized when game starts)
+let player1 = new Player(100, 100, '#2196f3', 1, characters.kaon);  // Blue for player1
+let player2 = new Player(400, 100, '#e53935', -1, characters.rakka); // Red for player2
 
 // CPU instances (will be created if needed)
 let cpu1 = null;
@@ -313,7 +307,6 @@ function drawStage() {
 }
 
 function resetGame() {
-  console.log('=== GAME RESET ===');
   // Prevent update loop from running after leaving game
   window.gameIsTrulyOver = true;
   // Set timer and lives to null to fully disable win/timer logic
@@ -359,8 +352,6 @@ function resetGame() {
   if (window.pauseMenu && typeof window.pauseMenu.resetPauseState === 'function') {
     window.pauseMenu.resetPauseState();
   }
-  
-  console.log('Game reset complete - returning to character menu');
 }
 
 // --- GLOBAL GAMEPAD POLLING LOOP ---
@@ -461,9 +452,15 @@ function handleGamepadForPlayer(gp, player, prevIndex) {
 
 function update() {
   // Prevent update loop from running after leaving game
-  if (window.gameIsTrulyOver) return;
+  if (window.gameIsTrulyOver) {
+    requestAnimationFrame(update);
+    return;
+  }
   // If timer or lives are null, do not process win/timer logic
-  if (gameTimer === null || player1Lives === null || player2Lives === null) return;
+  if (gameTimer === null || player1Lives === null || player2Lives === null) {
+    requestAnimationFrame(update);
+    return;
+  }
   frameCount++;
   
   if (!gameStarted) {
@@ -533,12 +530,9 @@ function update() {
       winnerCharacter = window.selectedCharacter1;
     }
     
-    console.log(`=== GAME OVER ===`);
     if (winnerName === 'Tie') {
-      console.log(`Result: Tie!`);
       alert(`Game Over - Tie! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
     } else {
-      console.log(`Winner: ${winnerName} (${winnerCharacter})`);
       alert(`${winnerName} (${winnerCharacter}) wins! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
     }
     
@@ -548,14 +542,7 @@ function update() {
     return;
   }
 
-  // Debug logging for CPU status
-  if (frameCount % 60 === 0) { // Log every 60 frames (once per second)
-    console.log('=== GAME LOOP DEBUG ===');
-    console.log('Frame:', frameCount);
-    console.log('Player 1 CPU:', window.player1IsCPU, 'CPU1 instance:', !!cpu1);
-    console.log('Player 2 CPU:', window.player2IsCPU, 'CPU2 instance:', !!cpu2);
-    console.log('========================');
-  }
+
 
   // --- POLL GAMEPADS ---
   pollGamepads();
@@ -575,8 +562,6 @@ function update() {
     if (cpu1) {
       cpu1.update();
       cpu1.handleEmergency();
-    } else {
-      console.log('CPU1 is null!');
     }
   }
 
@@ -595,8 +580,6 @@ function update() {
     if (cpu2) {
       cpu2.update();
       cpu2.handleEmergency();
-    } else {
-      console.log('CPU2 is null!');
     }
   }
 
@@ -799,37 +782,53 @@ window.addEventListener('startGame', (e) => {
   gameStarted = true;
   window.gameStarted = true; // Expose to window for pause menu
   
-  // Initialize timer and lives from settings
+  // Reset the game over flag so update loop resumes
+  window.gameIsTrulyOver = false;
+  
+  // Initialize timer and lives from settings - ensure they are never null
   gameTimer = window.gameTimer || 300;
   gameLives = window.gameLives || 3;
   player1Lives = gameLives;
   player2Lives = gameLives;
   lastTimerUpdate = 0; // Reset timer to initialize on first frame
   
-  console.log('Game starting...');
-  console.log('Player 1:', character1, 'CPU:', player1IsCPU);
-  console.log('Player 2:', character2, 'CPU:', player2IsCPU);
-  console.log('Timer:', gameTimer, 'seconds, Lives:', gameLives);
+
   
   // Re-initialize players with the correct character data
-  player1 = new Player(100, 100, '#2196f3', 1, characters[character1.toLowerCase()]);
-  player2 = new Player(400, 100, '#e53935', -1, characters[character2.toLowerCase()]);
+  const player1CharacterData = characters[character1.toLowerCase()];
+  const player2CharacterData = characters[character2.toLowerCase()];
+  
+  if (!player1CharacterData) {
+    return;
+  }
+  if (!player2CharacterData) {
+    return;
+  }
+  
+  try {
+    player1 = new Player(100, 100, '#2196f3', 1, player1CharacterData);
+    player2 = new Player(400, 100, '#e53935', -1, player2CharacterData);
+  } catch (error) {
+    return;
+  }
   
   // Create CPU instances if needed
-  if (player1IsCPU) {
-    cpu1 = new CPU(player1, player2, platform);
-    console.log('CPU 1 created successfully');
-  }
-  if (player2IsCPU) {
-    cpu2 = new CPU(player2, player1, platform);
-    console.log('CPU 2 created successfully');
+  try {
+    if (player1IsCPU) {
+      cpu1 = new CPU(player1, player2, platform);
+    }
+    if (player2IsCPU) {
+      cpu2 = new CPU(player2, player1, platform);
+    }
+  } catch (error) {
+    // Continue without CPU if there's an error
+    cpu1 = null;
+    cpu2 = null;
   }
   
   // Mark that the game has started for both players
   player1.setGameStarted(true);
   player2.setGameStarted(true);
-  // Reset the game over flag so update loop resumes
-  window.gameIsTrulyOver = false;
   
   // Show canvas and resize
   canvas.style.display = 'block';
@@ -838,7 +837,7 @@ window.addEventListener('startGame', (e) => {
   // Set up players on the platform for the new game
   setupPlayersOnPlatform();
   
-  console.log('Game started with CPUs:', { cpu1: !!cpu1, cpu2: !!cpu2 });
+
 });
 
 // Start game loop
@@ -846,12 +845,10 @@ update();
 
 // Pause menu event listeners
 window.addEventListener('gamePaused', () => {
-  console.log('Game paused');
   isPaused = true;
 });
 
 window.addEventListener('gameResumed', () => {
-  console.log('Game resumed');
   isPaused = false;
 });
 

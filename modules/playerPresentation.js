@@ -152,13 +152,11 @@ export function showCharacterName(name, playerNumber) {
   // Add click handler for CPU toggle
   nameBox.addEventListener('click', (e) => {
     e.stopPropagation();
-    console.log(`=== PLAYER ${playerNumber} NAME BOX CLICKED ===`);
     // Toggle CPU state
     if (playerNumber === '1') {
       if (window.player1IsCPU === undefined) window.player1IsCPU = false;
       const wasCPU = window.player1IsCPU;
       window.player1IsCPU = !window.player1IsCPU;
-      console.log(`Player 1: ${wasCPU ? 'CPU' : 'Human'} → ${window.player1IsCPU ? 'CPU' : 'Human'}`);
       // Update visual state
       nameBox.innerHTML = '';
       if (window.player1IsCPU) {
@@ -193,7 +191,6 @@ export function showCharacterName(name, playerNumber) {
       if (window.player2IsCPU === undefined) window.player2IsCPU = false;
       const wasCPU = window.player2IsCPU;
       window.player2IsCPU = !window.player2IsCPU;
-      console.log(`Player 2: ${wasCPU ? 'CPU' : 'Human'} → ${window.player2IsCPU ? 'CPU' : 'Human'}`);
       // Update visual state
       nameBox.innerHTML = '';
       if (window.player2IsCPU) {

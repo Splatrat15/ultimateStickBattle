@@ -166,7 +166,7 @@ export class Player extends PhysicsBody {
       this.downLightSwing.shadowTrails = [];
     }
 
-    console.log('Player state has been fully reset for:', this.color);
+
   }
 
   update(platforms, otherPlayer) {
@@ -235,7 +235,6 @@ export class Player extends PhysicsBody {
       if (this.shieldDuration >= this.maxShieldDuration) {
         this.isShielding = false;
         this.shieldCooldown = this.shieldRechargeTime;
-        console.log('Shield exhausted for:', this.color);
       }
     } else {
       // Recharge shield when not shielding
@@ -300,10 +299,7 @@ export class Player extends PhysicsBody {
 
     // Reset jumps when landing on ground
     if (this.isGrounded && this.jumpsRemaining !== 2) {
-      console.log('=== RESETTING JUMPS ===');
-      console.log('Previous jumps remaining:', this.jumpsRemaining);
       this.jumpsRemaining = 2;
-      console.log('New jumps remaining:', this.jumpsRemaining);
     }
 
     // Reset aerial restrictions when landing
@@ -323,30 +319,9 @@ export class Player extends PhysicsBody {
         this.chargeLevel = 1.0;
       }
       
-      // Debug logging every 30 frames
-      if (this.chargeTime % 30 === 0) {
-        console.log('Charging update:', {
-          character: this.characterName,
-          chargeTime: this.chargeTime,
-          chargeLevel: this.chargeLevel.toFixed(3),
-          maxChargeTime: this.maxChargeTime,
-          isCharging: this.isCharging,
-          isAttacking: this.isAttacking,
-          isShielding: this.isShielding
-        });
-      }
+
     } else {
-      // Debug when not charging but should be
-      if (this.chargeTime > 0) {
-        console.log('Charging stopped unexpectedly:', {
-          character: this.characterName,
-          chargeTime: this.chargeTime,
-          chargeLevel: this.chargeLevel.toFixed(3),
-          isCharging: this.isCharging,
-          isAttacking: this.isAttacking,
-          isShielding: this.isShielding
-        });
-      }
+
     }
 
     // === DEMON FANG THRUST LOGIC ===
@@ -480,7 +455,6 @@ export class Player extends PhysicsBody {
     const move = this.moveset[moveName];
 
     if (!move) {
-      console.error(`Move ${moveName} not found for character ${this.characterName}`);
       return;
     }
 
@@ -506,11 +480,9 @@ export class Player extends PhysicsBody {
     // Aerial restrictions for heavy attacks
     if (type === 'heavy') {
       if (direction === 'up' && !this.isGrounded && this.upHeavyUsedInAir) {
-        console.log('Up heavy blocked - already used in air');
         return; // Can't use up heavy again until landing
       }
       if (direction === 'down' && !this.isGrounded) {
-        console.log('Down heavy blocked - cannot use in air');
         return; // Can't use down heavy in air
       }
     }
@@ -526,14 +498,12 @@ export class Player extends PhysicsBody {
     // Track up heavy usage in air
     if (direction === 'up' && type === 'heavy' && !this.isGrounded) {
       this.upHeavyUsedInAir = true;
-      console.log('Up heavy used in air - will be blocked until landing');
     }
     
     // Trigger self-launch immediately for Gravity Spike (for recovery purposes)
     if (move.selfLaunch) {
       const launchForce = move.selfLaunchForce || 20;
       this.vy = -launchForce; // Launch the attacker upward immediately
-      console.log('Self-launch triggered immediately for:', this.characterName, 'with force:', launchForce);
     }
     
     this.createAttackHitbox();
@@ -614,7 +584,6 @@ export class Player extends PhysicsBody {
         if (move.selfLaunch) {
           const launchForce = move.selfLaunchForce || 16;
           this.vy = -launchForce;
-          console.log('Phantom Slash self-launch triggered with force:', launchForce);
         }
         
         // Create initial hitbox
@@ -630,14 +599,6 @@ export class Player extends PhysicsBody {
           
           // Teleport to end position
           this.x = this.demonFangEffects.endX;
-          
-          console.log('Demon Fang teleport executed:', {
-            startX: this.demonFangEffects.startX,
-            endX: this.demonFangEffects.endX,
-            thrustDistance: thrustDistance,
-            facing: this.facing,
-            chargeLevel: this.chargeLevel
-          });
         }
       }
     }
@@ -701,14 +662,7 @@ export class Player extends PhysicsBody {
 
     const hitboxData = this.activeMove.hitbox;
     
-    console.log('Creating attack hitbox:', {
-      moveName: this.activeMove.name,
-      chargeLevel: this.chargeLevel,
-      isCharged: this.chargeLevel > 0,
-      originalWidth: hitboxData.width,
-      originalHeight: hitboxData.height,
-      originalOffsetX: hitboxData.offsetX
-    });
+
     
     // Scale hitbox for charged neutral heavy attacks
     let hitboxWidth = hitboxData.width;
@@ -722,16 +676,7 @@ export class Player extends PhysicsBody {
       hitboxHeight = Math.floor(hitboxData.height * sizeMultiplier);
       hitboxOffsetX = Math.floor(hitboxData.offsetX * sizeMultiplier);
       
-      console.log('Scaled hitbox for charged attack:', {
-        chargeLevel: this.chargeLevel.toFixed(3),
-        sizeMultiplier: sizeMultiplier.toFixed(3),
-        originalWidth: hitboxData.width,
-        newWidth: hitboxWidth,
-        originalHeight: hitboxData.height,
-        newHeight: hitboxHeight,
-        originalOffsetX: hitboxData.offsetX,
-        newOffsetX: hitboxOffsetX
-      });
+
     }
     
     // Position hitbox in front of the player based on facing direction
@@ -1019,15 +964,7 @@ export class Player extends PhysicsBody {
       this.lastHitTarget = otherPlayer;
       // For multi-hit moves, short cooldown; for others, long cooldown to prevent multi-hits
       this.hitCooldown = isMultiHit ? 10 : this.activeMove.duration;
-      console.log('Attack hit detected!', {
-        attacker: this.characterName,
-        move: this.activeMove.name,
-        target: otherPlayer.characterName,
-        attackType: this.attackType,
-        hitbox1Hit: hit,
-        hitbox2Hit: hit2,
-        cooldownSet: this.hitCooldown
-      });
+
     }
     return hit || hit2;
   }
@@ -1039,18 +976,10 @@ export class Player extends PhysicsBody {
     if (this.demonFangAlreadyHit && this.demonFangAlreadyHit.has(otherPlayer)) {
       return false;
     }
-    console.log('checkDemonFangHit called:', {
-      attackerX: this.x,
-      attackerY: this.y,
-      targetX: otherPlayer.x,
-      targetY: otherPlayer.y,
-      isAttacking: this.isAttacking,
-      attackCooldown: this.attackCooldown
-    });
+
     
     // Check if we've already hit this target recently (prevent spam damage)
     if (this.lastHitTarget === otherPlayer && this.hitCooldown > 0) {
-      console.log('Demon Fang hit blocked by cooldown');
       return false;
     }
     
@@ -1073,15 +1002,7 @@ export class Player extends PhysicsBody {
       
       const hit = horizontalHit && verticalHit;
       
-      console.log('Demon Fang path collision check:', {
-        pathStart: pathStart,
-        pathEnd: pathEnd,
-        opponentStart: opponentStart,
-        opponentEnd: opponentEnd,
-        horizontalHit: horizontalHit,
-        verticalHit: verticalHit,
-        finalHit: hit
-      });
+
       
       if (hit) {
         // Apply damage to the opponent
@@ -1091,12 +1012,7 @@ export class Player extends PhysicsBody {
         this.lastHitTarget = otherPlayer;
         this.hitCooldown = 10; // 10 frames cooldown between hits on same target
         
-        console.log('Demon Fang teleport hit detected!', {
-          attacker: this.characterName,
-          target: otherPlayer.characterName,
-          damage: this.activeMove.damage,
-          cooldownSet: this.hitCooldown
-        });
+
         
         return true;
       }
@@ -1134,11 +1050,7 @@ export class Player extends PhysicsBody {
         // Mark this opponent as hit by this wave
         wave.lastHitTarget = otherPlayer;
         
-        console.log('Void Splitter wave hit detected!', {
-          attacker: this.characterName,
-          target: otherPlayer.characterName,
-          damage: move.wave.damage
-        });
+
         
         return true;
       }
@@ -1201,16 +1113,10 @@ export class Player extends PhysicsBody {
 
   jump() {
     if (!this.canAct || this.hitstun > 0) return;
-    console.log('=== JUMP ATTEMPT ===');
-    console.log('Jumps remaining:', this.jumpsRemaining);
-    console.log('Is grounded:', this.isGrounded);
-    console.log('Is jump key pressed:', this.isJumpKeyPressed);
-    console.log('Is shielding:', this.isShielding);
-    console.log('Is attacking:', this.isAttacking);
+
     
     // Don't allow jumping if shielding, attacking, or in hitstun
     if (this.isShielding || this.isAttacking || this.hitstun > 0) {
-      console.log('Jump blocked - shielding, attacking, or in hitstun');
       return;
     }
     
@@ -1221,9 +1127,6 @@ export class Player extends PhysicsBody {
       this.vy = jumpForce;
       this.isGrounded = false;
       this.jumpsRemaining--;
-      console.log('Jump successful!');
-      console.log('Used force:', jumpForce);
-      console.log('Jumps remaining after jump:', this.jumpsRemaining);
     }
     
     this.isJumpKeyPressed = true;
@@ -1242,12 +1145,7 @@ export class Player extends PhysicsBody {
       this.respawnInvincibilityFrames = 210;
       this.isBlinking = true;
       
-      console.log('Player respawned with invincibility:', {
-        color: this.color,
-        x: x,
-        y: y,
-        invincibilityFrames: this.respawnInvincibilityFrames
-      });
+
     } else {
       // During initial setup, ensure no invincibility
       this.respawnInvincibilityFrames = 0;
@@ -1257,11 +1155,6 @@ export class Player extends PhysicsBody {
 
   setGameStarted(status) {
     this.gameStarted = status;
-    if (status) {
-      console.log('Game started for player:', this.color);
-    } else {
-      console.log('Game stopped for player:', this.color);
-    }
   }
 
   setInitialPosition(x, y) {
@@ -1282,11 +1175,7 @@ export class Player extends PhysicsBody {
     this.respawnInvincibilityFrames = 0;
     this.isBlinking = false;
     
-    console.log('Player initial position set and stored:', {
-      color: this.color,
-      x: x,
-      y: y
-    });
+
   }
 
   activateShield() {
@@ -1294,7 +1183,6 @@ export class Player extends PhysicsBody {
     // Can only shield if not on cooldown and shield duration is available
     if (this.shieldCooldown === 0 && this.shieldDuration < this.maxShieldDuration) {
       this.isShielding = true;
-      console.log('Shield activated for:', this.color);
     }
   }
 
@@ -1304,17 +1192,9 @@ export class Player extends PhysicsBody {
 
   startCharge(move = null) {
     if (!this.canAct || this.hitstun > 0) return;
-    console.log('startCharge called for:', this.characterName, {
-      isAttacking: this.isAttacking,
-      isShielding: this.isShielding,
-      isCharging: this.isCharging,
-      chargeTime: this.chargeTime,
-      chargeLevel: this.chargeLevel
-    });
     
     // Don't start charging if already charging, attacking, or shielding
     if (this.isCharging || this.isAttacking || this.isShielding) {
-      console.log('Cannot start charging - already charging:', this.isCharging, 'attacking:', this.isAttacking, 'shielding:', this.isShielding);
       return;
     }
     
@@ -1324,20 +1204,10 @@ export class Player extends PhysicsBody {
     this.isCharging = true;
     this.chargeTime = 0;
     this.chargeLevel = 0;
-    console.log('Started charging for:', this.characterName, {
-      chargeTime: this.chargeTime,
-      chargeLevel: this.chargeLevel,
-      isCharging: this.isCharging,
-      activeMove: this.activeMove?.name
-    });
   }
 
   releaseCharge() {
     if (this.isCharging) {
-      console.log('Releasing charge for:', this.characterName, {
-        finalChargeTime: this.chargeTime,
-        finalChargeLevel: this.chargeLevel.toFixed(3)
-      });
       
       this.isCharging = false;
       
@@ -1349,9 +1219,6 @@ export class Player extends PhysicsBody {
       // Reset charge after attack is created
       this.chargeTime = 0;
       this.chargeLevel = 0;
-      console.log('Released charge with level:', this.chargeLevel);
-    } else {
-      console.log('Cannot release charge - not charging');
     }
   }
 
@@ -1399,13 +1266,7 @@ export class Player extends PhysicsBody {
           
           // Track already hit targets for this Demon Fang
           this.demonFangAlreadyHit = new Set();
-          console.log('Demon Fang teleport executed:', {
-            startX: this.demonFangEffects.startX,
-            endX: this.demonFangEffects.endX,
-            thrustDistance: thrustDistance,
-            facing: this.facing,
-            chargeLevel: this.chargeLevel
-          });
+
         }
       } else if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
@@ -1435,7 +1296,7 @@ export class Player extends PhysicsBody {
     
     this.createAttackHitbox();
     
-    console.log('Fired charged attack with level:', this.chargeLevel.toFixed(3), 'damage:', this.activeMove.damage, 'multiplier:', chargeMultiplier.toFixed(3));
+
   }
 
   // Add a method to reset the jab press state on keyup
