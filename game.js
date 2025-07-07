@@ -47,6 +47,9 @@ const platform = {
   height: 32
 };
 
+// Platform design constants
+const PLATFORM_THICKNESS = 40; // Thicker platform like Battlefield
+
 // Initialize players with default character data (will be re-initialized when game starts)
 let player1 = new Player(100, 100, '#2196f3', 1, characters.kaon);  // Blue for player1
 let player2 = new Player(400, 100, '#e53935', -1, characters.rakka); // Red for player2
@@ -112,21 +115,19 @@ function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   
-  // Platform: centered, 60% width, 40px tall, 1/3 from top
-  platform.width = Math.max(300, canvas.width * 0.6);
-  platform.height = 32;
+  // Make the platform much larger and thicker
+  platform.width = Math.max(600, canvas.width * 0.7); // Wider
+  platform.height = 48; // Thicker
   platform.x = (canvas.width - platform.width) / 2;
   platform.y = canvas.height * 0.6;
 }
 
 function drawStage() {
-  // Clear canvas
-  ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Clear canvas with competitive background
+  drawCompetitiveBackground();
   
-  // Draw platform
-  ctx.fillStyle = '#888';
-  ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+  // Draw platform with Battlefield style
+  drawBattlefieldPlatform();
   
   // Draw players
   [player1, player2].forEach((player, index) => {
@@ -304,6 +305,107 @@ function drawStage() {
     ctx.fillStyle = '#00ff00';
     ctx.fillText(`${averageFPS} FPS`, fpsBoxX + fpsBoxWidth / 2, fpsBoxY + fpsBoxHeight / 2 + 5);
   }
+}
+
+function drawCompetitiveBackground() {
+  // Create a competitive fighting game background
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, '#0a0a0a');   // Very dark at top
+  gradient.addColorStop(0.3, '#1a1a1a'); // Slightly lighter
+  gradient.addColorStop(0.7, '#0f0f0f'); // Dark in middle
+  gradient.addColorStop(1, '#050505');   // Very dark at bottom
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw subtle fighting aura effect
+  drawFightingAura();
+}
+
+function drawFightingAura() {
+  const time = Date.now() * 0.001;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  
+  // Draw expanding energy rings
+  for (let i = 0; i < 3; i++) {
+    const ringRadius = 100 + Math.sin(time + i) * 20 + i * 50;
+    const alpha = 0.05 - (i * 0.01);
+    
+    ctx.strokeStyle = `rgba(100, 150, 255, ${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  // Draw subtle energy particles
+  for (let i = 0; i < 15; i++) {
+    const angle = (i / 15) * Math.PI * 2 + time * 0.5;
+    const radius = 200 + Math.sin(time + i) * 30;
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+    const size = Math.sin(time + i) * 2 + 3;
+    
+    ctx.fillStyle = `rgba(150, 200, 255, ${0.1 + Math.sin(time + i) * 0.05})`;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawBattlefieldPlatform() {
+  const x = platform.x;
+  const y = platform.y;
+  const width = platform.width;
+  const height = platform.height;
+  
+  // Draw platform shadow for thickness
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(x + 4, y + height, width - 8, PLATFORM_THICKNESS);
+  
+  // Draw platform side faces (3D effect)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(x, y + height, width, PLATFORM_THICKNESS);
+  
+  // Draw main platform (black base)
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(x, y, width, height);
+  
+  // Draw enhanced USB design
+  drawEnhancedUSBDesign(x, y, width, height);
+  
+  // Draw platform edge highlights
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, width, height);
+}
+
+function drawEnhancedUSBDesign(x, y, width, height) {
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+
+  // Draw blue energy line from left, stopping before the text
+  ctx.strokeStyle = '#0066cc';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x + 30, centerY);
+  ctx.lineTo(centerX - 60, centerY);
+  ctx.stroke();
+
+  // Draw red energy line from right, stopping before the text
+  ctx.strokeStyle = '#cc0000';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x + width - 30, centerY);
+  ctx.lineTo(centerX + 60, centerY);
+  ctx.stroke();
+
+  // Draw large, bold, perfectly centered 'USB' text
+  ctx.font = 'bold 32px Arial';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('USB', centerX, centerY);
 }
 
 function resetGame() {
