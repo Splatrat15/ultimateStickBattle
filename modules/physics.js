@@ -76,7 +76,7 @@ export class PhysicsBody {
     if (this.invincibilityFrames > 0) this.invincibilityFrames--;
     if (this.controlSwitchCooldown > 0) this.controlSwitchCooldown--;
 
-    // Check platform collisions
+    // Check platform collisions (simplified for single platform)
     this.isGrounded = false;
     for (const platform of platforms) {
       // Check if player is above platform
