@@ -1217,7 +1217,7 @@ function drawRakkaHat(ctx, x, y, width, height, facing, player) {
   const isVoidSplitter = player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter';
   
   // Base hat position - scale with player size
-  let hatY = y + height - width * 0.95; // 95% of character width above base (higher on head)
+  let hatY = y + height - width * 1; // Raised higher above head
   let hatOffsetX = 0;
   
   if (isChargingDemonFang) {
@@ -1226,11 +1226,11 @@ function drawRakkaHat(ctx, x, y, width, height, facing, player) {
     // Add tiny backward offset
     hatOffsetX -= width * 0.05 * facing;
     // Adjust Y position slightly to stay with head
-    hatY += width * 0.1;
+    hatY += width * 0.05;
   } else if (isVoidSplitter) {
     // Move hat with the lowered head during Void Splitter
     hatOffsetX = width * 0.08 * facing;
-    hatY += width * 0.1;
+    hatY += width * 0.05;
   }
   
   ctx.save();
