@@ -1,5 +1,21 @@
 // characters/Rakka/designRakka.js
 
+// Helper function to get scaled size
+function getScaledSize(baseSize) {
+  if (typeof window !== 'undefined' && window.getScaledSize) {
+    return window.getScaledSize(baseSize);
+  }
+  return baseSize;
+}
+
+// Helper function to get scaled text size
+function getScaledTextSize(baseSize) {
+  if (typeof window !== 'undefined' && window.getScaledTextSize) {
+    return window.getScaledTextSize(baseSize);
+  }
+  return baseSize;
+}
+
 // Initialize Rakka's visual state
 export function initializeRakka(player) {
   player.shadowAfterimages = [];
@@ -101,13 +117,13 @@ export function initializeRakka(player) {
     isGrounded: true // Track whether this was a grounded or aerial attack
   };
   player.sword = {
-    length: 54,
-    width: 7,
+    length: getScaledSize(54), // Scaled from 54
+    width: getScaledSize(7), // Scaled from 7
     color: '#222',
     hiltColor: '#a00',
     sheathColor: '#111',
-    offsetX: 18,
-    offsetY: 38
+    offsetX: getScaledSize(18), // Scaled from 18
+    offsetY: getScaledSize(38) // Scaled from 38
   };
   // Sword swing animation for Shadow Sneak
   player.swordSwing = {
@@ -712,13 +728,13 @@ export function updateRakka(player) {
 export function drawRakka(ctx, player) {
   const { x, y, width, height, facing, color } = player;
   const centerX = x + width / 2;
-  const baseY = y + height - 26;
+  const baseY = y + height - getScaledSize(26); // Scaled from 26
 
   // Draw shadow afterimages (for shadowstep)
   player.shadowAfterimages.forEach((img, i) => {
     ctx.save();
     ctx.globalAlpha = img.alpha * (1 - i * 0.15);
-    drawRakkaBody(ctx, img.x, img.y - 26, width, height, facing, true, color, player);
+    drawRakkaBody(ctx, img.x, img.y - getScaledSize(26), width, height, facing, true, color, player); // Scaled from 26
     ctx.globalAlpha = 1.0;
     ctx.restore();
   });
@@ -734,7 +750,7 @@ export function drawRakka(ctx, player) {
     
     // Add red glow to particles
     ctx.shadowColor = '#f00';
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = getScaledSize(10); // Scaled from 10
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, particle.size * 0.6, 0, Math.PI * 2);
     ctx.fillStyle = '#600';
@@ -746,14 +762,14 @@ export function drawRakka(ctx, player) {
   ctx.save();
   ctx.globalAlpha = 0.18;
   ctx.beginPath();
-  ctx.ellipse(centerX, baseY + 8, 32, 10, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX, baseY + getScaledSize(8), getScaledSize(32), getScaledSize(10), 0, 0, Math.PI * 2); // Scaled from 8, 32, 10
   ctx.fillStyle = '#111';
   ctx.fill();
   ctx.globalAlpha = 1.0;
   ctx.restore();
 
   // Draw main body
-  drawRakkaBody(ctx, x, y - 26, width, height, facing, false, color, player);
+  drawRakkaBody(ctx, x, y - getScaledSize(26), width, height, facing, false, color, player); // Scaled from 26
   
   // Draw katana with special handling for Demon Fang and sword swing
   if (player.isCharging && player.activeMove && player.activeMove.name === 'Demon Fang') {
@@ -790,16 +806,16 @@ export function drawRakka(ctx, player) {
     ctx.save();
     ctx.globalAlpha = 0.7;
     // Draw black stick figure body (shadow)
-    drawRakkaBody(ctx, player.shadowSneak.x, player.shadowSneak.y - 26, player.width, player.height, player.shadowSneak.direction, true, '#000', player);
+    drawRakkaBody(ctx, player.shadowSneak.x, player.shadowSneak.y - getScaledSize(26), player.width, player.height, player.shadowSneak.direction, true, '#000', player); // Scaled from 26
     // Draw red eyes (very transparent)
     const centerX = player.shadowSneak.x + player.width / 2;
-    const baseY = player.shadowSneak.y + player.height - 26;
+    const baseY = player.shadowSneak.y + player.height - getScaledSize(26); // Scaled from 26
     ctx.globalAlpha = 0.18;
     ctx.fillStyle = '#f00';
     // Eyes are positioned relative to the head
     ctx.beginPath();
-    ctx.arc(centerX - 5, baseY - 48, 3, 0, Math.PI * 2); // Left eye
-    ctx.arc(centerX + 5, baseY - 48, 3, 0, Math.PI * 2); // Right eye
+    ctx.arc(centerX - getScaledSize(5), baseY - getScaledSize(48), getScaledSize(3), 0, Math.PI * 2); // Scaled from 5, 48, 3
+    ctx.arc(centerX + getScaledSize(5), baseY - getScaledSize(48), getScaledSize(3), 0, Math.PI * 2); // Scaled from 5, 48, 3
     ctx.fill();
     ctx.restore();
   }
@@ -838,11 +854,22 @@ export function drawRakka(ctx, player) {
 
 // Draw stick figure body
 function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player) {
+  // Proportional sizes - scale with player size
+  const headRadius = width * 0.22;
+  const bodyLineWidth = width * 0.1;
+  const armLineWidth = width * 0.08;
+  const legLineWidth = width * 0.08;
+  const handRadius = width * 0.05;
+  const footRadius = width * 0.05;
+  const armLength = width * 0.53;
+  const medArmLength = width * 0.27;
+  const legLength = width * 0.53;
+  const crossLegLength = width * 0.33;
   const centerX = x + width / 2;
   const baseY = y + height; // Feet at bottom
   ctx.save();
   ctx.strokeStyle = isShadow ? '#222' : color || '#000';
-  ctx.lineWidth = 7;
+  ctx.lineWidth = bodyLineWidth;
   ctx.lineCap = 'round';
 
   // Check if charging Demon Fang for special stance
@@ -856,33 +883,33 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
   if (isChargingDemonFang) {
     // Lower stance - body tilted forward
     const leanAngle = 0.3 + (chargeLevel * 0.2); // Lean more as charge increases
-    const bodyYOffset = 6; // Move body up to connect with hat and handle
+    const bodyYOffset = getScaledSize(6); // Scaled from 6
 
     // --- Draw Rotated Upper Body ---
     ctx.save();
     ctx.translate(0, bodyYOffset); // Raise only the body
-    ctx.translate(centerX, baseY - 25);
+    ctx.translate(centerX, baseY - getScaledSize(25)); // Scaled from 25
     ctx.rotate(leanAngle * facing);
-    ctx.translate(-centerX, -(baseY - 25));
+    ctx.translate(-centerX, -(baseY - getScaledSize(25))); // Scaled from 25
 
     // Body - leaning forward
     ctx.beginPath();
-    ctx.moveTo(centerX, baseY - 42);
-    ctx.lineTo(centerX + (10 * facing), baseY - 10);
+    ctx.moveTo(centerX, baseY - getScaledSize(42)); // Scaled from 42
+    ctx.lineTo(centerX + (getScaledSize(10) * facing), baseY - getScaledSize(10)); // Scaled from 10
     ctx.stroke();
 
     // Arms in ready position
     ctx.beginPath();
-    ctx.moveTo(centerX, baseY - 32);
-    ctx.lineTo(centerX - (28 * facing), baseY - 28);
+    ctx.moveTo(centerX, baseY - getScaledSize(32)); // Scaled from 32
+    ctx.lineTo(centerX - (getScaledSize(28) * facing), baseY - getScaledSize(28)); // Scaled from 28
     // Sword arm (extended back, adjusted to meet the new sword angle)
-    ctx.moveTo(centerX, baseY - 32);
-    ctx.lineTo(centerX + (28 * facing), baseY - 25);
+    ctx.moveTo(centerX, baseY - getScaledSize(32)); // Scaled from 32
+    ctx.lineTo(centerX + (getScaledSize(28) * facing), baseY - getScaledSize(25)); // Scaled from 25
     ctx.stroke();
     
     // Head - slightly lowered
     ctx.beginPath();
-    ctx.arc(centerX + (8 * facing), baseY - 48, 14, 0, Math.PI * 2);
+    ctx.arc(centerX + (getScaledSize(8) * facing), baseY - getScaledSize(48), getScaledSize(14), 0, Math.PI * 2); // Scaled from 8, 48, 14
     ctx.fillStyle = isShadow ? '#222' : color || '#000';
     ctx.fill();
 
@@ -890,19 +917,19 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
 
     // --- Draw Legs: L-shaped front leg, steeper/longer back leg, both feet on ground ---
     // Hip position: a bit lower and to the left of the torso
-    const hipX = centerX + (2 * facing) - (10 * facing); // 10px left from center, 2px for subtle offset
-    const hipY = baseY - 2 + bodyYOffset; // 8px lower than previous
+    const hipX = centerX + (getScaledSize(2) * facing) - (getScaledSize(10) * facing); // Scaled from 2 and 10
+    const hipY = baseY - getScaledSize(2) + bodyYOffset; // Scaled from 2
 
     ctx.beginPath();
     // Front leg (L-shape: bend closer to hip, shin goes farther down)
-    const frontKneeX = hipX + 18 * facing;
+    const frontKneeX = hipX + getScaledSize(18) * facing; // Scaled from 18
     const frontKneeY = hipY;
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(frontKneeX, frontKneeY); // Thigh forward (horizontal, shorter)
-    ctx.lineTo(frontKneeX, baseY + 22); // Shin farther down, foot on ground
+    ctx.lineTo(frontKneeX, baseY + getScaledSize(22)); // Scaled from 22
 
     // Back leg (steeper, longer)
-    const backLegLength = 48;
+    const backLegLength = getScaledSize(48); // Scaled from 48
     const backLegAngle = facing > 0 ? Math.PI * 5 / 6 : -Math.PI * 5 / 6; // ~150 deg from horizontal (steep)
     const backFootX = hipX + backLegLength * Math.cos(backLegAngle);
     const backFootY = hipY + backLegLength * Math.sin(backLegAngle);
@@ -913,7 +940,7 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
   } else if (isVoidSplitter) {
     // Void Splitter stance - crouching with sword raised for slam
     const slamAngle = voidSplitterEffects.groundSlam.slamAngle;
-    const bodyYOffset = 8; // Lower stance
+    const bodyYOffset = getScaledSize(8); // Scaled from 8
 
     // --- Draw Crouched Body ---
     ctx.save();
@@ -921,23 +948,23 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
 
     // Body - crouched position
     ctx.beginPath();
-    ctx.moveTo(centerX, baseY - 35); // Shorter body
-    ctx.lineTo(centerX, baseY - 5);
+    ctx.moveTo(centerX, baseY - getScaledSize(35)); // Scaled from 35
+    ctx.lineTo(centerX, baseY - getScaledSize(5)); // Scaled from 5
     ctx.stroke();
 
     // Arms in slam position
     ctx.beginPath();
     // Left arm (supporting)
-    ctx.moveTo(centerX, baseY - 25);
-    ctx.lineTo(centerX - (20 * facing), baseY - 15);
+    ctx.moveTo(centerX, baseY - getScaledSize(25)); // Scaled from 25
+    ctx.lineTo(centerX - (getScaledSize(20) * facing), baseY - getScaledSize(15)); // Scaled from 20 and 15
     // Right arm (raised for slam)
-    ctx.moveTo(centerX, baseY - 25);
-    ctx.lineTo(centerX + (25 * facing), baseY - 35);
+    ctx.moveTo(centerX, baseY - getScaledSize(25)); // Scaled from 25
+    ctx.lineTo(centerX + (getScaledSize(25) * facing), baseY - getScaledSize(35)); // Scaled from 25 and 35
     ctx.stroke();
     
     // Head - lowered
     ctx.beginPath();
-    ctx.arc(centerX + (5 * facing), baseY - 40, 12, 0, Math.PI * 2);
+    ctx.arc(centerX + (getScaledSize(5) * facing), baseY - getScaledSize(40), getScaledSize(12), 0, Math.PI * 2); // Scaled from 5, 40, 12
     ctx.fillStyle = isShadow ? '#222' : color || '#000';
     ctx.fill();
 
@@ -946,65 +973,65 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
     // --- Draw Legs: Crouched stance ---
     // Hip position: lower and wider stance
     const hipX = centerX;
-    const hipY = baseY - 2 + bodyYOffset;
+    const hipY = baseY - getScaledSize(2) + bodyYOffset; // Scaled from 2
 
     ctx.beginPath();
     // Left leg (bent)
-    const leftKneeX = hipX - 15;
-    const leftKneeY = hipY + 8;
+    const leftKneeX = hipX - getScaledSize(15); // Scaled from 15
+    const leftKneeY = hipY + getScaledSize(8); // Scaled from 8
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(leftKneeX, leftKneeY);
-    ctx.lineTo(leftKneeX - 5, baseY + 15);
+    ctx.lineTo(leftKneeX - getScaledSize(5), baseY + getScaledSize(15)); // Scaled from 5 and 15
 
     // Right leg (bent)
-    const rightKneeX = hipX + 15;
-    const rightKneeY = hipY + 8;
+    const rightKneeX = hipX + getScaledSize(15); // Scaled from 15
+    const rightKneeY = hipY + getScaledSize(8); // Scaled from 8
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(rightKneeX, rightKneeY);
-    ctx.lineTo(rightKneeX + 5, baseY + 15);
+    ctx.lineTo(rightKneeX + getScaledSize(5), baseY + getScaledSize(15)); // Scaled from 5 and 15
     ctx.stroke();
 
   } else {
     // Normal stance - original code
     // Body
     ctx.beginPath();
-    ctx.moveTo(centerX, baseY - 42);
+    ctx.moveTo(centerX, baseY - getScaledSize(42)); // Scaled from 42
     ctx.lineTo(centerX, baseY);
     ctx.stroke();
 
     // Arms
     ctx.beginPath();
     // Resting arm (closer to body)
-    ctx.moveTo(centerX, baseY - 32);
-    ctx.lineTo(centerX - 24 * facing, baseY - 22);
+    ctx.moveTo(centerX, baseY - getScaledSize(32)); // Scaled from 32
+    ctx.lineTo(centerX - getScaledSize(24) * facing, baseY - getScaledSize(22)); // Scaled from 24 and 22
     // Katana-holding arm (reaching lower to handle)
-    ctx.moveTo(centerX, baseY - 32);
-    ctx.lineTo(centerX + 24 * facing, baseY - 22);
+    ctx.moveTo(centerX, baseY - getScaledSize(32)); // Scaled from 32
+    ctx.lineTo(centerX + getScaledSize(24) * facing, baseY - getScaledSize(22)); // Scaled from 24 and 22
     ctx.stroke();
     
     // Legs with walking animation
     ctx.beginPath();
     if (player.animation.isWalking) {
       const walkCycle = (player.animation.frame / player.animation.numFrames) * Math.PI * 2;
-      const legSwing = Math.sin(walkCycle) * 8;
+      const legSwing = Math.sin(walkCycle) * getScaledSize(8); // Scaled from 8
       // Left leg
       ctx.moveTo(centerX, baseY);
-      ctx.lineTo(centerX - 12 + legSwing, baseY + 26);
+      ctx.lineTo(centerX - getScaledSize(12) + legSwing, baseY + getScaledSize(26)); // Scaled from 12 and 26
       // Right leg
       ctx.moveTo(centerX, baseY);
-      ctx.lineTo(centerX + 12 - legSwing, baseY + 26);
+      ctx.lineTo(centerX + getScaledSize(12) - legSwing, baseY + getScaledSize(26)); // Scaled from 12 and 26
     } else {
       // Standing still
       ctx.moveTo(centerX, baseY);
-      ctx.lineTo(centerX - 12, baseY + 26);
+      ctx.lineTo(centerX - getScaledSize(12), baseY + getScaledSize(26)); // Scaled from 12 and 26
       ctx.moveTo(centerX, baseY);
-      ctx.lineTo(centerX + 12, baseY + 26);
+      ctx.lineTo(centerX + getScaledSize(12), baseY + getScaledSize(26)); // Scaled from 12 and 26
     }
     ctx.stroke();
     
     // Head
     ctx.beginPath();
-    ctx.arc(centerX, baseY - 48, 14, 0, Math.PI * 2);
+    ctx.arc(centerX, baseY - getScaledSize(48), getScaledSize(14), 0, Math.PI * 2); // Scaled from 48 and 14
     ctx.fillStyle = isShadow ? '#222' : color || '#000';
     ctx.fill();
   }
@@ -1015,24 +1042,35 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
 // Draw katana at waist
 function drawRakkaKatana(ctx, x, y, width, height, facing, sword) {
   const centerX = x + width / 2;
-  // Raise the katana slightly and move it closer to the body
-  const baseY = y + height - 12;
-  const sheathOffset = 8 * facing; // Reduced offset to bring katana closer
+  // Scale sword positioning relative to character size
+  const swordOffsetY = width * 0.15; // 15% of character width
+  const sheathOffsetX = width * 0.1 * facing; // 10% of character width
+  const baseY = y + height - swordOffsetY;
+  
   ctx.save();
-  ctx.translate(centerX + sheathOffset, baseY);
+  ctx.translate(centerX + sheathOffsetX, baseY);
   if (facing < 0) ctx.scale(-1, 1); // Mirror horizontally for left
   ctx.rotate(0.08 - 0.35); // Always angle downward and back
+  
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
+  
   // Sheath (thinner)
-  const sheathWidth = sword.width * 0.6;
+  const sheathWidth = scaledSwordWidth * 0.6;
   ctx.fillStyle = sword.sheathColor;
-  ctx.fillRect(-sword.length * 0.7, -sheathWidth / 2, sword.length, sheathWidth);
+  ctx.fillRect(-scaledSwordLength * 0.7, -sheathWidth / 2, scaledSwordLength, sheathWidth);
+  
   // Sheath outline
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = Math.max(1, width * 0.02); // Minimum 1px, scales with character
   ctx.strokeStyle = '#bbb';
-  ctx.strokeRect(-sword.length * 0.7, -sheathWidth / 2, sword.length, sheathWidth);
+  ctx.strokeRect(-scaledSwordLength * 0.7, -sheathWidth / 2, scaledSwordLength, sheathWidth);
+  
   // Hilt (handle just past waist, positioned where the hand reaches)
   ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(sword.length * 0.3 - 2, -sheathWidth / 2 - 1, 12, sheathWidth + 2); // Made handle slightly larger
+  ctx.fillRect(scaledSwordLength * 0.3 - scaledHiltLength * 0.1, -sheathWidth / 2 - width * 0.015, scaledHiltLength, sheathWidth + width * 0.03);
+  
   ctx.restore();
 }
 
@@ -1040,14 +1078,13 @@ function drawRakkaKatana(ctx, x, y, width, height, facing, sword) {
 function drawSwingingSword(ctx, x, y, width, height, facing, player) {
   const centerX = x + width / 2;
   const baseY = y + height;
-  const sword = player.sword;
   const swing = player.swordSwing;
   
   ctx.save();
   
   // Position at the sword arm (right arm when facing right, left when facing left)
-  const armX = centerX + (24 * facing);
-  const armY = baseY - 22;
+  const armX = centerX + (width * 0.4 * facing); // 40% of character width
+  const armY = baseY - width * 0.35; // 35% of character width
   
   ctx.translate(armX, armY);
   
@@ -1062,35 +1099,40 @@ function drawSwingingSword(ctx, x, y, width, height, facing, player) {
   // Draw sword with glow effect
   const glowIntensity = swing.glowIntensity;
   
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
+  
   // Outer glow
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 15 + (glowIntensity * 10);
+  ctx.shadowBlur = width * 0.25 + (glowIntensity * width * 0.15);
   
   // Sword blade
   ctx.fillStyle = '#222';
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Red energy glow along the blade
-  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength, 0);
   gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.8})`);
   gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.4})`);
   gradient.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Hilt
   ctx.shadowBlur = 0;
-  ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(-scaledHiltLength, -scaledSwordWidth/2 - width * 0.015, scaledHiltLength, scaledSwordWidth + width * 0.03);
   
   // Add motion blur effect (trail)
   if (glowIntensity > 0.3) {
     ctx.save();
     ctx.globalAlpha = glowIntensity * 0.3;
-    ctx.translate(-sword.length * 0.3, 0);
+    ctx.translate(-scaledSwordLength * 0.3, 0);
     ctx.rotate(-0.2);
     ctx.fillStyle = '#f00';
-    ctx.fillRect(0, -sword.width/2, sword.length * 0.6, sword.width);
+    ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength * 0.6, scaledSwordWidth);
     ctx.restore();
   }
   
@@ -1101,14 +1143,13 @@ function drawSwingingSword(ctx, x, y, width, height, facing, player) {
 function drawVoidSplitterSword(ctx, x, y, width, height, facing, player) {
   const centerX = x + width / 2;
   const baseY = y + height;
-  const sword = player.sword;
   const effects = player.voidSplitterEffects;
   
   ctx.save();
   
   // Position at the sword arm (right arm when facing right, left when facing left)
-  const armX = centerX + (25 * facing);
-  const armY = baseY - 35;
+  const armX = centerX + (width * 0.4 * facing); // 40% of character width
+  const armY = baseY - width * 0.55; // 55% of character width (higher for slam)
   
   ctx.translate(armX, armY);
   
@@ -1121,39 +1162,44 @@ function drawVoidSplitterSword(ctx, x, y, width, height, facing, player) {
   const slamAngle = effects.groundSlam.slamAngle;
   ctx.rotate(slamAngle);
   
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
+  
   // Draw sword with demonic effect
   const slamProgress = Math.min(effects.groundSlam.frame / 25, 1.0);
   const glowIntensity = slamProgress;
   
   // Outer glow
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 20 + (glowIntensity * 15);
+  ctx.shadowBlur = width * 0.3 + (glowIntensity * width * 0.25);
   
   // Sword blade
   ctx.fillStyle = '#222';
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Red energy glow along the blade
-  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength, 0);
   gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.9})`);
   gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.6})`);
   gradient.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Hilt
   ctx.shadowBlur = 0;
-  ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(-scaledHiltLength, -scaledSwordWidth/2 - width * 0.015, scaledHiltLength, scaledSwordWidth + width * 0.03);
   
   // Add motion blur effect (trail) when slamming
   if (glowIntensity > 0.5) {
     ctx.save();
     ctx.globalAlpha = glowIntensity * 0.4;
-    ctx.translate(-sword.length * 0.2, 0);
+    ctx.translate(-scaledSwordLength * 0.2, 0);
     ctx.rotate(-0.1);
     ctx.fillStyle = '#f00';
-    ctx.fillRect(0, -sword.width/2, sword.length * 0.4, sword.width);
+    ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength * 0.4, scaledSwordWidth);
     ctx.restore();
   }
   
@@ -1170,21 +1216,21 @@ function drawRakkaHat(ctx, x, y, width, height, facing, player) {
   // Check if performing Void Splitter for special stance
   const isVoidSplitter = player.isAttacking && player.activeMove && player.activeMove.name === 'Void Splitter';
   
-  // Base hat position
-  let hatY = y + height - 48 - 12;
+  // Base hat position - scale with player size
+  let hatY = y + height - width * 0.95; // 95% of character width above base (higher on head)
   let hatOffsetX = 0;
   
   if (isChargingDemonFang) {
-    // Move hat forward during charge to stay on head (increased offset)
-    hatOffsetX = (16 + (chargeLevel * 12)) * facing;
+    // Move hat forward during charge to stay on head
+    hatOffsetX = (width * 0.25 + (chargeLevel * width * 0.2)) * facing;
     // Add tiny backward offset
-    hatOffsetX -= 3 * facing;
+    hatOffsetX -= width * 0.05 * facing;
     // Adjust Y position slightly to stay with head
-    hatY += 8;
+    hatY += width * 0.1;
   } else if (isVoidSplitter) {
     // Move hat with the lowered head during Void Splitter
-    hatOffsetX = (5 * facing); // Small forward offset to stay with head
-    hatY += 8; // Lower the hat to match the crouched head position
+    hatOffsetX = width * 0.08 * facing;
+    hatY += width * 0.1;
   }
   
   ctx.save();
@@ -1203,52 +1249,54 @@ function drawRakkaHat(ctx, x, y, width, height, facing, player) {
     ctx.rotate(0.12 * facing);
   }
 
-  // Hat base (smaller)
+  // Hat base - scale with player size
+  const hatSize = width * 0.4; // 40% of character width
   ctx.beginPath();
-  ctx.moveTo(-22, 10);
-  ctx.lineTo(0, -14);
-  ctx.lineTo(22, 10);
+  ctx.moveTo(-hatSize, hatSize * 0.45);
+  ctx.lineTo(0, -hatSize * 0.64);
+  ctx.lineTo(hatSize, hatSize * 0.45);
   ctx.closePath();
   ctx.fillStyle = '#111';
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = width * 0.2; // Scale shadow with character
   ctx.fill();
   ctx.shadowBlur = 0;
   
-  // 鬼 kanji (slightly larger)
+  // 鬼 kanji - scale with hat size
   ctx.save();
-  ctx.font = 'bold 15px serif';
+  const kanjiSize = hatSize * 0.6; // 60% of hat size
+  ctx.font = `bold ${kanjiSize}px serif`;
   ctx.fillStyle = '#f00';
   ctx.globalAlpha = 0.92;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 5;
-  ctx.fillText('鬼', 0, -2);
+  ctx.shadowBlur = width * 0.08; // Scale shadow with character
+  ctx.fillText('鬼', 0, -width * 0.03); // Scale offset with character
   ctx.restore();
   
   // Demonic effect: extra glow
   ctx.beginPath();
-  ctx.arc(0, -2, 9, 0, Math.PI * 2);
+  ctx.arc(0, -width * 0.03, hatSize * 0.4, 0, Math.PI * 2);
   ctx.globalAlpha = 0.18;
   ctx.fillStyle = '#f00';
   ctx.fill();
   ctx.globalAlpha = 1.0;
   
-  // Ribbon (opposite to facing direction)
+  // Ribbon (opposite to facing direction) - scale with hat size
   ctx.save();
   ctx.strokeStyle = '#a00';
   ctx.fillStyle = '#a00';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = Math.max(1, width * 0.05); // Scale line width with character
   ctx.globalAlpha = 0.7;
-  const ribbonX = -22 * facing;
-  const ribbonY = 8;
+  const ribbonX = -hatSize * facing;
+  const ribbonY = hatSize * 0.36;
   ctx.beginPath();
   ctx.moveTo(ribbonX, ribbonY);
-  ctx.lineTo(ribbonX - 10 * facing, ribbonY + 16);
+  ctx.lineTo(ribbonX - hatSize * 0.45 * facing, ribbonY + hatSize * 0.73);
   ctx.stroke();
   ctx.beginPath();
-  ctx.ellipse(ribbonX - 10 * facing, ribbonY + 16, 3, 6, Math.PI / 8 * facing, 0, Math.PI * 2);
+  ctx.ellipse(ribbonX - hatSize * 0.45 * facing, ribbonY + hatSize * 0.73, hatSize * 0.14, hatSize * 0.27, Math.PI / 8 * facing, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
   ctx.restore();
@@ -1261,35 +1309,37 @@ function drawDemonFangStance(ctx, x, y, width, height, facing, player) {
   const chargeLevel = player.chargeLevel || 0;
   
   ctx.save();
-  ctx.translate(centerX + (8 * facing), baseY - 12);
+  ctx.translate(centerX + (width * 0.15 * facing), baseY - width * 0.2); // Scale with character size
   if (facing < 0) ctx.scale(-1, 1);
 
   // Angle sword based on charge - less steep angle
   const chargeAngle = 0.4 + (chargeLevel * 0.15); // Positive angle to point forward/up
   ctx.rotate(chargeAngle);
 
-  // Draw sword with demonic effect
-  const sword = player.sword;
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
   
   // Demonic aura
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 15 + (chargeLevel * 10);
+  ctx.shadowBlur = width * 0.25 + (chargeLevel * width * 0.15);
   
   // Sword blade with increasing glow
   ctx.fillStyle = '#222';
-  ctx.fillRect(-sword.length, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(-scaledSwordLength, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Add red energy along the blade
-  const gradient = ctx.createLinearGradient(-sword.length, 0, 0, 0);
+  const gradient = ctx.createLinearGradient(-scaledSwordLength, 0, 0, 0);
   gradient.addColorStop(0, `rgba(255,0,0,${chargeLevel * 0.7})`);
   gradient.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(-sword.length, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(-scaledSwordLength, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Hilt
   ctx.shadowBlur = 0;
-  ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(0, -sword.width/2 - 1, 12, sword.width + 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(0, -scaledSwordWidth/2 - width * 0.015, scaledHiltLength, scaledSwordWidth + width * 0.03);
   
   ctx.restore();
 }
@@ -1301,13 +1351,17 @@ function drawChargeIndicator(ctx, player) {
   // Clamp chargeLevel to [0,1] and default to 0 if invalid
   if (typeof chargeLevel !== 'number' || !isFinite(chargeLevel) || chargeLevel < 0) chargeLevel = 0;
   if (chargeLevel > 1) chargeLevel = 1;
-  const barWidth = 60;
-  const barHeight = 8;
-  const barX = x;
-  const barY = y - 42;
+  
+  // Scale charge bar relative to character size
+  const barWidth = width * 1.2; // 120% of character width
+  const barHeight = width * 0.15; // 15% of character width
+  const barX = x - (barWidth - width) / 2; // Center the bar on the character
+  const barY = y - width * 0.7; // 70% of character width above
+  
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
   ctx.fillRect(barX, barY, barWidth, barHeight);
+  
   // Only draw the gradient if chargeLevel > 0
   if (chargeLevel > 0) {
     const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth * chargeLevel, barY);
@@ -1316,10 +1370,11 @@ function drawChargeIndicator(ctx, player) {
     ctx.fillStyle = gradient;
     ctx.fillRect(barX, barY, barWidth * chargeLevel, barHeight);
   }
+  
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = width * 0.15; // Scale shadow with character
   ctx.strokeStyle = '#f00';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = Math.max(1, width * 0.02); // Scale line width with character
   ctx.strokeRect(barX, barY, barWidth, barHeight);
   ctx.restore();
 }
@@ -1721,14 +1776,13 @@ function drawDarkWave(ctx, x, y, width, height, facing, player) {
 function drawShadowSliceSword(ctx, x, y, width, height, facing, player) {
   const centerX = x + width / 2;
   const baseY = y + height;
-  const sword = player.sword;
   const swing = player.shadowSliceSwing;
   
   ctx.save();
   
   // Position at the sword arm (right arm when facing right, left when facing left)
-  const armX = centerX + (24 * facing);
-  const armY = baseY - 22;
+  const armX = centerX + (width * 0.4 * facing); // 40% of character width
+  const armY = baseY - width * 0.35; // 35% of character width
   
   ctx.translate(armX, armY);
   
@@ -1737,6 +1791,11 @@ function drawShadowSliceSword(ctx, x, y, width, height, facing, player) {
     ctx.scale(-1, 1);
   }
   
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
+  
   // Draw shadow trails first (behind the main sword)
   swing.shadowTrails.forEach((trail, i) => {
     ctx.save();
@@ -1744,20 +1803,20 @@ function drawShadowSliceSword(ctx, x, y, width, height, facing, player) {
     
     // Shadow trail glow
     ctx.shadowColor = '#f00';
-    ctx.shadowBlur = 8 + (trail.glowIntensity * 8);
+    ctx.shadowBlur = width * 0.15 + (trail.glowIntensity * width * 0.15);
     
     // Shadow trail blade (slightly transparent and smaller)
     ctx.globalAlpha = trail.alpha * 0.6;
     ctx.fillStyle = '#600';
-    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    ctx.fillRect(0, -scaledSwordWidth/2 * trail.scale, scaledSwordLength * trail.scale, scaledSwordWidth * trail.scale);
     
     // Add red energy glow to shadow trail
-    const gradient = ctx.createLinearGradient(0, 0, sword.length * trail.scale, 0);
+    const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength * trail.scale, 0);
     gradient.addColorStop(0, `rgba(255,0,0,${trail.alpha * 0.4})`);
     gradient.addColorStop(0.5, `rgba(255,0,0,${trail.alpha * 0.2})`);
     gradient.addColorStop(1, 'rgba(255,0,0,0)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    ctx.fillRect(0, -scaledSwordWidth/2 * trail.scale, scaledSwordLength * trail.scale, scaledSwordWidth * trail.scale);
     
     ctx.restore();
   });
@@ -1770,33 +1829,33 @@ function drawShadowSliceSword(ctx, x, y, width, height, facing, player) {
   
   // Outer glow
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 12 + (glowIntensity * 8);
+  ctx.shadowBlur = width * 0.2 + (glowIntensity * width * 0.15);
   
   // Sword blade
   ctx.fillStyle = '#222';
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Red energy glow along the blade
-  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength, 0);
   gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.9})`);
   gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.6})`);
   gradient.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Hilt
   ctx.shadowBlur = 0;
-  ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(-scaledHiltLength, -scaledSwordWidth/2 - width * 0.015, scaledHiltLength, scaledSwordWidth + width * 0.03);
   
   // Add motion blur effect (trail) when swinging
   if (glowIntensity > 0.4) {
     ctx.save();
     ctx.globalAlpha = glowIntensity * 0.4;
-    ctx.translate(-sword.length * 0.25, 0);
+    ctx.translate(-scaledSwordLength * 0.25, 0);
     ctx.rotate(-0.15);
     ctx.fillStyle = '#f00';
-    ctx.fillRect(0, -sword.width/2, sword.length * 0.5, sword.width);
+    ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength * 0.5, scaledSwordWidth);
     ctx.restore();
   }
   
@@ -1807,14 +1866,13 @@ function drawShadowSliceSword(ctx, x, y, width, height, facing, player) {
 function drawRisingCutSword(ctx, x, y, width, height, facing, player) {
   const centerX = x + width / 2;
   const baseY = y + height;
-  const sword = player.sword;
   const swing = player.risingCutSwing;
   
   ctx.save();
   
   // Position at the sword arm (right arm when facing right, left when facing left)
-  const armX = centerX + (24 * facing);
-  const armY = baseY - 22;
+  const armX = centerX + (width * 0.4 * facing); // 40% of character width
+  const armY = baseY - width * 0.35; // 35% of character width
   
   ctx.translate(armX, armY);
   
@@ -1823,6 +1881,11 @@ function drawRisingCutSword(ctx, x, y, width, height, facing, player) {
     ctx.scale(-1, 1);
   }
   
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
+  
   // Draw shadow trails first (behind the main sword)
   swing.shadowTrails.forEach((trail, i) => {
     ctx.save();
@@ -1830,20 +1893,20 @@ function drawRisingCutSword(ctx, x, y, width, height, facing, player) {
     
     // Shadow trail glow
     ctx.shadowColor = '#f00';
-    ctx.shadowBlur = 8 + (trail.glowIntensity * 8);
+    ctx.shadowBlur = width * 0.15 + (trail.glowIntensity * width * 0.15);
     
     // Shadow trail blade (slightly transparent and smaller)
     ctx.globalAlpha = trail.alpha * 0.6;
     ctx.fillStyle = '#600';
-    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    ctx.fillRect(0, -scaledSwordWidth/2 * trail.scale, scaledSwordLength * trail.scale, scaledSwordWidth * trail.scale);
     
     // Add red energy glow to shadow trail
-    const gradient = ctx.createLinearGradient(0, 0, sword.length * trail.scale, 0);
+    const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength * trail.scale, 0);
     gradient.addColorStop(0, `rgba(255,0,0,${trail.alpha * 0.4})`);
     gradient.addColorStop(0.5, `rgba(255,0,0,${trail.alpha * 0.2})`);
     gradient.addColorStop(1, 'rgba(255,0,0,0)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    ctx.fillRect(0, -scaledSwordWidth/2 * trail.scale, scaledSwordLength * trail.scale, scaledSwordWidth * trail.scale);
     
     ctx.restore();
   });
@@ -1856,33 +1919,33 @@ function drawRisingCutSword(ctx, x, y, width, height, facing, player) {
   
   // Outer glow
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 12 + (glowIntensity * 8);
+  ctx.shadowBlur = width * 0.2 + (glowIntensity * width * 0.15);
   
   // Sword blade
   ctx.fillStyle = '#222';
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Red energy glow along the blade
-  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength, 0);
   gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.9})`);
   gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.6})`);
   gradient.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Hilt
   ctx.shadowBlur = 0;
-  ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(-scaledHiltLength, -scaledSwordWidth/2 - width * 0.015, scaledHiltLength, scaledSwordWidth + width * 0.03);
   
   // Add motion blur effect (trail) when swinging
   if (glowIntensity > 0.4) {
     ctx.save();
     ctx.globalAlpha = glowIntensity * 0.4;
-    ctx.translate(-sword.length * 0.25, 0);
+    ctx.translate(-scaledSwordLength * 0.25, 0);
     ctx.rotate(-0.15);
     ctx.fillStyle = '#f00';
-    ctx.fillRect(0, -sword.width/2, sword.length * 0.5, sword.width);
+    ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength * 0.5, scaledSwordWidth);
     ctx.restore();
   }
   
@@ -1893,14 +1956,13 @@ function drawRisingCutSword(ctx, x, y, width, height, facing, player) {
 function drawDownLightSword(ctx, x, y, width, height, facing, player) {
   const centerX = x + width / 2;
   const baseY = y + height;
-  const sword = player.sword;
   const swing = player.downLightSwing;
   
   ctx.save();
   
   // Position at the sword arm (right arm when facing right, left when facing left)
-  const armX = centerX + (24 * facing);
-  const armY = baseY - 22;
+  const armX = centerX + (width * 0.4 * facing); // 40% of character width
+  const armY = baseY - width * 0.35; // 35% of character width
   
   ctx.translate(armX, armY);
   
@@ -1909,6 +1971,11 @@ function drawDownLightSword(ctx, x, y, width, height, facing, player) {
     ctx.scale(-1, 1);
   }
   
+  // Scale sword dimensions relative to character size
+  const scaledSwordLength = width * 0.9; // 90% of character width
+  const scaledSwordWidth = width * 0.12; // 12% of character width
+  const scaledHiltLength = width * 0.2; // 20% of character width
+  
   // Draw shadow trails first (behind the main sword)
   swing.shadowTrails.forEach((trail, i) => {
     ctx.save();
@@ -1916,20 +1983,20 @@ function drawDownLightSword(ctx, x, y, width, height, facing, player) {
     
     // Shadow trail glow
     ctx.shadowColor = '#f00';
-    ctx.shadowBlur = 8 + (trail.glowIntensity * 8);
+    ctx.shadowBlur = width * 0.15 + (trail.glowIntensity * width * 0.15);
     
     // Shadow trail blade (slightly transparent and smaller)
     ctx.globalAlpha = trail.alpha * 0.6;
     ctx.fillStyle = '#600';
-    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    ctx.fillRect(0, -scaledSwordWidth/2 * trail.scale, scaledSwordLength * trail.scale, scaledSwordWidth * trail.scale);
     
     // Add red energy glow to shadow trail
-    const gradient = ctx.createLinearGradient(0, 0, sword.length * trail.scale, 0);
+    const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength * trail.scale, 0);
     gradient.addColorStop(0, `rgba(255,0,0,${trail.alpha * 0.4})`);
     gradient.addColorStop(0.5, `rgba(255,0,0,${trail.alpha * 0.2})`);
     gradient.addColorStop(1, 'rgba(255,0,0,0)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, -sword.width/2 * trail.scale, sword.length * trail.scale, sword.width * trail.scale);
+    ctx.fillRect(0, -scaledSwordWidth/2 * trail.scale, scaledSwordLength * trail.scale, scaledSwordWidth * trail.scale);
     
     ctx.restore();
   });
@@ -1942,33 +2009,33 @@ function drawDownLightSword(ctx, x, y, width, height, facing, player) {
   
   // Outer glow
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 12 + (glowIntensity * 8);
+  ctx.shadowBlur = width * 0.2 + (glowIntensity * width * 0.15);
   
   // Sword blade
   ctx.fillStyle = '#222';
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Red energy glow along the blade
-  const gradient = ctx.createLinearGradient(0, 0, sword.length, 0);
+  const gradient = ctx.createLinearGradient(0, 0, scaledSwordLength, 0);
   gradient.addColorStop(0, `rgba(255,0,0,${glowIntensity * 0.9})`);
   gradient.addColorStop(0.5, `rgba(255,0,0,${glowIntensity * 0.6})`);
   gradient.addColorStop(1, 'rgba(255,0,0,0)');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, -sword.width/2, sword.length, sword.width);
+  ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength, scaledSwordWidth);
   
   // Hilt
   ctx.shadowBlur = 0;
-  ctx.fillStyle = sword.hiltColor;
-  ctx.fillRect(-12, -sword.width/2 - 1, 12, sword.width + 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(-scaledHiltLength, -scaledSwordWidth/2 - width * 0.015, scaledHiltLength, scaledSwordWidth + width * 0.03);
   
   // Add motion blur effect (trail) when swinging
   if (glowIntensity > 0.4) {
     ctx.save();
     ctx.globalAlpha = glowIntensity * 0.4;
-    ctx.translate(-sword.length * 0.25, 0);
+    ctx.translate(-scaledSwordLength * 0.25, 0);
     ctx.rotate(-0.15);
     ctx.fillStyle = '#f00';
-    ctx.fillRect(0, -sword.width/2, sword.length * 0.5, sword.width);
+    ctx.fillRect(0, -scaledSwordWidth/2, scaledSwordLength * 0.5, scaledSwordWidth);
     ctx.restore();
   }
   
@@ -1980,13 +2047,14 @@ export function drawRakkaShield(ctx, player) {
   const centerX = player.x + player.width / 2;
   const centerY = player.y + player.height / 2;
   const time = Date.now() * 0.01;
+  const charSize = player.width; // Use character width for scaling
   
   // Draw outer shadow aura (bigger)
   ctx.save();
-  const outerPulse = 65 + Math.sin(time * 0.5) * 8; // Increased from 45 to 65
+  const outerPulse = charSize * 1.1 + Math.sin(time * 0.5) * charSize * 0.15; // Scale with character
   ctx.globalAlpha = 0.15 + 0.05 * Math.abs(Math.sin(time * 0.3));
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 25; // Increased from 20 to 25
+  ctx.shadowBlur = charSize * 0.4; // Scale shadow with character
   ctx.beginPath();
   ctx.arc(centerX, centerY, outerPulse, 0, Math.PI * 2);
   ctx.fillStyle = '#300';
@@ -1995,10 +2063,10 @@ export function drawRakkaShield(ctx, player) {
   
   // Draw inner demonic shield (bigger)
   ctx.save();
-  const innerPulse = 50 + Math.sin(time * 0.4) * 5; // Increased from 35 to 50
+  const innerPulse = charSize * 0.85 + Math.sin(time * 0.4) * charSize * 0.08; // Scale with character
   ctx.globalAlpha = 0.25 + 0.1 * Math.abs(Math.sin(time * 0.4));
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 20; // Increased from 15 to 20
+  ctx.shadowBlur = charSize * 0.3; // Scale shadow with character
   ctx.beginPath();
   ctx.arc(centerX, centerY, innerPulse, 0, Math.PI * 2);
   ctx.fillStyle = '#600';
@@ -2008,16 +2076,16 @@ export function drawRakkaShield(ctx, player) {
   // Draw swirling shadow energy (bigger radius)
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2 + time * 0.8;
-    const radius = 45 + Math.sin(time * 0.6 + i) * 12; // Increased from 30 to 45
+    const radius = charSize * 0.75 + Math.sin(time * 0.6 + i) * charSize * 0.2; // Scale with character
     const swirlX = centerX + Math.cos(angle) * radius;
     const swirlY = centerY + Math.sin(angle) * radius;
     
     ctx.save();
     ctx.globalAlpha = 0.4 + 0.2 * Math.abs(Math.sin(time * 0.5 + i));
     ctx.shadowColor = '#f00';
-    ctx.shadowBlur = 10; // Increased from 8 to 10
+    ctx.shadowBlur = charSize * 0.15; // Scale shadow with character
     ctx.beginPath();
-    ctx.arc(swirlX, swirlY, 6 + Math.sin(time * 0.3 + i) * 3, 0, Math.PI * 2); // Increased from 4 to 6
+    ctx.arc(swirlX, swirlY, charSize * 0.1 + Math.sin(time * 0.3 + i) * charSize * 0.05, 0, Math.PI * 2); // Scale with character
     ctx.fillStyle = '#f00';
     ctx.fill();
     ctx.restore();
@@ -2027,7 +2095,7 @@ export function drawRakkaShield(ctx, player) {
   const runeCount = 6;
   for (let i = 0; i < runeCount; i++) {
     const runeAngle = (i / runeCount) * Math.PI * 2 + time * 0.2;
-    const runeRadius = 55; // Increased from 40 to 55
+    const runeRadius = charSize * 0.9; // Scale with character
     const runeX = centerX + Math.cos(runeAngle) * runeRadius;
     const runeY = centerY + Math.sin(runeAngle) * runeRadius;
     
@@ -2036,18 +2104,18 @@ export function drawRakkaShield(ctx, player) {
     ctx.rotate(runeAngle + Math.PI / 2);
     ctx.globalAlpha = 0.7 + 0.3 * Math.abs(Math.sin(time * 0.4 + i));
     ctx.shadowColor = '#f00';
-    ctx.shadowBlur = 8; // Increased from 6 to 8
+    ctx.shadowBlur = charSize * 0.12; // Scale shadow with character
     ctx.strokeStyle = '#f00';
-    ctx.lineWidth = 3; // Increased from 2 to 3
+    ctx.lineWidth = Math.max(1, charSize * 0.05); // Scale line width with character
     
     // Draw demonic rune symbol (bigger)
     ctx.beginPath();
-    ctx.moveTo(-4, -8); // Increased from -3,-6 to -4,-8
-    ctx.lineTo(4, -8);  // Increased from 3,-6 to 4,-8
-    ctx.moveTo(0, -8);  // Increased from 0,-6 to 0,-8
-    ctx.lineTo(0, 8);   // Increased from 0,6 to 0,8
-    ctx.moveTo(-4, 0);  // Increased from -3,0 to -4,0
-    ctx.lineTo(4, 0);   // Increased from 3,0 to 4,0
+    ctx.moveTo(-charSize * 0.07, -charSize * 0.13); // Scale with character
+    ctx.lineTo(charSize * 0.07, -charSize * 0.13);  // Scale with character
+    ctx.moveTo(0, -charSize * 0.13);  // Scale with character
+    ctx.lineTo(0, charSize * 0.13);   // Scale with character
+    ctx.moveTo(-charSize * 0.07, 0);  // Scale with character
+    ctx.lineTo(charSize * 0.07, 0);   // Scale with character
     ctx.stroke();
     
     ctx.restore();
@@ -2056,26 +2124,26 @@ export function drawRakkaShield(ctx, player) {
   // Draw shadow particles (bigger radius)
   for (let i = 0; i < 12; i++) {
     const particleAngle = (i / 12) * Math.PI * 2 + time * 0.3;
-    const particleRadius = 35 + Math.random() * 20; // Increased from 25+15 to 35+20
+    const particleRadius = charSize * 0.6 + Math.random() * charSize * 0.3; // Scale with character
     const particleX = centerX + Math.cos(particleAngle) * particleRadius;
     const particleY = centerY + Math.sin(particleAngle) * particleRadius;
     
     ctx.save();
     ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(time * 0.2 + i));
     ctx.shadowColor = '#000';
-    ctx.shadowBlur = 6; // Increased from 4 to 6
+    ctx.shadowBlur = charSize * 0.1; // Scale shadow with character
     ctx.beginPath();
-    ctx.arc(particleX, particleY, 3 + Math.sin(time * 0.1 + i), 0, Math.PI * 2); // Increased from 2 to 3
+    ctx.arc(particleX, particleY, charSize * 0.05 + Math.sin(time * 0.1 + i), 0, Math.PI * 2); // Scale with character
     ctx.fillStyle = '#111';
     ctx.fill();
     ctx.restore();
   }
   
   // Draw shield energy bar
-  const shieldBarWidth = 60;
-  const shieldBarHeight = 8;
-  const shieldBarX = player.x;
-  const shieldBarY = player.y - 15;
+  const shieldBarWidth = charSize * 1.2; // Scale with character
+  const shieldBarHeight = charSize * 0.15; // Scale with character
+  const shieldBarX = player.x - (shieldBarWidth - charSize) / 2; // Center the bar
+  const shieldBarY = player.y - charSize * 0.25; // Scale with character
   
   ctx.save();
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -2090,9 +2158,9 @@ export function drawRakkaShield(ctx, player) {
   
   // Add demonic glow to shield bar
   ctx.shadowColor = '#f00';
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = charSize * 0.15; // Scale shadow with character
   ctx.strokeStyle = '#f00';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = Math.max(1, charSize * 0.02); // Scale line width with character
   ctx.strokeRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
   ctx.restore();
 }

@@ -1,0 +1,640 @@
+/* Character Menu Styles */
+#characterMenu {
+  background: linear-gradient(135deg, #181a1f 0%, #23242a 60%, #23242a 100%),
+              repeating-linear-gradient(120deg, rgba(33,150,243,0.08) 0 20px, transparent 20px 40px, rgba(229,57,53,0.08) 40px 60px, transparent 60px 80px) !important;
+  min-height: 100vh;
+  min-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  padding-bottom: 4vh;
+}
+
+#characterMenu h1 {
+  font-size: clamp(1.5rem, 5vw, 3rem);
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 0.12em;
+  text-shadow: 0 6px 24px #000, 0 2px 8px #e53935, 0 0px 2px #fff, 0 0 40px #ffe53b99;
+  margin-top: clamp(2rem, 5vw, 3.5rem);
+  margin-bottom: clamp(0.5rem, 2vw, 1.5rem);
+  text-align: center;
+  transform: skew(-8deg, -2deg) rotate(-2deg);
+  border-radius: clamp(12px, 3vw, 18px);
+  padding: clamp(0.1em, 2vw, 0.2em) clamp(0.8em, 3vw, 1.2em);
+  border: clamp(2px, 0.5vw, 4px) solid #fff3;
+  background: linear-gradient(90deg, #222 0%, #444 100%);
+  box-shadow: 0 8px 32px #000a;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+#startButton {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+  padding: clamp(0.4em, 2vw, 0.9em) clamp(1.5em, 6vw, 3em);
+  border: none;
+  border-radius: clamp(8px, 2vw, 12px);
+  background: linear-gradient(90deg, #2196f3 0%, #ff3c3c 100%);
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  box-shadow: 0 2px 8px #000a;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  margin-top: 2.5rem;
+  margin-bottom: 3rem;
+  position: fixed;
+  top: 88%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#startButton:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+#characterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-rows: repeat(3, 1fr) !important;
+  gap: 0 !important;
+  width: min(90vw, 90vh, 600px);
+  aspect-ratio: 1/1;
+  max-width: 95vw;
+  height: 38rem;
+  margin: 1.5rem 0 0 0;
+  box-sizing: border-box;
+  background: #222;
+  border-radius: 18px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  margin-bottom: 2.5rem;
+  flex-shrink: 0;
+}
+
+.characterBox {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid #fff;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  color: #fff;
+}
+
+.characterBox p {
+  font-size: clamp(0.7rem, 2vw, 1.2rem);
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  text-shadow: none;
+  margin: 0;
+  padding: clamp(2px, 0.5vw, 5px) 0;
+}
+
+.characterBox .questionMark {
+  font-size: clamp(2rem, 6vw, 4rem);
+  color: #fff;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.7),
+    0 0 10px rgba(255, 255, 0, 0.8);
+  margin: 0;
+  transition: transform 0.2s;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50%;
+}
+
+/* Player Presentation Styles */
+.playerBox {
+  position: absolute;
+  bottom: clamp(18px, 8vw, 60px);
+  width: clamp(14rem, 34vw, 26rem);
+  height: clamp(16rem, 38vw, 32rem);
+  border-radius: clamp(6px, 2vw, 10px);
+  color: #fff;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  background: rgba(0, 0, 255, 0.2);
+}
+
+.playerImage {
+  width: 100%;
+  height: 55%;
+  border-radius: 10px 10px 0 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.7;
+}
+
+.playerName {
+  width: 100%;
+  height: 20%;
+  border-radius: 0 0 10px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+#player1Box {
+  left: 6vw;
+  background: rgba(0, 0, 255, 0.2);
+  bottom: 15%;
+}
+
+#player2Box {
+  right: 6vw;
+  background: rgba(255, 0, 0, 0.2);
+  bottom: 15%;
+}
+
+#player1Box .playerName {
+  background: rgba(0, 0, 255, 0.8);
+}
+
+#player2Box .playerName {
+  background: rgba(255, 0, 0, 0.8);
+}
+
+.playerToken, .playerCursor {
+  position: absolute;
+  width: clamp(32px, 5vw, 48px);
+  height: clamp(32px, 5vw, 48px);
+  border-radius: 50%;
+  background: rgba(255,255,0,0.7);
+  color: #222;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  z-index: 30;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px #0008;
+  border: 2px solid #fff;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.playerToken[data-player="1"] {
+  background-color: blue;
+}
+
+.playerToken[data-player="2"] {
+  background-color: red;
+}
+
+.playerNameBox {
+  position: absolute;
+  color: #fff;
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  text-align: center;
+  justify-content: center;
+  width: 100%;
+  bottom: 1.5%;
+  z-index: 2;
+  background-color: blue;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+#player2Box .playerNameBox {
+  background-color: red;
+}
+
+/* CPU state styling */
+.playerNameBox.cpu {
+  background-color: #808080 !important;
+}
+
+#player1Box .playerNameBox.cpu {
+  background-color: #808080 !important;
+}
+
+#player2Box .playerNameBox.cpu {
+  background-color: #808080 !important;
+}
+
+.playerNameBox:hover {
+  filter: brightness(1.2);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.02);
+}
+
+.playerNameBox:active {
+  transform: scale(0.98);
+}
+
+.characterNameDisplay {
+  position: absolute;
+  color: #fff;
+  font-size: 1.5rem;
+  text-align: center;
+  width: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Win condition selector styles */
+.winConditionSelector {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #fff;
+  border-radius: 12px;
+  padding: 1rem 2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+}
+
+.winConditionTitle {
+  font-size: 1.5rem;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  color: #fff;
+  text-shadow: 0 2px 4px #000;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.winConditionControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.winConditionButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid #fff;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: bold;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.winConditionButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.winConditionButton:active {
+  transform: scale(0.95);
+}
+
+.winConditionValue {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 2px 4px #000;
+  margin: 0 1rem;
+  min-width: 60px;
+  text-align: center;
+}
+
+.winConditionInfo {
+  font-size: 0.9rem;
+  color: #ccc;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+/* Timer and lives display */
+.timerLivesDisplay {
+  margin-top: 0.5rem;
+  margin-bottom: 2.5rem;
+  position: static;
+  left: unset;
+  top: unset;
+  transform: none;
+  background: #e0e0e0cc;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px #0004;
+  border: 2.5px solid #888;
+  padding: 18px 36px;
+  min-width: 180px;
+  color: #222;
+  font-weight: bold;
+  font-size: 1.3rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.timerLivesText {
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 2px 4px #000;
+  font-family: 'Impact', 'Arial Black', Arial, sans-serif;
+  letter-spacing: 0.05em;
+}
+
+/* Under construction overlay */
+.underConstructionOverlay {
+  width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid #fff;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    color: #fff;
+    z-index: 10;
+}
+
+.characterBox {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid #fff;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    color: #fff;
+  }
+
+/* Make Random character box always enabled and visible */
+.characterBox.randomBox {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border: 2px solid #fff !important;
+  border-radius: 8px !important;
+  z-index: 2 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  pointer-events: auto !important;
+  font-weight: bold;
+}
+
+/* Remove under construction overlay for Random */
+.characterBox.randomBox .underConstructionOverlay {
+  display: none !important;
+}
+
+/* Make sure other character boxes are not affected */
+.characterBox {
+  color: #fff;
+}
+
+/* Player choice styles */
+.playerChoice {
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Center vertically */
+  justify-content: space-between; /* Space out the elements */
+  margin: 0.5rem 0; /* Reduced from 2rem 0 */
+}
+
+.choiceText {
+  font-size: 2rem; /* Increase font size for better visibility */
+  color: #fff; /* Text color */
+  flex: 1; /* Allow the text to take available space */
+  text-align: center; /* Center the text */
+  padding: 1rem; /* Add some padding for spacing */
+  border-radius: 10px; /* Rounded corners */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* Add shadow for depth */
+  transition: background 0.3s; /* Smooth transition for hover effect */
+}
+
+.player1Choice {
+  background: rgba(0, 0, 255, 0.5); /* Semi-transparent blue background */
+}
+
+.player2Choice {
+  background: rgba(255, 0, 0, 0.5); /* Semi-transparent red background */
+}
+
+.choiceText:hover {
+  background: rgba(255, 255, 255, 0.3); /* Change background on hover */
+}
+
+/* Media Queries */
+@media (min-width: 2400px) {
+  #characterMenu h1 {
+    font-size: 4rem;
+    margin-bottom: 2rem;
+  }
+  
+  #startButton {
+    font-size: 2rem;
+    padding: 1.2rem 3rem;
+  }
+  
+  #characterGrid {
+    width: 75%;
+    max-width: 900px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+  
+  .characterBox {
+    height: 200px;
+    max-width: 400px;
+    padding: 2rem;
+  }
+  
+  .characterBox p {
+    font-size: 1.5rem;
+    line-height: 1.5;
+  }
+  
+  .characterBox .questionMark {
+    font-size: 6rem;
+  }
+  
+  .playerBox {
+    width: 28rem;
+    height: 44rem;
+    bottom: 800px;
+  }
+  
+  .playerName {
+    font-size: 2rem;
+  }
+  
+  #player1Box .playerName,
+  #player2Box .playerName {
+    font-size: 3rem;
+  }
+  
+  .playerCursor,
+  .playerToken {
+    width: 55px;
+    height: 55px;
+    font-size: 1.5rem;
+  }
+  
+  .playerNameBox {
+    font-size: 2rem;
+    height: 4rem;
+  }
+}
+
+@media (max-height: 850px) {
+  .playerBox {
+    height: 20rem;
+  }
+}
+
+@media (max-width: 1700px) {
+    .playerBox {
+        display: none;
+    }
+}
+
+@media (min-width: 3000px) {
+  #characterMenu h1 {
+    font-size: 5rem;
+    margin-bottom: 2.5rem;
+  }
+  
+  #startButton {
+    font-size: 2.5rem;
+    padding: 1.5rem 4rem;
+  }
+  
+  #characterGrid {
+    width: 70%;
+    max-width: 1100px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem;
+  }
+  
+  .characterBox {
+    height: 250px;
+    max-width: 500px;
+    padding: 2.5rem;
+  }
+  
+  .characterBox p {
+    font-size: 2rem;
+    line-height: 1.6;
+  }
+  
+  .characterBox .questionMark {
+    font-size: 7rem;
+  }
+  
+  .playerBox {
+    width: 36rem;
+    height: 54rem;
+    bottom: 120px;
+  }
+  
+  .playerName {
+    font-size: 2.5rem;
+  }
+  
+  #player1Box .playerName,
+  #player2Box .playerName {
+    font-size: 3.5rem;
+  }
+  
+  .playerCursor,
+  .playerToken {
+    width: 70px;
+    height: 70px;
+    font-size: 2rem;
+  }
+  
+  .playerNameBox {
+    font-size: 2.5rem;
+    height: 5rem;
+  }
+}
+
+@media (max-height: 1000px) {
+  #characterMenu h1 {
+    display: none !important;
+  }
+
+  .timerLivesDisplay {
+    display: none;
+  }
+
+  #characterGrid {
+    order: 2;
+    margin-top: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  #characterMenu {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+}
+
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .characterBox:hover,
+  .playerNameBox:hover {
+    transform: none !important;
+  }
+}
+
+/* Dark mode preferences */
+@media (prefers-color-scheme: dark) {
+  #characterMenu {
+    background: #000;
+  }
+}
+
+/* Print styles */
+@media print {
+  #characterMenu {
+    display: none;
+  }
+} 

@@ -1,5 +1,21 @@
 // characters/Kaon/designKaon.js
 
+// Helper function to get scaled size
+function getScaledSize(baseSize) {
+  if (typeof window !== 'undefined' && window.getScaledSize) {
+    return window.getScaledSize(baseSize);
+  }
+  return baseSize;
+}
+
+// Helper function to get scaled text size
+function getScaledTextSize(baseSize) {
+  if (typeof window !== 'undefined' && window.getScaledTextSize) {
+    return window.getScaledTextSize(baseSize);
+  }
+  return baseSize;
+}
+
 // Orb states: 'idle', 'attacking', 'returning'
 function setOrbsState(player, state, targetPositions = null) {
   player.orbs.forEach((orb, i) => {
@@ -14,9 +30,9 @@ function setOrbsState(player, state, targetPositions = null) {
 // Helper to reset orbs to idle state and recalculate positions (even lower)
 function resetOrbs(player) {
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 32; // Lowered from -42 to -32
+  const centerY = player.y + player.height / 2 - player.width * 0.5; // Scale with character size
   const numOrbs = 3;
-  const radius = 24;
+  const radius = player.width * 0.4; // Scale with character size
   player.orbs.forEach((orb, i) => {
     orb.state = 'idle';
     orb.angle = (i / numOrbs) * 2 * Math.PI;
@@ -39,8 +55,8 @@ export function initializeKaon(player) {
   for (let i = 0; i < numOrbs; i++) {
     player.orbs.push({
       angle: (i / numOrbs) * 2 * Math.PI,
-      distance: 24,
-      size: 8, // Slightly smaller orb
+      distance: player.width * 0.4, // Scale with character size
+      size: player.width * 0.13, // Scale with character size
       state: 'idle',
       x: 0, y: 0,
       targetX: 0, targetY: 0
@@ -52,13 +68,13 @@ export function initializeKaon(player) {
 export function updateKaon(player) {
   // Animate orbs based on their state
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 32; // Lowered from -42 to -32
+  const centerY = player.y + player.height / 2 - player.width * 0.5; // Scale with character size
   
   // Handle charging state first
   if (player.isCharging) {
     player.orbs.forEach((orb, i) => {
       orb.angle += 0.08 + player.chargeLevel * 0.2;
-      orb.distance = 20 + player.chargeLevel * 30; // Start closer, expand with charge
+      orb.distance = player.width * 0.33 + player.chargeLevel * player.width * 0.5; // Scale with character size
       orb.x = centerX + Math.cos(orb.angle) * orb.distance;
       orb.y = centerY + Math.sin(orb.angle) * orb.distance;
     });
@@ -71,7 +87,7 @@ export function updateKaon(player) {
     if (skipFirst && i === 0) return;
     if (orb.state === 'idle') {
       orb.angle += 0.03;
-      orb.distance = 24 + Math.sin(Date.now() * 0.003 + i) * 1.5;
+      orb.distance = player.width * 0.4 + Math.sin(Date.now() * 0.003 + i) * player.width * 0.025; // Scale with character size
       orb.x = centerX + Math.cos(orb.angle) * orb.distance;
       orb.y = centerY + Math.sin(orb.angle) * orb.distance;
     } else if (orb.state === 'attacking') {
@@ -82,8 +98,8 @@ export function updateKaon(player) {
         orb.y = orb.targetY;
       }
     } else if (orb.state === 'returning') {
-      const idleX = centerX + Math.cos(orb.angle) * 24;
-      const idleY = centerY + Math.sin(orb.angle) * 24;
+      const idleX = centerX + Math.cos(orb.angle) * player.width * 0.4; // Scale with character size
+      const idleY = centerY + Math.sin(orb.angle) * player.width * 0.4; // Scale with character size
       orb.x += (idleX - orb.x) * 0.18;
       orb.y += (idleY - orb.y) * 0.18;
       if (Math.abs(orb.x - idleX) < 1 && Math.abs(orb.y - idleY) < 1) {
@@ -97,13 +113,15 @@ export function updateKaon(player) {
 
 // --- Orbs: Draw first, so stickman is in front ---
 function drawOrbs(ctx, player, bobOffset) {
+  // Use orb size proportional to player width
+  const orbRadius = player.width * 0.13;
   player.orbs.forEach((orb, i) => {
     ctx.save();
     ctx.shadowColor = '#ffe53b';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = orbRadius * 1.5;
     ctx.fillStyle = '#ffe53b';
     ctx.beginPath();
-    ctx.arc(orb.x, orb.y, orb.size + Math.sin(Date.now() * 0.005 + i) * 0.5, 0, Math.PI * 2);
+    ctx.arc(orb.x, orb.y, orbRadius + Math.sin(Date.now() * 0.005 + i) * (orbRadius * 0.07), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -115,138 +133,149 @@ function drawOrbs(ctx, player, bobOffset) {
 // --- Side heavy: only move corresponding arm, more Buddha-like torso, aura ---
 function drawKaonBody(ctx, player, bobOffset, pose = 'default', facing = 1) {
   const { x, y, width, height, color } = player;
+  // Proportional sizes
+  const auraRadius = width * 0.53;
+  const headRadius = width * 0.22;
+  const bodyLineWidth = width * 0.1;
+  const armLineWidth = width * 0.08;
+  const legLineWidth = width * 0.08;
+  const handRadius = width * 0.05;
+  const footRadius = width * 0.05;
+  const armLength = width * 0.53;
+  const medArmLength = width * 0.27;
+  const legLength = width * 0.53;
+  const crossLegLength = width * 0.33;
   // Meditative floating pose, smaller, even lower
-  const baseY = y + height + bobOffset - 42;
+  const baseY = y + height + bobOffset - height * 0.7;
   const centerX = x + width / 2;
   // Draw faint aura/circle behind character
   ctx.save();
   ctx.globalAlpha = 0.18;
   ctx.beginPath();
-  ctx.arc(centerX, baseY - 10, 32, 0, Math.PI * 2);
+  ctx.arc(centerX, baseY - headRadius * 0.8, auraRadius, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.globalAlpha = 1.0;
   ctx.restore();
-  // Head (blue/player color, smaller)
+  // Head
   ctx.save();
   ctx.shadowColor = color;
-  ctx.shadowBlur = 7;
+  ctx.shadowBlur = headRadius * 0.5;
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(centerX, baseY - 28, 13, 0, Math.PI * 2);
+  ctx.arc(centerX, baseY - headRadius * 2, headRadius, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
   // Main vertical body line (neck to belly)
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = bodyLineWidth;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(centerX, baseY - 15); // Just below head
-  ctx.lineTo(centerX, baseY + 8);  // Top of belly
+  ctx.moveTo(centerX, baseY - headRadius * 1.1); // Just below head
+  ctx.lineTo(centerX, baseY + headRadius * 0.6);  // Top of belly
   ctx.stroke();
   // Torso (Buddha-like: rounded belly, chest curve, hint of shoulders)
   // Chest/shoulders
   ctx.beginPath();
-  ctx.arc(centerX, baseY - 10, 16, Math.PI * 0.95, Math.PI * 0.05, false);
+  ctx.arc(centerX, baseY - headRadius * 0.7, width * 0.27, Math.PI * 0.95, Math.PI * 0.05, false);
   ctx.stroke();
   // Belly/abdomen
   ctx.beginPath();
-  ctx.arc(centerX, baseY + 8, 10, Math.PI * 1.1, Math.PI * -0.1, false);
+  ctx.arc(centerX, baseY + headRadius * 0.6, width * 0.17, Math.PI * 1.1, Math.PI * -0.1, false);
   ctx.stroke();
   // Neck line
   ctx.beginPath();
-  ctx.arc(centerX, baseY - 18, 6, Math.PI, 2 * Math.PI, false);
+  ctx.arc(centerX, baseY - headRadius * 1.4, width * 0.1, Math.PI, 2 * Math.PI, false);
   ctx.stroke();
   // Arms (pose-dependent, always 2 arms, no thickness change)
-  ctx.lineWidth = 5;
+  ctx.lineWidth = armLineWidth;
   if (pose === 'sideHeavy') {
-    // Only move the corresponding arm (left or right) in the direction of the attack
     if (facing > 0) {
       // Right arm straight right, left arm meditative
       ctx.beginPath();
-      ctx.moveTo(centerX + 8, baseY - 10); // Connect from right side of chest
-      ctx.lineTo(centerX + 32, baseY - 14);
+      ctx.moveTo(centerX + medArmLength * 0.3, baseY - headRadius * 0.7);
+      ctx.lineTo(centerX + armLength, baseY - headRadius * 0.9);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(centerX + 32, baseY - 14, 3, 0, Math.PI * 2);
+      ctx.arc(centerX + armLength, baseY - headRadius * 0.9, handRadius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      // Left arm meditative, connect from left side of chest
+      // Left arm meditative
       ctx.beginPath();
-      ctx.moveTo(centerX - 8, baseY - 10);
-      ctx.lineTo(centerX - 16, baseY + 12);
+      ctx.moveTo(centerX - medArmLength * 0.3, baseY - headRadius * 0.7);
+      ctx.lineTo(centerX - medArmLength, baseY + medArmLength * 0.45);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(centerX - 16, baseY + 12, 3, 0, Math.PI * 2);
+      ctx.arc(centerX - medArmLength, baseY + medArmLength * 0.45, handRadius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
     } else {
       // Left arm straight left, right arm meditative
       ctx.beginPath();
-      ctx.moveTo(centerX - 8, baseY - 10); // Connect from left side of chest
-      ctx.lineTo(centerX - 32, baseY - 14);
+      ctx.moveTo(centerX - medArmLength * 0.3, baseY - headRadius * 0.7);
+      ctx.lineTo(centerX - armLength, baseY - headRadius * 0.9);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(centerX - 32, baseY - 14, 3, 0, Math.PI * 2);
+      ctx.arc(centerX - armLength, baseY - headRadius * 0.9, handRadius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      // Right arm meditative, connect from right side of chest
+      // Right arm meditative
       ctx.beginPath();
-      ctx.moveTo(centerX + 8, baseY - 10);
-      ctx.lineTo(centerX + 16, baseY + 12);
+      ctx.moveTo(centerX + medArmLength * 0.3, baseY - headRadius * 0.7);
+      ctx.lineTo(centerX + medArmLength, baseY + medArmLength * 0.45);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(centerX + 16, baseY + 12, 3, 0, Math.PI * 2);
+      ctx.arc(centerX + medArmLength, baseY + medArmLength * 0.45, handRadius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
     }
   } else if (pose === 'downHeavy') {
     // Both arms straight down (slam down)
     ctx.beginPath();
-    ctx.moveTo(centerX - 8, baseY - 10);
-    ctx.lineTo(centerX - 10, baseY + 38);
+    ctx.moveTo(centerX - medArmLength * 0.3, baseY - headRadius * 0.7);
+    ctx.lineTo(centerX - medArmLength * 0.35, baseY + armLength);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(centerX + 8, baseY - 10);
-    ctx.lineTo(centerX + 10, baseY + 38);
+    ctx.moveTo(centerX + medArmLength * 0.3, baseY - headRadius * 0.7);
+    ctx.lineTo(centerX + medArmLength * 0.35, baseY + armLength);
     ctx.stroke();
-    // Hands (cartoonish, round)
+    // Hands
     ctx.beginPath();
-    ctx.arc(centerX - 10, baseY + 38, 3, 0, Math.PI * 2);
-    ctx.arc(centerX + 10, baseY + 38, 3, 0, Math.PI * 2);
+    ctx.arc(centerX - medArmLength * 0.35, baseY + armLength, handRadius, 0, Math.PI * 2);
+    ctx.arc(centerX + medArmLength * 0.35, baseY + armLength, handRadius, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
   } else {
-    // Default meditative arms, connect from sides of chest to hands
+    // Default meditative arms
     ctx.beginPath();
-    ctx.moveTo(centerX - 8, baseY - 10);
-    ctx.lineTo(centerX - 16, baseY + 12);
+    ctx.moveTo(centerX - medArmLength * 0.3, baseY - headRadius * 0.7);
+    ctx.lineTo(centerX - medArmLength, baseY + medArmLength * 0.45);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(centerX + 8, baseY - 10);
-    ctx.lineTo(centerX + 16, baseY + 12);
+    ctx.moveTo(centerX + medArmLength * 0.3, baseY - headRadius * 0.7);
+    ctx.lineTo(centerX + medArmLength, baseY + medArmLength * 0.45);
     ctx.stroke();
-    // Hands (cartoonish, round)
+    // Hands
     ctx.beginPath();
-    ctx.arc(centerX - 16, baseY + 12, 3, 0, Math.PI * 2);
-    ctx.arc(centerX + 16, baseY + 12, 3, 0, Math.PI * 2);
+    ctx.arc(centerX - medArmLength, baseY + medArmLength * 0.45, handRadius, 0, Math.PI * 2);
+    ctx.arc(centerX + medArmLength, baseY + medArmLength * 0.45, handRadius, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
   }
   // Legs (crossed, thinner, cartoonish)
-  ctx.lineWidth = 5;
+  ctx.lineWidth = legLineWidth;
   ctx.beginPath();
-  ctx.moveTo(centerX, baseY + 4);
-  ctx.lineTo(centerX - 10, baseY + 28);
-  ctx.lineTo(centerX + 10, baseY + 28);
-  ctx.lineTo(centerX, baseY + 4);
+  ctx.moveTo(centerX, baseY + headRadius * 0.3);
+  ctx.lineTo(centerX - crossLegLength, baseY + legLength);
+  ctx.lineTo(centerX + crossLegLength, baseY + legLength);
+  ctx.lineTo(centerX, baseY + headRadius * 0.3);
   ctx.stroke();
-  // Feet (cartoonish, round)
+  // Feet
   ctx.beginPath();
-  ctx.arc(centerX - 10, baseY + 28, 3, 0, Math.PI * 2);
-  ctx.arc(centerX + 10, baseY + 28, 3, 0, Math.PI * 2);
+  ctx.arc(centerX - crossLegLength, baseY + legLength, footRadius, 0, Math.PI * 2);
+  ctx.arc(centerX + crossLegLength, baseY + legLength, footRadius, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.restore();
@@ -259,7 +288,9 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
   if (!activeMove) return;
   let orbTargets = Array(player.orbs.length).fill(null);
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 32;
+  const centerY = player.y + player.height / 2 - player.width * 0.5; // Scale with character size
+  const charSize = player.width; // Use character width for scaling
+  
   // --- Custom all-orb light attacks ---
   if (activeMove.type === 'light') {
     // Animate only the first orb for light attacks
@@ -268,7 +299,7 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     let orbPath = { x: orb.x, y: orb.y };
     if (activeMove.name === 'Orb Jab') {
       // Neutral: straight out, then return
-      const dist = 60;
+      const dist = charSize * 1.0; // Scale with character
       const dir = facing > 0 ? 1 : -1;
       if (t < 0.5) {
         orbPath.x = centerX + dir * dist * (t / 0.5);
@@ -279,37 +310,37 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
       }
     } else if (activeMove.name === 'Ki Orb') {
       // Side: dash with Kaon, S-curve: start in front, dip very low (almost floor), then curve up
-      const dashDist = 40;
-      const curveDist = 60;
+      const dashDist = charSize * 0.67; // Scale with character
+      const curveDist = charSize * 1.0; // Scale with character
       const dir = facing > 0 ? 1 : -1;
-      const startX = centerX + dir * 18; // Start just in front of Kaon
+      const startX = centerX + dir * charSize * 0.3; // Scale with character
       const startY = centerY;
       const endX = centerX + dir * (dashDist + curveDist);
-      const endY = centerY - 10; // End just slightly above start
+      const endY = centerY - charSize * 0.17; // Scale with character
       // Control points for S-curve (very low dip)
       const cp1X = centerX + dir * (dashDist * 0.7); // More forward
-      const cp1Y = centerY + 120; // Dip very low, almost floor
+      const cp1Y = centerY + charSize * 2.0; // Scale with character
       const cp2X = centerX + dir * (dashDist + curveDist * 0.7);
-      const cp2Y = centerY - 20; // Shallower curve up
+      const cp2Y = centerY - charSize * 0.33; // Scale with character
       // Cubic Bezier interpolation
       orbPath.x = Math.pow(1 - t, 3) * startX + 3 * Math.pow(1 - t, 2) * t * cp1X + 3 * (1 - t) * t * t * cp2X + Math.pow(t, 3) * endX;
       orbPath.y = Math.pow(1 - t, 3) * startY + 3 * Math.pow(1 - t, 2) * t * cp1Y + 3 * (1 - t) * t * t * cp2Y + Math.pow(t, 3) * endY;
     } else if (activeMove.name === 'Orb Pop') {
       // Up: curve from left to right above Kaon
-      const arcRadius = 48;
+      const arcRadius = charSize * 0.8; // Scale with character
       const arcT = t * Math.PI;
       orbPath.x = centerX - arcRadius * Math.cos(arcT);
-      orbPath.y = centerY - 32 - arcRadius * Math.sin(arcT);
+      orbPath.y = centerY - charSize * 0.53 - arcRadius * Math.sin(arcT); // Scale with character
     } else if (activeMove.name === 'Pulse Sweep') {
       if (isGrounded) {
         // Down (grounded): roll like a bowling ball
-        const rollDist = 80;
+        const rollDist = charSize * 1.33; // Scale with character
         const dir = facing > 0 ? 1 : -1;
         orbPath.x = centerX + dir * rollDist * t;
-        orbPath.y = centerY + 32 + 12 * Math.sin(Math.PI * 2 * t);
+        orbPath.y = centerY + charSize * 0.53 + charSize * 0.2 * Math.sin(Math.PI * 2 * t); // Scale with character
       } else {
         // Down (air): drop to bottom left, curve to other side
-        const dropRadius = 48;
+        const dropRadius = charSize * 0.8; // Scale with character
         const dropT = t * Math.PI;
         orbPath.x = centerX - dropRadius * Math.cos(dropT);
         orbPath.y = centerY + dropRadius * Math.sin(dropT);
@@ -322,10 +353,10 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     // Draw the attacking orb
     ctx.save();
     ctx.shadowColor = '#ffe53b';
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = charSize * 0.3; // Scale shadow with character
     ctx.fillStyle = '#ffe53b';
     ctx.beginPath();
-    ctx.arc(orb.x, orb.y, orb.size + 2, 0, Math.PI * 2);
+    ctx.arc(orb.x, orb.y, orb.size + charSize * 0.03, 0, Math.PI * 2); // Scale with character
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -334,7 +365,7 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
       const idleOrb = player.orbs[i];
       ctx.save();
       ctx.shadowColor = '#ffe53b';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = charSize * 0.2; // Scale shadow with character
       ctx.fillStyle = '#ffe53b';
       ctx.beginPath();
       ctx.arc(idleOrb.x, idleOrb.y, idleOrb.size, 0, Math.PI * 2);
@@ -353,13 +384,15 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     orbTargets = orbTargets.map(() => ({ x: bbX, y: bbY }));
     setOrbsState(player, 'attacking', orbTargets);
     // Do NOT draw the orbs (they are hidden behind the big orb)
-    // Draw only one big yellow orb, always centered
+    // Draw only one big yellow orb, always centered - scale with player size
     ctx.save();
     ctx.shadowColor = '#ffe53b';
-    ctx.shadowBlur = 36;
+    ctx.shadowBlur = getScaledSize(36); // Scaled from 36
     ctx.fillStyle = '#ffe53b';
     ctx.beginPath();
-    ctx.arc(bbX, bbY, 22, 0, Math.PI * 2);
+    // Scale the orb size relative to player size instead of fixed pixels
+    const orbSize = Math.max(player.width * 0.4, getScaledSize(12)); // At least 12px scaled, but proportional to player
+    ctx.arc(bbX, bbY, orbSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -373,8 +406,8 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     orbTargets = orbTargets.map((_, i) => {
       const angle = (i / orbTargets.length) * 2 * Math.PI + Date.now() * 0.01;
       return {
-        x: beamX + Math.cos(angle) * 12,
-        y: beamY + Math.sin(angle) * 12
+        x: beamX + Math.cos(angle) * getScaledSize(12), // Scaled from 12
+        y: beamY + Math.sin(angle) * getScaledSize(12) // Scaled from 12
       };
     });
     setOrbsState(player, 'attacking', orbTargets);
@@ -382,17 +415,20 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     // Orbs align vertically and pulse
     const spikeX = attackHitbox.x + attackHitbox.width / 2;
     const spikeY = attackHitbox.y;
-    orbTargets = orbTargets.map((_, i) => ({ x: spikeX, y: spikeY - i * 16 }));
+    orbTargets = orbTargets.map((_, i) => ({ x: spikeX, y: spikeY - i * getScaledSize(16) })); // Scaled from 16
     setOrbsState(player, 'attacking', orbTargets);
   } else if (activeMove.name === 'Dual Blast') {
-    // Orbs split: some to each blast, some stay
-    const leftX = attackHitbox2 ? attackHitbox2.x + attackHitbox2.width / 2 : centerX - 16;
-    const rightX = attackHitbox.x + attackHitbox.width / 2;
+    // Orbs split: 2 orbs go to sides, rest stay
+    // Calculate side positions based on facing direction
+    const sideDistance = getScaledSize(60); // Distance from center
+    const leftX = centerX - sideDistance;
+    const rightX = centerX + sideDistance;
     const y = attackHitbox.y + attackHitbox.height / 2;
+    
     orbTargets = [
-      { x: leftX, y: y },
-      { x: rightX, y: y },
-      ...Array(player.orbs.length - 2).fill({ x: centerX, y: centerY })
+      { x: leftX, y: y },  // Left orb
+      { x: rightX, y: y }, // Right orb
+      ...Array(player.orbs.length - 2).fill({ x: centerX, y: centerY }) // Rest stay in center
     ];
     setOrbsState(player, 'attacking', orbTargets);
     // Draw orbs first, then body with down heavy pose
@@ -403,8 +439,8 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     // Light attacks: orbs stretch out and pulse
     const dir = facing > 0 ? 1 : -1;
     orbTargets = orbTargets.map((_, i) => ({
-      x: centerX + dir * (18 + i * 8),
-      y: centerY + Math.sin(Date.now() * 0.01 + i) * 6
+      x: centerX + dir * (getScaledSize(18) + i * getScaledSize(8)), // Scaled from 18 and 8
+      y: centerY + Math.sin(Date.now() * 0.01 + i) * getScaledSize(6) // Scaled from 6
     }));
     setOrbsState(player, 'attacking', orbTargets);
   }
@@ -426,7 +462,7 @@ function drawAttackVisuals(ctx, player) {
     // Beam: thick, glowing, animated
     ctx.save();
     ctx.shadowColor = '#6cf';
-    ctx.shadowBlur = 30;
+    ctx.shadowBlur = getScaledSize(30); // Scaled from 30
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = 'rgba(100,200,255,0.7)';
     ctx.fillRect(attackHitbox.x, attackHitbox.y, attackHitbox.width, attackHitbox.height);
@@ -466,7 +502,7 @@ function drawAttackVisuals(ctx, player) {
     const orbX = attackHitbox.x + attackHitbox.width / 2;
     const orbY = attackHitbox.y + attackHitbox.height / 2;
     ctx.shadowColor = '#6cf';
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = getScaledSize(20); // Scaled from 20
     ctx.fillStyle = '#6cf';
     ctx.beginPath();
     ctx.arc(orbX, orbY, attackHitbox.width / 2, 0, Math.PI * 2);
@@ -476,16 +512,16 @@ function drawAttackVisuals(ctx, player) {
     // Vertical energy spike
     ctx.save();
     ctx.shadowColor = '#ffe53b';
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = getScaledSize(20); // Scaled from 20
     ctx.fillStyle = 'rgba(255,229,59,0.7)';
     ctx.fillRect(attackHitbox.x, attackHitbox.y, attackHitbox.width, attackHitbox.height);
     ctx.restore();
     // Impact ring
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,0,0.7)';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = getScaledSize(4); // Scaled from 4
     ctx.beginPath();
-    ctx.arc(attackHitbox.x + attackHitbox.width / 2, attackHitbox.y + attackHitbox.height, 18, 0, Math.PI * 2);
+    ctx.arc(attackHitbox.x + attackHitbox.width / 2, attackHitbox.y + attackHitbox.height, getScaledSize(18), 0, Math.PI * 2); // Scaled from 18
     ctx.stroke();
     ctx.restore();
   } else if (activeMove.name === 'Dual Blast') {
@@ -496,13 +532,13 @@ function drawAttackVisuals(ctx, player) {
     if (attackHitbox2) ctx.fillRect(attackHitbox2.x, attackHitbox2.y, attackHitbox2.width, attackHitbox2.height);
     // Impact rings
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = getScaledSize(3); // Scaled from 3
     ctx.beginPath();
-    ctx.arc(attackHitbox.x + attackHitbox.width / 2, attackHitbox.y + attackHitbox.height / 2, 12, 0, Math.PI * 2);
+    ctx.arc(attackHitbox.x + attackHitbox.width / 2, attackHitbox.y + attackHitbox.height / 2, getScaledSize(12), 0, Math.PI * 2); // Scaled from 12
     ctx.stroke();
     if (attackHitbox2) {
       ctx.beginPath();
-      ctx.arc(attackHitbox2.x + attackHitbox2.width / 2, attackHitbox2.y + attackHitbox2.height / 2, 12, 0, Math.PI * 2);
+      ctx.arc(attackHitbox2.x + attackHitbox2.width / 2, attackHitbox2.y + attackHitbox2.height / 2, getScaledSize(12), 0, Math.PI * 2); // Scaled from 12
       ctx.stroke();
     }
     ctx.restore();
@@ -510,7 +546,7 @@ function drawAttackVisuals(ctx, player) {
     // Light attacks: quick orb smears
     ctx.save();
     ctx.strokeStyle = '#6cf';
-    ctx.lineWidth = 8;
+    ctx.lineWidth = getScaledSize(8); // Scaled from 8
     ctx.globalAlpha = 0.7;
     ctx.beginPath();
     ctx.moveTo(player.x + player.width / 2, player.y + player.height / 2);
@@ -525,10 +561,10 @@ function drawKaonChargingPose(ctx, player, bobOffset) {
   drawKaonBody(ctx, player, bobOffset);
   // Orbs spiral tightly around head/torso and glow
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 32; // Same as idle position (around head/torso)
+  const centerY = player.y + player.height / 2 - getScaledSize(32); // Same as idle position (around head/torso)
   player.orbs.forEach((orb, i) => {
     orb.angle += 0.08 + player.chargeLevel * 0.2;
-    orb.distance = 20 + player.chargeLevel * 30; // Start closer, expand with charge
+    orb.distance = getScaledSize(20) + player.chargeLevel * getScaledSize(30); // Scaled from 20 and 30
     orb.x = centerX + Math.cos(orb.angle) * orb.distance;
     orb.y = centerY + Math.sin(orb.angle) * orb.distance;
   });
@@ -536,10 +572,12 @@ function drawKaonChargingPose(ctx, player, bobOffset) {
 
 function drawChargeIndicator(ctx, player) {
   const { x, y, width, chargeLevel } = player;
-  const barWidth = 60;
-  const barHeight = 10;
-  const barX = x;
-  const barY = y - 30;
+  // Scale charge bar relative to character size
+  const barWidth = width * 1.2; // 120% of character width
+  const barHeight = width * 0.15; // 15% of character width
+  const barX = x - (barWidth - width) / 2; // Center the bar on the character
+  const barY = y - width * 0.5; // 50% of character width above
+  
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
   ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -547,14 +585,14 @@ function drawChargeIndicator(ctx, player) {
   ctx.fillStyle = chargeColor;
   ctx.fillRect(barX, barY, barWidth * chargeLevel, barHeight);
   ctx.strokeStyle = 'white';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, width * 0.03); // Scale line width with character
   ctx.strokeRect(barX, barY, barWidth, barHeight);
   ctx.restore();
 }
 
 // --- Main draw: orbs first, then body ---
 export function drawKaon(ctx, player) {
-  const bobOffset = Math.sin(Date.now() * 0.002) * 4;
+  const bobOffset = Math.sin(Date.now() * 0.002) * player.width * 0.07; // Scale with character
   if (player.isAttacking && player.activeMove) {
     drawKaonAttackPose(ctx, player, bobOffset);
     drawAttackVisuals(ctx, player);

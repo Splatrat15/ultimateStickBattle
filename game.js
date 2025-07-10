@@ -33,6 +33,45 @@ let fpsUpdateTime = 0; // Track when to update FPS display
 const FPS_SAMPLE_COUNT = 30; // Number of samples to average over
 const FPS_UPDATE_INTERVAL = 500; // Update FPS display every 500ms
 
+// --- PERCENTAGE-BASED SCALING CONSTANTS ---
+const PLATFORM_WIDTH_PERCENT = 0.62; // 80% of window width
+const CHARACTER_SIZE_PERCENT = 0.045; // 8% of platform width
+const PLAYER_NAME_TEXT_PERCENT = 0.04; // 3% of platform width
+const DAMAGE_TEXT_PERCENT = 0.025; // 2.5% of platform width
+const TIMER_TEXT_PERCENT = 0.04; // 3% of platform width
+const LIVES_TEXT_PERCENT = 0.03; // 2% of platform width
+
+// --- RESPONSIVE SCALING SYSTEM ---
+// Base dimensions for a 1920x1080 screen (reference size)
+const BASE_SCREEN_WIDTH = 1920;
+const BASE_SCREEN_HEIGHT = 1080;
+const BASE_SCREEN_DIAGONAL = Math.sqrt(BASE_SCREEN_WIDTH * BASE_SCREEN_WIDTH + BASE_SCREEN_HEIGHT * BASE_SCREEN_HEIGHT);
+
+// Scaling factors
+let screenScale = 1.0;
+let textScale = 1.0;
+let uiScale = 1.0;
+
+// Base sizes (for 1920x1080 reference)
+const BASE_PLATFORM_WIDTH = 1200; // Increased width for wider stage
+const BASE_PLATFORM_HEIGHT = 48;
+const BASE_PLATFORM_Y_POSITION = 0.6; // 60% from top
+const BASE_PLAYER_SIZE = 60;
+const BASE_PLAYER_SPACING = 120; // Distance from platform edges
+const BASE_TEXT_SIZE = {
+  playerNames: 32,
+  damage: 28,
+  timer: 36,
+  fps: 16
+};
+const BASE_UI_SPACING = {
+  playerNameY: 40,
+  damageY: 75,
+  livesY: 110,
+  timerY: 50,
+  sideMargin: 20
+};
+
 // Blast zone constants (areas outside screen where players die)
 const BLAST_ZONE_LEFT = -100;   // 100px left of screen
 const BLAST_ZONE_RIGHT = 100;   // 100px right of screen  
@@ -48,11 +87,11 @@ const platform = {
 };
 
 // Platform design constants
-const PLATFORM_THICKNESS = 40; // Thicker platform like Battlefield
+const BASE_PLATFORM_THICKNESS = 40; // Thicker platform like Battlefield
 
 // Initialize players with default character data (will be re-initialized when game starts)
-let player1 = new Player(100, 100, '#2196f3', 1, characters.kaon);  // Blue for player1
-let player2 = new Player(400, 100, '#e53935', -1, characters.rakka); // Red for player2
+let player1 = new Player(100, 100, '#2196f3', 1, characters.kaon, 60);  // Blue for player1
+let player2 = new Player(400, 100, '#e53935', -1, characters.rakka, 60); // Red for player2
 
 // CPU instances (will be created if needed)
 let cpu1 = null;
@@ -95,6 +134,69 @@ let controllerActiveForPlayer2 = false;
 let lastPauseButtonState = [false, false];
 let lastLeaveButtonState = [false, false];
 
+// --- SCALING FUNCTIONS ---
+function calculateScreenScale() {
+  const canvas = document.getElementById('gameCanvas');
+  if (!canvas) return 1.0;
+  
+  // Use a more balanced scaling approach that considers both width and height
+  const currentDiagonal = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
+  const baseScale = currentDiagonal / BASE_SCREEN_DIAGONAL;
+  
+  // Apply a more conservative scaling curve to prevent excessive shrinking
+  // Use a square root curve to reduce scaling for smaller screens
+  const conservativeScale = Math.sqrt(baseScale);
+  
+  // Clamp the scale between 0.5 and 2.0 to prevent extreme values
+  return Math.max(0.5, Math.min(2.0, conservativeScale));
+}
+
+function getStageScaledSize(baseSize) {
+  // Scales based on platform width relative to base platform width
+  return Math.round(baseSize * (platform.width / BASE_PLATFORM_WIDTH));
+}
+
+function updateScaling() {
+  screenScale = calculateScreenScale();
+  textScale = Math.min(screenScale, 2.0); // Cap text scaling at 2x
+  uiScale = Math.min(screenScale, 1.5); // Cap UI scaling at 1.5x
+  // Debug logging (can be removed in production)
+  if (window.showDebugInfo) {
+    console.log('Scaling updated:', {
+      screenScale: screenScale.toFixed(2),
+      textScale: textScale.toFixed(2),
+      uiScale: uiScale.toFixed(2),
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      platformWidth: platform.width
+    });
+  }
+}
+
+function getScaledSize(baseSize) {
+  return Math.round(baseSize * screenScale);
+}
+
+function getScaledTextSize(baseSize) {
+  return Math.round(baseSize * textScale);
+}
+
+function getScaledUISize(baseSize) {
+  return Math.round(baseSize * uiScale);
+}
+
+// Make scaling functions globally available for character files
+window.getScaledSize = getScaledSize;
+window.getScaledTextSize = getScaledTextSize;
+window.getScaledUISize = getScaledUISize;
+
+function getScaledPosition(basePosition, isPercentage = false) {
+  if (isPercentage) {
+    return basePosition; // Percentages stay the same
+  }
+  return Math.round(basePosition * screenScale);
+}
+
 function resetKeys() {
   for (const key in keys) {
     if (Object.hasOwnProperty.call(keys, key)) {
@@ -105,21 +207,89 @@ function resetKeys() {
 }
 
 function setupPlayersOnPlatform() {
+  // Calculate scaled positions
+  const scaledPlayerSpacing = getScaledSize(BASE_PLAYER_SPACING);
+  const scaledPlayerSize = getScaledSize(BASE_PLAYER_SIZE);
+  
+  // Position players relative to platform edges
+  const player1X = platform.x + scaledPlayerSpacing;
+  const player2X = platform.x + platform.width - scaledPlayerSpacing - scaledPlayerSize;
+  const playerY = platform.y - scaledPlayerSize;
+  
   // Use setInitialPosition to place players without triggering invincibility
-  player1.setInitialPosition(platform.x + 50, platform.y - player1.height);
-  player2.setInitialPosition(platform.x + platform.width - 110, platform.y - player2.height);
+  player1.setInitialPosition(player1X, playerY);
+  player2.setInitialPosition(player2X, playerY);
+  
+  // Store initial platform ratios for consistent positioning during resize
+  player1._platformRatio = scaledPlayerSpacing / platform.width;
+  player2._platformRatio = (platform.width - scaledPlayerSpacing - scaledPlayerSize) / platform.width;
+  
   console.log('Players have been set up on the platform.');
 }
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  
-  // Make the platform much larger and thicker
-  platform.width = Math.max(600, canvas.width * 0.7); // Wider
-  platform.height = 48; // Thicker
+
+  // Set platform width and height based on window size
+  platform.width = Math.round(window.innerWidth * PLATFORM_WIDTH_PERCENT);
+  platform.height = getScaledSize(BASE_PLATFORM_HEIGHT);
   platform.x = (canvas.width - platform.width) / 2;
-  platform.y = canvas.height * 0.6;
+  platform.y = canvas.height * BASE_PLATFORM_Y_POSITION;
+
+  // Update scaling factors
+  updateScaling();
+
+  // If game is running, update player positions to maintain relative positions
+  if (gameStarted && player1 && player2) {
+    // Store current platform ratios if they don't exist
+    if (player1._platformRatio === undefined) {
+      player1._platformRatio = ((player1.x + player1.width / 2) - platform.x) / platform.width;
+    }
+    if (player2._platformRatio === undefined) {
+      player2._platformRatio = ((player2.x + player2.width / 2) - platform.x) / platform.width;
+    }
+    
+    // Update player dimensions with better size calculation
+    const charSize = Math.round(platform.width * CHARACTER_SIZE_PERCENT);
+    const minCharSize = Math.round(getScaledSize(40)); // Minimum character size
+    const maxCharSize = Math.round(getScaledSize(80)); // Maximum character size
+    const finalCharSize = Math.max(minCharSize, Math.min(maxCharSize, charSize));
+    
+    player1.width = finalCharSize;
+    player1.height = finalCharSize;
+    player2.width = finalCharSize;
+    player2.height = finalCharSize;
+    
+    // Restore player positions using their stored ratio
+    player1.x = platform.x + player1._platformRatio * platform.width - player1.width / 2;
+    player2.x = platform.x + player2._platformRatio * platform.width - player2.width / 2;
+    
+    // Handle Y positioning
+    if (player1.isGrounded) {
+      player1.y = platform.y - player1.height;
+    }
+    if (player2.isGrounded) {
+      player2.y = platform.y - player2.height;
+    }
+    
+    // Clamp positions to keep players within platform bounds
+    const scaledPlayerSpacing = getScaledSize(BASE_PLAYER_SPACING);
+    const minX = platform.x + scaledPlayerSpacing;
+    const maxX = platform.x + platform.width - scaledPlayerSpacing - finalCharSize;
+    
+    player1.x = Math.max(minX, Math.min(maxX, player1.x));
+    player2.x = Math.max(minX, Math.min(maxX, player2.x));
+    
+    // Update ratios after clamping
+    player1._platformRatio = ((player1.x + player1.width / 2) - platform.x) / platform.width;
+    player2._platformRatio = ((player2.x + player2.width / 2) - platform.x) / platform.width;
+  }
+}
+
+// Helper functions for percentage-based text sizes
+function getPlatformTextSize(percent) {
+  return Math.round(platform.width * percent);
 }
 
 function drawStage() {
@@ -160,15 +330,15 @@ function drawStage() {
         ctx.lineWidth = 4;
         ctx.strokeRect(player.x - 2, player.y - 2, player.width + 4, player.height + 4);
         // Draw shield energy bar
-        const shieldBarWidth = 60;
-        const shieldBarHeight = 8;
-        const shieldBarX = player.x;
-        const shieldBarY = player.y - 15;
+        const scaledShieldBarWidth = getScaledSize(60);
+        const scaledShieldBarHeight = getScaledSize(8);
+        const scaledShieldBarX = player.x;
+        const scaledShieldBarY = player.y - getScaledSize(15);
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
+        ctx.fillRect(scaledShieldBarX, scaledShieldBarY, scaledShieldBarWidth, scaledShieldBarHeight);
         const shieldPercentage = player.shieldDuration / player.maxShieldDuration;
         ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
-        ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth * shieldPercentage, shieldBarHeight);
+        ctx.fillRect(scaledShieldBarX, scaledShieldBarY, scaledShieldBarWidth * shieldPercentage, scaledShieldBarHeight);
       }
     }
     
@@ -215,42 +385,49 @@ function drawStage() {
   });
   
   // Draw player names
-  ctx.font = 'bold 32px Arial';
+  const playerNameSize = getPlatformTextSize(PLAYER_NAME_TEXT_PERCENT);
+  const sideMargin = getPlatformTextSize(0.015); // 1.5% of platform width
+  const playerNameY = getPlatformTextSize(0.02) + 10; // 2% of platform width + offset
+  ctx.font = `bold ${playerNameSize}px Arial`;
   ctx.fillStyle = 'white';
   ctx.textAlign = 'left';
   const player1Name = window.player1IsCPU ? 
     (window.selectedCharacter1 || 'Player 1') + ' (CPU)' : 
     (window.selectedCharacter1 || 'Player 1');
-  ctx.fillText(player1Name, 20, 40);
+  ctx.fillText(player1Name, sideMargin, playerNameY);
   ctx.textAlign = 'right';
   const player2Name = window.player2IsCPU ? 
     (window.selectedCharacter2 || 'Player 2') + ' (CPU)' : 
     (window.selectedCharacter2 || 'Player 2');
-  ctx.fillText(player2Name, canvas.width - 20, 40);
+  ctx.fillText(player2Name, canvas.width - sideMargin, playerNameY);
 
   // Draw damage percentages and lives
-  ctx.font = 'bold 28px Arial';
+  const damageSize = getPlatformTextSize(DAMAGE_TEXT_PERCENT);
+  const damageY = getPlatformTextSize(0.045) + 10; // 4.5% of platform width + offset
+  const livesY = getPlatformTextSize(0.07) + 10; // 7% of platform width + offset
+  ctx.font = `bold ${damageSize}px Arial`;
   ctx.textAlign = 'left';
-  ctx.fillText(player1.damage + '%', 20, 75);
-  ctx.fillText('Lives: ' + player1Lives, 20, 110);
+  ctx.fillText(player1.damage + '%', sideMargin, damageY);
+  ctx.fillText('Lives: ' + player1Lives, sideMargin, livesY);
   ctx.textAlign = 'right';
-  ctx.fillText(player2.damage + '%', canvas.width - 20, 75);
-  ctx.fillText('Lives: ' + player2Lives, canvas.width - 20, 110);
+  ctx.fillText(player2.damage + '%', canvas.width - sideMargin, damageY);
+  ctx.fillText('Lives: ' + player2Lives, canvas.width - sideMargin, livesY);
 
   // Draw timer in middle top
   let timerText;
   if (gameTimer > 420) {
-    // Beyond 7:00 (infinity), show infinity symbol
     timerText = '∞';
   } else {
     const minutes = Math.floor(gameTimer / 60);
     const seconds = gameTimer % 60;
     timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
-  ctx.font = 'bold 36px Arial';
+  const timerSize = getPlatformTextSize(TIMER_TEXT_PERCENT);
+  const timerY = getPlatformTextSize(0.03) + 10; // 3% of platform width + offset
+  ctx.font = `bold ${timerSize}px Arial`;
   ctx.textAlign = 'center';
-  ctx.fillStyle = gameTimer <= 30 && gameTimer <= 420 ? '#ff4444' : '#ffffff'; // Red when 30 seconds or less (but not infinity)
-  ctx.fillText(timerText, canvas.width / 2, 50);
+  ctx.fillStyle = gameTimer <= 30 && gameTimer <= 420 ? '#ff4444' : '#ffffff';
+  ctx.fillText(timerText, canvas.width / 2, timerY);
 
   // Draw FPS if enabled
   if (window.showFPS) {
@@ -285,25 +462,26 @@ function drawStage() {
     }
     
     // Draw FPS box in bottom left
-    const fpsBoxWidth = 80;
-    const fpsBoxHeight = 30;
-    const fpsBoxX = 10;
-    const fpsBoxY = canvas.height - fpsBoxHeight - 10;
+    const scaledFpsBoxWidth = getScaledUISize(80);
+    const scaledFpsBoxHeight = getScaledUISize(30);
+    const scaledFpsBoxX = getScaledUISize(10);
+    const scaledFpsBoxY = canvas.height - scaledFpsBoxHeight - getScaledUISize(10);
     
     // Draw background box
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(fpsBoxX, fpsBoxY, fpsBoxWidth, fpsBoxHeight);
+    ctx.fillRect(scaledFpsBoxX, scaledFpsBoxY, scaledFpsBoxWidth, scaledFpsBoxHeight);
     
     // Draw border
     ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(fpsBoxX, fpsBoxY, fpsBoxWidth, fpsBoxHeight);
+    ctx.lineWidth = getScaledUISize(2);
+    ctx.strokeRect(scaledFpsBoxX, scaledFpsBoxY, scaledFpsBoxWidth, scaledFpsBoxHeight);
     
     // Draw FPS text
-    ctx.font = 'bold 16px Arial';
+    const scaledFpsTextSize = getScaledTextSize(BASE_TEXT_SIZE.fps);
+    ctx.font = `bold ${scaledFpsTextSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#00ff00';
-    ctx.fillText(`${averageFPS} FPS`, fpsBoxX + fpsBoxWidth / 2, fpsBoxY + fpsBoxHeight / 2 + 5);
+    ctx.fillText(`${averageFPS} FPS`, scaledFpsBoxX + scaledFpsBoxWidth / 2, scaledFpsBoxY + scaledFpsBoxHeight / 2 + getScaledUISize(5));
   }
 }
 
@@ -328,11 +506,11 @@ function drawFightingAura() {
   
   // Draw expanding energy rings
   for (let i = 0; i < 3; i++) {
-    const ringRadius = 100 + Math.sin(time + i) * 20 + i * 50;
+    const ringRadius = getScaledSize(100) + Math.sin(time + i) * getScaledSize(20) + i * getScaledSize(50);
     const alpha = 0.05 - (i * 0.01);
     
     ctx.strokeStyle = `rgba(100, 150, 255, ${alpha})`;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = getScaledSize(2);
     ctx.beginPath();
     ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
     ctx.stroke();
@@ -341,10 +519,10 @@ function drawFightingAura() {
   // Draw subtle energy particles
   for (let i = 0; i < 15; i++) {
     const angle = (i / 15) * Math.PI * 2 + time * 0.5;
-    const radius = 200 + Math.sin(time + i) * 30;
+    const radius = getScaledSize(200) + Math.sin(time + i) * getScaledSize(30);
     const x = centerX + Math.cos(angle) * radius;
     const y = centerY + Math.sin(angle) * radius;
-    const size = Math.sin(time + i) * 2 + 3;
+    const size = Math.sin(time + i) * getScaledSize(2) + getScaledSize(3);
     
     ctx.fillStyle = `rgba(150, 200, 255, ${0.1 + Math.sin(time + i) * 0.05})`;
     ctx.beginPath();
@@ -360,12 +538,13 @@ function drawBattlefieldPlatform() {
   const height = platform.height;
   
   // Draw platform shadow for thickness
+  const scaledPlatformThickness = getScaledSize(BASE_PLATFORM_THICKNESS);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.fillRect(x + 4, y + height, width - 8, PLATFORM_THICKNESS);
+  ctx.fillRect(x + getScaledSize(4), y + height, width - getScaledSize(8), scaledPlatformThickness);
   
   // Draw platform side faces (3D effect)
   ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(x, y + height, width, PLATFORM_THICKNESS);
+  ctx.fillRect(x, y + height, width, scaledPlatformThickness);
   
   // Draw main platform (black base)
   ctx.fillStyle = '#000000';
@@ -376,7 +555,7 @@ function drawBattlefieldPlatform() {
   
   // Draw platform edge highlights
   ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = getScaledSize(2);
   ctx.strokeRect(x, y, width, height);
 }
 
@@ -386,22 +565,23 @@ function drawEnhancedUSBDesign(x, y, width, height) {
 
   // Draw blue energy line from left, stopping before the text
   ctx.strokeStyle = '#0066cc';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = getScaledSize(4);
   ctx.beginPath();
-  ctx.moveTo(x + 30, centerY);
-  ctx.lineTo(centerX - 60, centerY);
+  ctx.moveTo(x + getScaledSize(30), centerY);
+  ctx.lineTo(centerX - getScaledSize(60), centerY);
   ctx.stroke();
 
   // Draw red energy line from right, stopping before the text
   ctx.strokeStyle = '#cc0000';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = getScaledSize(4);
   ctx.beginPath();
-  ctx.moveTo(x + width - 30, centerY);
-  ctx.lineTo(centerX + 60, centerY);
+  ctx.moveTo(x + width - getScaledSize(30), centerY);
+  ctx.lineTo(centerX + getScaledSize(60), centerY);
   ctx.stroke();
 
   // Draw large, bold, perfectly centered 'USB' text
-  ctx.font = 'bold 32px Arial';
+  const scaledUsbTextSize = getScaledTextSize(32);
+  ctx.font = `bold ${scaledUsbTextSize}px Arial`;
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -644,8 +824,6 @@ function update() {
     return;
   }
 
-
-
   // --- POLL GAMEPADS ---
   pollGamepads();
 
@@ -702,23 +880,30 @@ function update() {
   // Check if players hit the blast zones (die when outside screen boundaries)
   if (frameCount - lastResetFrame > RESET_COOLDOWN) {
     // Check if player1 is outside any blast zone
-    if (player1.x + player1.width < BLAST_ZONE_LEFT || 
-        player1.x > canvas.width + BLAST_ZONE_RIGHT ||
-        player1.y + player1.height < BLAST_ZONE_TOP ||
-        player1.y > canvas.height + BLAST_ZONE_BOTTOM) {
+    const scaledBlastZoneLeft = getScaledSize(BLAST_ZONE_LEFT);
+    const scaledBlastZoneRight = getScaledSize(BLAST_ZONE_RIGHT);
+    const scaledBlastZoneTop = getScaledSize(BLAST_ZONE_TOP);
+    const scaledBlastZoneBottom = getScaledSize(BLAST_ZONE_BOTTOM);
+    
+    if (player1.x + player1.width < scaledBlastZoneLeft || 
+        player1.x > canvas.width + scaledBlastZoneRight ||
+        player1.y + player1.height < scaledBlastZoneTop ||
+        player1.y > canvas.height + scaledBlastZoneBottom) {
       player1Lives--;
-      player1.resetPosition(platform.x + 50, platform.y - player1.height);
+      const scaledPlayerSpacing = getScaledSize(BASE_PLAYER_SPACING);
+      player1.resetPosition(platform.x + scaledPlayerSpacing, platform.y - player1.height);
       player1.damage = 0; // Reset damage
       lastResetFrame = frameCount;
     }
     
     // Check if player2 is outside any blast zone
-    if (player2.x + player2.width < BLAST_ZONE_LEFT || 
-        player2.x > canvas.width + BLAST_ZONE_RIGHT ||
-        player2.y + player2.height < BLAST_ZONE_TOP ||
-        player2.y > canvas.height + BLAST_ZONE_BOTTOM) {
+    if (player2.x + player2.width < scaledBlastZoneLeft || 
+        player2.x > canvas.width + scaledBlastZoneRight ||
+        player2.y + player2.height < scaledBlastZoneTop ||
+        player2.y > canvas.height + scaledBlastZoneBottom) {
       player2Lives--;
-      player2.resetPosition(platform.x + platform.width - 110, platform.y - player2.height);
+      const scaledPlayerSpacing = getScaledSize(BASE_PLAYER_SPACING);
+      player2.resetPosition(platform.x + platform.width - scaledPlayerSpacing - player2.width, platform.y - player2.height);
       player2.damage = 0; // Reset damage
       lastResetFrame = frameCount;
     }
@@ -867,7 +1052,13 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Initialize game
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  // If game is running, also update scaling factors for any ongoing calculations
+  if (gameStarted) {
+    updateScaling();
+  }
+});
 resizeCanvas();
 setupPlayersOnPlatform(); // Set initial positions on first load
 
@@ -894,8 +1085,6 @@ window.addEventListener('startGame', (e) => {
   player2Lives = gameLives;
   lastTimerUpdate = 0; // Reset timer to initialize on first frame
   
-
-  
   // Re-initialize players with the correct character data
   const player1CharacterData = characters[character1.toLowerCase()];
   const player2CharacterData = characters[character2.toLowerCase()];
@@ -908,8 +1097,9 @@ window.addEventListener('startGame', (e) => {
   }
   
   try {
-    player1 = new Player(100, 100, '#2196f3', 1, player1CharacterData);
-    player2 = new Player(400, 100, '#e53935', -1, player2CharacterData);
+    const scaledPlayerSize = getScaledSize(BASE_PLAYER_SIZE);
+    player1 = new Player(100, 100, '#2196f3', 1, player1CharacterData, scaledPlayerSize);
+    player2 = new Player(400, 100, '#e53935', -1, player2CharacterData, scaledPlayerSize);
   } catch (error) {
     return;
   }
@@ -938,8 +1128,6 @@ window.addEventListener('startGame', (e) => {
   
   // Set up players on the platform for the new game
   setupPlayersOnPlatform();
-  
-
 });
 
 // Start game loop

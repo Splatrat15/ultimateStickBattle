@@ -24,31 +24,42 @@ export const kaonMoveset = {
   moveSpeed: 4.2, // Slightly slower movement (default is 5.0)
 };
 
+// Helper function to get scaled size
+function getScaledSize(baseSize) {
+  if (typeof window !== 'undefined' && window.getScaledSize) {
+    return window.getScaledSize(baseSize);
+  }
+  return baseSize;
+}
+
 // Draw Kaon's custom shield (spinning orbs + pulsing aura)
 export function drawKaonShield(ctx, player) {
   const centerX = player.x + player.width / 2;
-  const centerY = player.y + player.height / 2 - 32;
+  const centerY = player.y + player.height / 2 - player.width * 0.5; // Scale with character size
+  const charSize = player.width; // Use character width for scaling
+  
   // Animate orbs: spin faster, glow brighter
   player.orbs.forEach((orb, i) => {
     const fastAngle = orb.angle + Date.now() * 0.08 + i * 2;
-    const r = 32 + Math.sin(Date.now() * 0.01 + i) * 2;
+    const r = charSize * 0.53 + Math.sin(Date.now() * 0.01 + i) * charSize * 0.03; // Scale with character
     const orbX = centerX + Math.cos(fastAngle) * r;
     const orbY = centerY + Math.sin(fastAngle) * r;
     ctx.save();
     ctx.shadowColor = '#ffe53b';
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = charSize * 0.4; // Scale shadow with character
     ctx.globalAlpha = 0.95;
     ctx.fillStyle = '#ffe53b';
     ctx.beginPath();
-    ctx.arc(orbX, orbY, 11, 0, Math.PI * 2);
+    ctx.arc(orbX, orbY, charSize * 0.18, 0, Math.PI * 2); // Scale with character
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1.0;
     ctx.restore();
   });
+  
   // Draw pulsing aura
   ctx.save();
-  const pulse = 38 + Math.sin(Date.now() * 0.008) * 8;
+  const pulse = charSize * 0.63 + Math.sin(Date.now() * 0.008) * charSize * 0.13; // Scale with character
   ctx.globalAlpha = 0.22 + 0.08 * Math.abs(Math.sin(Date.now() * 0.008));
   ctx.beginPath();
   ctx.arc(centerX, centerY, pulse, 0, Math.PI * 2);

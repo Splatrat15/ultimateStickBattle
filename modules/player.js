@@ -3,11 +3,11 @@ import { initializeKaon, updateKaon } from '../characters/Kaon/designKaon.js';
 import { initializeRakka, updateRakka } from '../characters/Rakka/designRakka.js';
 
 export class Player extends PhysicsBody {
-  constructor(x, y, color, facing, characterData) {
+  constructor(x, y, color, facing, characterData, size = 60) {
     const moveset = characterData.moveset || {};
     const weight = typeof moveset.weight === 'number' ? moveset.weight : 1.0;
     const jumpForce = typeof moveset.jumpForce === 'number' ? moveset.jumpForce : JUMP_FORCE;
-    super(x, y, 60, 60, weight, jumpForce);
+    super(x, y, size, size, weight, jumpForce);
     this.moveSpeed = typeof moveset.moveSpeed === 'number' ? moveset.moveSpeed : 5;
     
     // Store initial properties that don't change
@@ -15,8 +15,8 @@ export class Player extends PhysicsBody {
     this.initialY = y;
     this.initialColor = color;
     this.initialFacing = facing;
-    this.width = 60;
-    this.height = 60;
+    this.width = size;
+    this.height = size;
     this.maxShieldDuration = 120; // 6 seconds of shield
     this.shieldRechargeTime = 120; // 6 seconds to recharge shield
 
@@ -660,61 +660,64 @@ export class Player extends PhysicsBody {
       return;
     }
 
-    const hitboxData = this.activeMove.hitbox;
-    
-
-    
-    // Scale hitbox for charged neutral heavy attacks
-    let hitboxWidth = hitboxData.width;
-    let hitboxHeight = hitboxData.height;
-    let hitboxOffsetX = hitboxData.offsetX;
-    
-    if (this.attackType === 'heavy' && this.activeMove.name === 'Core Beam' && this.chargeLevel > 0) {
-      // Scale hitbox size and range based on charge level (1.0x to 4.0x)
-      const sizeMultiplier = 1.0 + (this.chargeLevel * 3.0);
-      hitboxWidth = Math.floor(hitboxData.width * sizeMultiplier);
-      hitboxHeight = Math.floor(hitboxData.height * sizeMultiplier);
-      hitboxOffsetX = Math.floor(hitboxData.offsetX * sizeMultiplier);
-      
-
+    // For sword-following attacks, keep current logic (handled in updateAttackHitbox)
+    const swordMoves = [
+      'Quick Draw', 'Shadow Slice', 'Rising Cut', 'Ground Poke'
+    ];
+    if (this.characterName === 'Rakka' && this.activeMove && swordMoves.some(name => this.activeMove.name && this.activeMove.name.startsWith(name))) {
+      // Use sword-following hitbox logic
+      return;
     }
-    
-    // Position hitbox in front of the player based on facing direction
+    // For Kaon, use the move's defined hitbox size/offset if available
+    if (this.characterName === 'Kaon' && this.activeMove && this.activeMove.hitbox) {
+      const hitboxData = this.activeMove.hitbox;
+      let hitboxWidth = hitboxData.width;
+      let hitboxHeight = hitboxData.height;
+      let hitboxOffsetX = hitboxData.offsetX;
+      if (this.attackType === 'heavy' && this.activeMove.name === 'Core Beam' && this.chargeLevel > 0) {
+        const sizeMultiplier = 1.0 + (this.chargeLevel * 3.0);
+        hitboxWidth = Math.floor(hitboxData.width * sizeMultiplier);
+        hitboxHeight = Math.floor(hitboxData.height * sizeMultiplier);
+        hitboxOffsetX = Math.floor(hitboxData.offsetX * sizeMultiplier);
+      }
+      let hitboxX;
+      if (this.facing > 0) {
+        hitboxX = this.x + hitboxOffsetX;
+      } else {
+        hitboxX = this.x - hitboxOffsetX - hitboxWidth + this.width;
+      }
+      this.attackHitbox = {
+        x: hitboxX,
+        y: this.y + hitboxData.offsetY,
+        width: hitboxWidth,
+        height: hitboxHeight
+      };
+      this.attackHitbox2 = null;
+      return;
+    }
+
+    // For all other attacks, make hitbox same size as player and in front
+    // Distance in front scales with platform width
+    const platformWidth = (typeof window !== 'undefined' && window.platform && window.platform.width) ? window.platform.width : 1200;
+    const distanceScale = platformWidth / 1200; // 1200 is base platform width
+    const hitboxWidth = this.width;
+    const hitboxHeight = this.height;
+    const hitboxDistance = Math.round(this.width * 0.1 * distanceScale); // 10% of player width, scaled
     let hitboxX;
     if (this.facing > 0) {
-      // Facing right, use offsetX as is
-      hitboxX = this.x + hitboxOffsetX;
+      // Facing right: flush with right edge, plus a small offset
+      hitboxX = this.x + this.width + hitboxDistance;
     } else {
-      // Facing left, invert offsetX and adjust for player and hitbox width
-      hitboxX = this.x - hitboxOffsetX - hitboxWidth + this.width;
+      // Facing left: flush with left edge, minus offset and width
+      hitboxX = this.x - hitboxDistance - hitboxWidth;
     }
-    
     this.attackHitbox = {
       x: hitboxX,
-      y: this.y + hitboxData.offsetY,
+      y: this.y,
       width: hitboxWidth,
       height: hitboxHeight
     };
-
-    // Handle dual hitboxes for downHeavy (Dual Blast)
-    if (this.activeMove.hitbox2) {
-      const hitbox2Data = this.activeMove.hitbox2;
-      let hitbox2X;
-      if (this.facing > 0) {
-        hitbox2X = this.x + hitbox2Data.offsetX;
-      } else {
-        hitbox2X = this.x - hitbox2Data.offsetX - hitbox2Data.width + this.width;
-      }
-      
-      this.attackHitbox2 = {
-        x: hitbox2X,
-        y: this.y + hitbox2Data.offsetY,
-        width: hitbox2Data.width,
-        height: hitbox2Data.height
-      };
-    } else {
-      this.attackHitbox2 = null;
-    }
+    this.attackHitbox2 = null;
   }
 
   updateAttackHitbox() {
