@@ -1118,8 +1118,16 @@ export class Player extends PhysicsBody {
     // Use attack direction for knockback vector
     let direction = attacker.facing;
     let angle = 0; // 0 = horizontal, -PI/2 = up, PI/2 = down
-    if (move?.verticalKnockback || move?.upwardKnockback) angle = -Math.PI/2;
-    if (move?.spikeKnockback) angle = Math.PI/2;
+    
+    // Default to a slight upward angle for most attacks (instead of pure horizontal)
+    if (!move?.verticalKnockback && !move?.upwardKnockback && !move?.spikeKnockback) {
+      angle = -Math.PI/18; // 10 degrees up for standard attacks (mostly forward, minimal up)
+    } else if (move?.verticalKnockback || move?.upwardKnockback) {
+      angle = -Math.PI/2; // Straight up for vertical attacks
+    } else if (move?.spikeKnockback) {
+      angle = Math.PI/2; // Straight down for spike attacks
+    }
+    
     // Special: Down Light aerial
     if (attacker.characterName === 'Rakka' && move?.name === 'Ground Poke' && attacker.downLightSwing && !attacker.downLightSwing.isGrounded) angle = Math.PI/2;
     
