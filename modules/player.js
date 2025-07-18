@@ -95,6 +95,7 @@ export class Player extends PhysicsBody {
     this.attackHitbox2 = null;
     this.attackType = null;
     this.lockedFacingDirection = undefined;
+    this.attackLag = 0;
     
     this.jumpsRemaining = 2;
     this.isJumpKeyPressed = false;
@@ -262,6 +263,11 @@ export class Player extends PhysicsBody {
     if (this.isAttacking) {
       this.attackCooldown--;
       if (this.attackCooldown === 0) {
+        // Apply attack lag based on the move that just ended
+        if (this.activeMove) {
+          this.attackLag = this.calculateAttackLag(this.activeMove);
+        }
+        
         this.isAttacking = false;
         this.attackHitbox = null;
         this.attackHitbox2 = null;
@@ -292,6 +298,15 @@ export class Player extends PhysicsBody {
           this.risingCutSwing.glowIntensity = 0;
           this.risingCutSwing.shadowTrails = [];
         }
+      }
+    }
+    
+    // Update attack lag
+    if (this.attackLag > 0) {
+      this.attackLag--;
+      if (this.attackLag === 0) {
+        // Attack lag ended, player can act again
+        this.canAct = true;
       }
     }
     
@@ -376,7 +391,7 @@ export class Player extends PhysicsBody {
   }
 
   attack(direction, type) {
-    if (!this.canAct || this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0 || this.attackLag > 0) return;
 
     // --- Rakka Quick Draw Jab Combo Logic ---
     if (this.characterName === 'Rakka' && direction === 'neutral' && type === 'light') {
@@ -1128,6 +1143,9 @@ export class Player extends PhysicsBody {
       this.activeMove = null;
       this.lockedFacingDirection = undefined;
     }
+    
+    // Clear attack lag when taking damage
+    this.attackLag = 0;
   }
 
   jump() {
@@ -1198,7 +1216,7 @@ export class Player extends PhysicsBody {
   }
 
   activateShield() {
-    if (!this.canAct || this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0 || this.attackLag > 0) return;
     // Can only shield if not on cooldown and shield duration is available
     if (this.shieldCooldown === 0 && this.shieldDuration < this.maxShieldDuration) {
       this.isShielding = true;
@@ -1210,7 +1228,7 @@ export class Player extends PhysicsBody {
   }
 
   startCharge(move = null) {
-    if (!this.canAct || this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0 || this.attackLag > 0) return;
     
     // Don't start charging if already charging, attacking, or shielding
     if (this.isCharging || this.isAttacking || this.isShielding) {
@@ -1337,5 +1355,35 @@ export class Player extends PhysicsBody {
     if (!canvas) return 1.0;
     const diag = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
     return diag / 1000; // 1.0 for 1000px diagonal, scales up/down
+  }
+
+  calculateAttackLag(move) {
+    // Calculate attack lag based on move properties
+    // Bigger/heavier attacks have more lag
+    let baseLag = 0;
+    
+    // Base lag by attack type
+    if (move.type === 'light') {
+      baseLag = 8; // Light attacks have minimal lag
+    } else if (move.type === 'heavy') {
+      baseLag = 25; // Heavy attacks have significant lag
+    } else {
+      baseLag = 15; // Default for other types
+    }
+    
+    // Scale lag by damage (more damage = more lag)
+    const damageMultiplier = Math.min(move.damage / 10, 2.0); // Cap at 2x for very high damage
+    
+    // Scale lag by duration (longer moves = more lag)
+    const durationMultiplier = Math.min(move.duration / 40, 1.5); // Cap at 1.5x for very long moves
+    
+    // Scale lag by knockback (stronger knockback = more lag)
+    const knockbackMultiplier = Math.min((move.knockback || 1.0) / 2.0, 1.5); // Cap at 1.5x
+    
+    // Calculate final lag
+    const finalLag = Math.floor(baseLag * damageMultiplier * durationMultiplier * knockbackMultiplier);
+    
+    // Ensure minimum and maximum bounds
+    return Math.max(5, Math.min(finalLag, 60)); // Between 5 and 60 frames
   }
 }

@@ -342,6 +342,22 @@ function drawStage() {
       }
     }
     
+    // Draw attack lag indicator
+    if (player.attackLag > 0) {
+      // Draw a red outline around the player during attack lag
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+      ctx.lineWidth = getScaledSize(3);
+      ctx.strokeRect(player.x - getScaledSize(2), player.y - getScaledSize(2), 
+                    player.width + getScaledSize(4), player.height + getScaledSize(4));
+      
+      // Draw attack lag text above player
+      const lagTextSize = getScaledTextSize(12);
+      ctx.font = `bold ${lagTextSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.9)';
+      ctx.fillText('LAG', player.x + player.width / 2, player.y - getScaledSize(10));
+    }
+    
     // Draw attack hitbox if attacking
     if (player.isAttacking && player.attackHitbox) {
       // Kaon's drawing function handles his own attack visuals.
