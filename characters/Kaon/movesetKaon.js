@@ -8,7 +8,7 @@ export const kaonMoveset = {
   neutralHeavy: { name: 'Core Beam', type: 'heavy', baseDamage: 8, knockbackMultiplier: 2.0, duration: 30, cooldown: 70, hitbox: { width: 130, height: 12, offsetX: 80, offsetY: -5 } },
   sideHeavy: { name: 'Big Bang Attack', type: 'heavy', baseDamage: 15, knockbackMultiplier: 1.7, duration: 60, cooldown: 90, hitbox: { width: 120, height: 80, offsetX: 80, offsetY: -20 } },
   upHeavy: { name: 'Gravity Spike', type: 'heavy', baseDamage: 12, knockbackMultiplier: 1.8, verticalKnockback: true, spikeKnockback: true, selfLaunch: true, selfLaunchForce: 15, duration: 35, cooldown: 80, hitbox: { width: 20, height: 80, offsetX: 20, offsetY: 40 } },
-  downHeavy: { name: 'Dual Blast', type: 'heavy', baseDamage: 8, knockbackMultiplier: 1.5, duration: 40, cooldown: 85, hitbox: { width: 100, height: 40, offsetX: 70, offsetY: 10 }, hitbox2: { width: 100, height: 40, offsetX: -110, offsetY: 10 } },
+  downHeavy: { name: 'Dual Blast', type: 'heavy', baseDamage: 8, knockbackMultiplier: 1.5, duration: 40, cooldown: 85, hitbox: { width: 100, height: 40, offsetX: 70, offsetY: 10 }, hitbox2: { width: 100, height: 40, offsetX: 170, offsetY: 10 } },
   // Shield (Special)
   shield: {
     name: 'Orb Shield',

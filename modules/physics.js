@@ -29,6 +29,7 @@ export class PhysicsBody {
     this.isAttacking = false; // Track if player is attacking
     this.isShielding = false; // Track if player is shielding
     this.isCharging = false; // Track if player is charging
+    this.attackLag = 0; // Track attack lag frames
     // --- Customizable physics properties ---
     this.weight = weight; // 1.0 = normal, <1 = floaty, >1 = heavy
     this.jumpForce = jumpForce; // -14 = normal, more negative = higher jump
@@ -100,8 +101,8 @@ export class PhysicsBody {
   }
 
   move(direction) {
-    // Don't allow movement if charging
-    if (this.isCharging) {
+    // Don't allow movement if charging or in attack lag
+    if (this.isCharging || this.attackLag > 0) {
       return;
     }
     
@@ -129,7 +130,14 @@ export class PhysicsBody {
       // If trying to move against knockback direction, ignore the input
     }
     
-    this.facing = direction;
+    // Only update facing direction if not attacking (prevents direction flipping mid-attack)
+    if (!this.isAttacking) {
+      this.facing = direction;
+    } else if (this.lockedFacingDirection !== undefined) {
+      // Use locked facing direction during attacks
+      this.facing = this.lockedFacingDirection;
+    }
+    
     window.debugLog('Player moved', {
       direction,
       vx: this.vx.toFixed(2),

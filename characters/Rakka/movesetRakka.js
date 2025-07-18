@@ -99,14 +99,14 @@ export const rakkaMoveset = {
     name: 'Phantom Slash',
     type: 'heavy',
     baseDamage: 3,
-    knockbackMultiplier: 1.5,
+    knockbackMultiplier: 1.0, // Reduced from 1.5 to 1.0
     multiHit: 4, // 4 hits total
     verticalKnockback: true,
     duration: 54, // Increased from 42 to 54 frames for longer attack
     cooldown: 75,
     selfLaunch: true, // Launches Rakka upward
     selfLaunchForce: 16, // Increased from 12 to 16 for higher launch
-    finalHitKnockback: 8, // Strong knockback on the final hit
+    finalHitKnockback: 3, // Reduced from 8 to 3 for more reasonable knockback
     finalHitDamage: 4, // Extra damage on final hit
     hitbox: { width: 36, height: 70, offsetX: 18, offsetY: -60 },
     shadowWings: {

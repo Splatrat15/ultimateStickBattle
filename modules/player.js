@@ -94,6 +94,8 @@ export class Player extends PhysicsBody {
     this.attackHitbox = null;
     this.attackHitbox2 = null;
     this.attackType = null;
+    this.lockedFacingDirection = undefined;
+    this.attackLag = 0;
     
     this.jumpsRemaining = 2;
     this.isJumpKeyPressed = false;
@@ -261,12 +263,18 @@ export class Player extends PhysicsBody {
     if (this.isAttacking) {
       this.attackCooldown--;
       if (this.attackCooldown === 0) {
+        // Apply attack lag based on the move that just ended
+        if (this.activeMove) {
+          this.attackLag = this.calculateAttackLag(this.activeMove);
+        }
+        
         this.isAttacking = false;
         this.attackHitbox = null;
         this.attackHitbox2 = null;
         this.attackType = null;
         this.activeMove = null; // Reset active move
         this.lastHitTarget = null; // Reset last hit target when attack ends
+        this.lockedFacingDirection = undefined; // Clear locked facing direction
         
         // Reset sword swing animation when attack ends
         if (this.swordSwing) {
@@ -290,6 +298,15 @@ export class Player extends PhysicsBody {
           this.risingCutSwing.glowIntensity = 0;
           this.risingCutSwing.shadowTrails = [];
         }
+      }
+    }
+    
+    // Update attack lag
+    if (this.attackLag > 0) {
+      this.attackLag--;
+      if (this.attackLag === 0) {
+        // Attack lag ended, player can act again
+        this.canAct = true;
       }
     }
     
@@ -374,7 +391,7 @@ export class Player extends PhysicsBody {
   }
 
   attack(direction, type) {
-    if (!this.canAct || this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0 || this.attackLag > 0) return;
 
     // --- Rakka Quick Draw Jab Combo Logic ---
     if (this.characterName === 'Rakka' && direction === 'neutral' && type === 'light') {
@@ -491,6 +508,9 @@ export class Player extends PhysicsBody {
     this.isAttacking = true;
     this.attackType = type;
     this.activeMove = move; // Store the active move data
+    
+    // Lock facing direction for the duration of the attack (prevents direction flipping mid-attack)
+    this.lockedFacingDirection = this.facing;
     
     // Set cooldowns based on attack type
     this.attackCooldown = move.duration; // Duration of the attack
@@ -1086,24 +1106,44 @@ export class Player extends PhysicsBody {
     this.damage = Math.min(this.damage + setDamage, 999);
     this.invincibilityFrames = 30;
     // --- SMASH-STYLE KNOCKBACK ---
-    const knockbackMultiplier = (typeof move?.knockbackMultiplier === 'number' && isFinite(move.knockbackMultiplier)) ? move.knockbackMultiplier : 1.0;
+    let knockbackMultiplier = (typeof move?.knockbackMultiplier === 'number' && isFinite(move.knockbackMultiplier)) ? move.knockbackMultiplier : 1.0;
+    
+    // Special handling for Phantom Slash - reduce knockback
+    if (attacker.characterName === 'Rakka' && move?.name === 'Phantom Slash') {
+      knockbackMultiplier *= 0.5; // Reduce knockback by half
+    }
+    
     const chargeLevel = attacker.chargeLevel || 0;
     const isCharged = attacker.isCharging || false;
     // Use attack direction for knockback vector
     let direction = attacker.facing;
     let angle = 0; // 0 = horizontal, -PI/2 = up, PI/2 = down
-    if (move?.verticalKnockback || move?.upwardKnockback) angle = -Math.PI/2;
-    if (move?.spikeKnockback) angle = Math.PI/2;
+    
+    // Default to a slight upward angle for most attacks (instead of pure horizontal)
+    if (!move?.verticalKnockback && !move?.upwardKnockback && !move?.spikeKnockback) {
+      angle = -Math.PI/18; // 10 degrees up for standard attacks (mostly forward, minimal up)
+    } else if (move?.verticalKnockback || move?.upwardKnockback) {
+      angle = -Math.PI/2; // Straight up for vertical attacks
+    } else if (move?.spikeKnockback) {
+      angle = Math.PI/2; // Straight down for spike attacks
+    }
+    
     // Special: Down Light aerial
     if (attacker.characterName === 'Rakka' && move?.name === 'Ground Poke' && attacker.downLightSwing && !attacker.downLightSwing.isGrounded) angle = Math.PI/2;
+    
+    // Special handling for Phantom Slash - reduce vertical knockback
+    if (attacker.characterName === 'Rakka' && move?.name === 'Phantom Slash') {
+      // Use a more horizontal angle instead of straight up
+      angle = -Math.PI/4; // 45 degrees up instead of 90 degrees
+    }
     // --- Knockback formula ---
     const victimPercent = this.damage;
     const weight = this.weight || 1.0;
     const screenScale = Player.getScreenScale();
     let chargeBonus = 1.0;
     if (isCharged) chargeBonus += 0.5 * chargeLevel; // Up to +50% for full charge
-    // Reduce knockback by lowering the final multiplier (from 1.0 to 0.3)
-    const rawK = (((((setDamage * 0.1) + (setDamage * victimPercent / 20)) * (200 / (weight * 100 + 100)) * 1.4) + 18) * knockbackMultiplier * chargeBonus) * screenScale * 0.3;
+    // Reduce knockback by lowering the final multiplier (from 1.0 to 0.15)
+    const rawK = (((((setDamage * 0.1) + (setDamage * victimPercent / 20)) * (200 / (weight * 100 + 100)) * 1.4) + 18) * knockbackMultiplier * chargeBonus) * screenScale * 0.15;
     // Calculate knockback vector
     const kx = Math.cos(angle) * rawK * direction;
     const ky = Math.sin(angle) * rawK;
@@ -1113,6 +1153,19 @@ export class Player extends PhysicsBody {
     // --- Inactive state (hitstun) ---
     this.hitstun = Math.max(30, Math.floor(rawK * 2)); // More knockback = longer hitstun
     this.canAct = false;
+    
+    // Interrupt any ongoing attack when taking damage
+    if (this.isAttacking) {
+      this.isAttacking = false;
+      this.attackHitbox = null;
+      this.attackHitbox2 = null;
+      this.attackType = null;
+      this.activeMove = null;
+      this.lockedFacingDirection = undefined;
+    }
+    
+    // Clear attack lag when taking damage
+    this.attackLag = 0;
   }
 
   jump() {
@@ -1183,7 +1236,7 @@ export class Player extends PhysicsBody {
   }
 
   activateShield() {
-    if (!this.canAct || this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0 || this.attackLag > 0) return;
     // Can only shield if not on cooldown and shield duration is available
     if (this.shieldCooldown === 0 && this.shieldDuration < this.maxShieldDuration) {
       this.isShielding = true;
@@ -1195,7 +1248,7 @@ export class Player extends PhysicsBody {
   }
 
   startCharge(move = null) {
-    if (!this.canAct || this.hitstun > 0) return;
+    if (!this.canAct || this.hitstun > 0 || this.attackLag > 0) return;
     
     // Don't start charging if already charging, attacking, or shielding
     if (this.isCharging || this.isAttacking || this.isShielding) {
@@ -1322,5 +1375,35 @@ export class Player extends PhysicsBody {
     if (!canvas) return 1.0;
     const diag = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
     return diag / 1000; // 1.0 for 1000px diagonal, scales up/down
+  }
+
+  calculateAttackLag(move) {
+    // Calculate attack lag based on move properties
+    // Bigger/heavier attacks have more lag
+    let baseLag = 0;
+    
+    // Base lag by attack type
+    if (move.type === 'light') {
+      baseLag = 8; // Light attacks have minimal lag
+    } else if (move.type === 'heavy') {
+      baseLag = 25; // Heavy attacks have significant lag
+    } else {
+      baseLag = 15; // Default for other types
+    }
+    
+    // Scale lag by damage (more damage = more lag)
+    const damageMultiplier = Math.min(move.damage / 10, 2.0); // Cap at 2x for very high damage
+    
+    // Scale lag by duration (longer moves = more lag)
+    const durationMultiplier = Math.min(move.duration / 40, 1.5); // Cap at 1.5x for very long moves
+    
+    // Scale lag by knockback (stronger knockback = more lag)
+    const knockbackMultiplier = Math.min((move.knockback || 1.0) / 2.0, 1.5); // Cap at 1.5x
+    
+    // Calculate final lag
+    const finalLag = Math.floor(baseLag * damageMultiplier * durationMultiplier * knockbackMultiplier);
+    
+    // Ensure minimum and maximum bounds
+    return Math.max(5, Math.min(finalLag, 60)); // Between 5 and 60 frames
   }
 }
