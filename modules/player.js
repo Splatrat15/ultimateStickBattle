@@ -9,6 +9,7 @@ export class Player extends PhysicsBody {
     const jumpForce = typeof moveset.jumpForce === 'number' ? moveset.jumpForce : JUMP_FORCE;
     super(x, y, size, size, weight, jumpForce);
     this.moveSpeed = typeof moveset.moveSpeed === 'number' ? moveset.moveSpeed : 5;
+    this.pushingPower = typeof moveset.pushingPower === 'number' ? moveset.pushingPower : 1;
     
     // Store initial properties that don't change
     this.initialX = x;
