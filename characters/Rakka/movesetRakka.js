@@ -154,9 +154,10 @@ export const rakkaMoveset = {
     description: 'Rakka slams his sword into the ground, creating a devastating dark wave that travels forward like demonic shadow fire.'
   },
   // Rakka stats
-  weight: 1.0, // Standard
+  weight: 1.2, // Lighter (larger number = lighter)
   jumpForce: -15, // Agile
   moveSpeed: 5.5, // Fast
+  pushingPower: 5, // High pushing power
   
   // Shield (Special)
   shield: {

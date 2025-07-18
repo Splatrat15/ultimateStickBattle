@@ -60,7 +60,8 @@ export class PhysicsBody {
     this.x += this.vx;
     
     // Apply vertical movement
-    this.vy += GRAVITY * (1 / this.weight); // Weight affects gravity
+    // Smaller weight numbers = heavier = more gravity effect
+    this.vy += GRAVITY * this.weight; // Weight affects gravity (smaller weight = more gravity)
     if (this.vy > MAX_FALL_SPEED) {
       this.vy = MAX_FALL_SPEED;
     }
@@ -182,17 +183,7 @@ export class PhysicsBody {
     const thisCenterY = this.y + this.height / 2;
     const otherCenterY = other.y + other.height / 2;
 
-    // Calculate momentum-based push forces
-    const thisMomentum = this.calculateMomentum();
-    const otherMomentum = other.calculateMomentum();
-    
-    // Determine which player has more "push power" based on weight and speed
-    const thisPushPower = this.calculatePushPower();
-    const otherPushPower = other.calculatePushPower();
-    
-    // Check for extreme power differences
-    const powerRatio = Math.max(thisPushPower, otherPushPower) / Math.min(thisPushPower, otherPushPower);
-    const isExtremeDifference = powerRatio > 3; // If one player has 3x more push power
+    // Note: Push power is now calculated directly in applyMomentumPush based on weight and speed
     
 
 
@@ -203,12 +194,12 @@ export class PhysicsBody {
         // This player is above
         this.y = other.y - this.height;
         // Apply momentum-based horizontal push
-        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
+        this.applyMomentumPush(other);
       } else {
         // This player is below
         this.y = other.y + other.height;
         // Apply momentum-based horizontal push
-        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
+        this.applyMomentumPush(other);
       }
     } else {
       // Resolve horizontal overlap - prioritize this for charging players
@@ -216,97 +207,118 @@ export class PhysicsBody {
         // This player is to the left
         this.x = other.x - this.width;
         // Apply momentum-based push
-        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
+        this.applyMomentumPush(other);
       } else {
         // This player is to the right
         this.x = other.x + other.width;
         // Apply momentum-based push
-        this.applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference);
+        this.applyMomentumPush(other);
       }
     }
   }
 
-  // Calculate momentum (mass * velocity)
-  calculateMomentum() {
-    const mass = this.weight;
-    const velocity = Math.abs(this.vx) + Math.abs(this.vy);
-    return mass * velocity;
-  }
 
-  // Calculate push power based on weight and speed
-  calculatePushPower() {
-    const weight = this.weight;
-    const speed = this.moveSpeed || 5; // Default speed if not set
-    const velocity = Math.abs(this.vx) + Math.abs(this.vy);
+
+  // Apply pushing power-based collision between two players
+  applyMomentumPush(other) {
+    // Get current movement states
+    const thisMoving = Math.abs(this.vx) > 0.1;
+    const otherMoving = Math.abs(other.vx) > 0.1;
+    const movingTowardEachOther = thisMoving && otherMoving && (this.vx * other.vx < 0);
     
-    // Enhanced push power calculation:
-    // - Weight has a stronger influence (squared)
-    // - Speed has moderate influence
-    // - Current velocity adds to push power
-    // - Minimum push power even when stationary
-    const weightFactor = weight * weight; // Square the weight for stronger effect
-    const speedFactor = speed / 5; // Normalize speed around 5
-    const velocityFactor = (velocity + 2) / 10; // Add minimum velocity and normalize
+    // Get pushing power and weight data
+    const thisPushingPower = this.pushingPower || 1;
+    const otherPushingPower = other.pushingPower || 1;
+    const thisWeight = this.weight || 1.0;
+    const otherWeight = other.weight || 1.0;
     
-    const pushPower = (weightFactor * speedFactor * velocityFactor);
+    // Calculate effective pushing power (0 if not moving)
+    const thisEffectivePower = thisMoving ? thisPushingPower : 0;
+    const otherEffectivePower = otherMoving ? otherPushingPower : 0;
     
-
-    
-    return pushPower;
-  }
-
-  // Apply momentum-based push between two players
-  applyMomentumPush(other, thisPushPower, otherPushPower, isExtremeDifference) {
-    const totalPushPower = thisPushPower + otherPushPower;
-    if (totalPushPower === 0) return;
-
-    // Calculate push ratio (how much each player contributes to the push)
-    let thisPushRatio = thisPushPower / totalPushPower;
-    let otherPushRatio = otherPushPower / totalPushPower;
-
-    // Handle extreme power differences
-    if (isExtremeDifference) {
-      if (thisPushPower > otherPushPower) {
-        // This player is much stronger
-        thisPushRatio = 0.8; // Give this player 80% of the push power
-        otherPushRatio = 0.2; // Other player only gets 20%
-      } else {
-        // Other player is much stronger
-        thisPushRatio = 0.2; // This player only gets 20%
-        otherPushRatio = 0.8; // Other player gets 80% of the push power
-      }
-    }
-
-    // Base push force with some randomization to prevent predictable behavior
-    const basePushForce = 4 + (Math.random() * 3); // 4-7 range
-    
-    // Calculate individual push forces
-    const thisPushForce = basePushForce * thisPushRatio;
-    const otherPushForce = basePushForce * otherPushRatio;
-
     // Determine push direction based on relative positions
     const thisCenterX = this.x + this.width / 2;
     const otherCenterX = other.x + other.width / 2;
+    const pushDirection = thisCenterX < otherCenterX ? 1 : -1; // 1 = push right, -1 = push left
     
-    // Add some vertical push variation for more dynamic interactions
-    const verticalPush = (Math.random() - 0.5) * 2; // Small random vertical push
+    // Debug logging
+    console.log('Push Debug:', {
+      thisChar: this.characterName || 'Unknown',
+      otherChar: other.characterName || 'Unknown',
+      thisPushingPower: thisPushingPower,
+      otherPushingPower: otherPushingPower,
+      thisWeight: thisWeight + ' (smaller=heavier)',
+      otherWeight: otherWeight + ' (smaller=heavier)',
+      thisMoving: thisMoving,
+      otherMoving: otherMoving,
+      thisEffectivePower: thisEffectivePower,
+      otherEffectivePower: otherEffectivePower,
+      movingTowardEachOther: movingTowardEachOther
+    });
     
-    if (thisCenterX < otherCenterX) {
-      // This player is to the left, push them left and other right
-      this.vx = -thisPushForce;
-      other.vx = otherPushForce;
-      // Add small vertical push
-      this.vy += verticalPush;
-      other.vy -= verticalPush;
+    // Handle different scenarios
+    if (movingTowardEachOther) {
+      // Both moving toward each other - compare pushing power
+      console.log(`Moving toward each other: This=${thisEffectivePower}, Other=${otherEffectivePower}`);
+      if (thisEffectivePower === otherEffectivePower) {
+        // Equal pushing power - neither moves (same character or equal power)
+        console.log('Equal pushing power - stopping both players');
+        this.vx = 0;
+        other.vx = 0;
+      } else if (thisEffectivePower > otherEffectivePower) {
+        // This player wins
+        const powerDiff = thisEffectivePower - otherEffectivePower;
+        const pushForce = this.calculatePushForce(powerDiff, otherWeight);
+        console.log(`This player wins with power diff ${powerDiff}, push force ${pushForce}`);
+        this.vx = pushDirection * pushForce;
+        other.vx = -pushDirection * pushForce;
+      } else {
+        // Other player wins
+        const powerDiff = otherEffectivePower - thisEffectivePower;
+        const pushForce = other.calculatePushForce(powerDiff, thisWeight);
+        console.log(`Other player wins with power diff ${powerDiff}, push force ${pushForce}`);
+        this.vx = -pushDirection * pushForce;
+        other.vx = pushDirection * pushForce;
+      }
+    } else if (thisMoving && !otherMoving) {
+      // Only this player is moving - push the stationary player
+      const pushForce = this.calculatePushForce(thisEffectivePower, otherWeight);
+      console.log(`This player pushing stationary: power=${thisEffectivePower}, targetWeight=${otherWeight}, force=${pushForce}`);
+      this.vx = pushDirection * pushForce;
+      other.vx = pushDirection * pushForce;
+    } else if (!thisMoving && otherMoving) {
+      // Only other player is moving - push this stationary player
+      const pushForce = other.calculatePushForce(otherEffectivePower, thisWeight);
+      console.log(`Other player pushing stationary: power=${otherEffectivePower}, targetWeight=${thisWeight}, force=${pushForce}`);
+      this.vx = -pushDirection * pushForce;
+      other.vx = -pushDirection * pushForce;
     } else {
-      // This player is to the right, push them right and other left
-      this.vx = thisPushForce;
-      other.vx = -otherPushForce;
-      // Add small vertical push
-      this.vy += verticalPush;
-      other.vy -= verticalPush;
+      // Both stationary or moving in same direction - minimal interaction
+      const pushForce = 1;
+      this.vx = pushDirection * pushForce;
+      other.vx = -pushDirection * pushForce;
     }
-
-
+    
+    // Add small vertical variation for more dynamic feel
+    const verticalPush = (Math.random() - 0.5) * 1;
+    this.vy += verticalPush;
+    other.vy -= verticalPush;
+  }
+  
+  // Calculate push force based on pushing power difference and target weight
+  calculatePushForce(powerDiff, targetWeight) {
+    // Base force from power difference
+    const baseForce = powerDiff * 2;
+    
+    // Weight resistance: smaller weight numbers = heavier = harder to push
+    // But we need to make it less punishing so pushing power still matters
+    const weightResistance = (1 / targetWeight) * 0.2; // Reduced from 0.5 to 0.2
+    
+    // Final force: base force reduced by weight resistance, minimum of 1
+    const finalForce = Math.max(1, baseForce - weightResistance);
+    
+    console.log(`Push force calc: powerDiff=${powerDiff}, targetWeight=${targetWeight}, baseForce=${baseForce}, weightResistance=${weightResistance.toFixed(3)}, finalForce=${finalForce}`);
+    
+    return finalForce;
   }
 } 

@@ -19,9 +19,10 @@ export const kaonMoveset = {
     visual: 'Three golden orbs spin in a triangle, glowing brightly, with a pulsing aura behind Kaon.'
   },
   // Kaon is floaty and jumps higher, but does not move faster
-  weight: 1.2, // Lighter/floaty
+  weight: 0.8, // Heavier (smaller number = heavier)
   jumpForce: -16, // Higher jump
   moveSpeed: 4.2, // Slightly slower movement (default is 5.0)
+  pushingPower: 3, // Medium pushing power
 };
 
 // Helper function to get scaled size
