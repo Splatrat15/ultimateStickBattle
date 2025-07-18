@@ -94,6 +94,7 @@ export class Player extends PhysicsBody {
     this.attackHitbox = null;
     this.attackHitbox2 = null;
     this.attackType = null;
+    this.lockedFacingDirection = undefined;
     
     this.jumpsRemaining = 2;
     this.isJumpKeyPressed = false;
@@ -267,6 +268,7 @@ export class Player extends PhysicsBody {
         this.attackType = null;
         this.activeMove = null; // Reset active move
         this.lastHitTarget = null; // Reset last hit target when attack ends
+        this.lockedFacingDirection = undefined; // Clear locked facing direction
         
         // Reset sword swing animation when attack ends
         if (this.swordSwing) {
@@ -491,6 +493,9 @@ export class Player extends PhysicsBody {
     this.isAttacking = true;
     this.attackType = type;
     this.activeMove = move; // Store the active move data
+    
+    // Lock facing direction for the duration of the attack (prevents direction flipping mid-attack)
+    this.lockedFacingDirection = this.facing;
     
     // Set cooldowns based on attack type
     this.attackCooldown = move.duration; // Duration of the attack
@@ -1113,6 +1118,16 @@ export class Player extends PhysicsBody {
     // --- Inactive state (hitstun) ---
     this.hitstun = Math.max(30, Math.floor(rawK * 2)); // More knockback = longer hitstun
     this.canAct = false;
+    
+    // Interrupt any ongoing attack when taking damage
+    if (this.isAttacking) {
+      this.isAttacking = false;
+      this.attackHitbox = null;
+      this.attackHitbox2 = null;
+      this.attackType = null;
+      this.activeMove = null;
+      this.lockedFacingDirection = undefined;
+    }
   }
 
   jump() {

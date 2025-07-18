@@ -129,7 +129,14 @@ export class PhysicsBody {
       // If trying to move against knockback direction, ignore the input
     }
     
-    this.facing = direction;
+    // Only update facing direction if not attacking (prevents direction flipping mid-attack)
+    if (!this.isAttacking) {
+      this.facing = direction;
+    } else if (this.lockedFacingDirection !== undefined) {
+      // Use locked facing direction during attacks
+      this.facing = this.lockedFacingDirection;
+    }
+    
     window.debugLog('Player moved', {
       direction,
       vx: this.vx.toFixed(2),
