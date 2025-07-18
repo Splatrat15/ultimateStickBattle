@@ -1106,7 +1106,13 @@ export class Player extends PhysicsBody {
     this.damage = Math.min(this.damage + setDamage, 999);
     this.invincibilityFrames = 30;
     // --- SMASH-STYLE KNOCKBACK ---
-    const knockbackMultiplier = (typeof move?.knockbackMultiplier === 'number' && isFinite(move.knockbackMultiplier)) ? move.knockbackMultiplier : 1.0;
+    let knockbackMultiplier = (typeof move?.knockbackMultiplier === 'number' && isFinite(move.knockbackMultiplier)) ? move.knockbackMultiplier : 1.0;
+    
+    // Special handling for Phantom Slash - reduce knockback
+    if (attacker.characterName === 'Rakka' && move?.name === 'Phantom Slash') {
+      knockbackMultiplier *= 0.5; // Reduce knockback by half
+    }
+    
     const chargeLevel = attacker.chargeLevel || 0;
     const isCharged = attacker.isCharging || false;
     // Use attack direction for knockback vector
@@ -1116,14 +1122,20 @@ export class Player extends PhysicsBody {
     if (move?.spikeKnockback) angle = Math.PI/2;
     // Special: Down Light aerial
     if (attacker.characterName === 'Rakka' && move?.name === 'Ground Poke' && attacker.downLightSwing && !attacker.downLightSwing.isGrounded) angle = Math.PI/2;
+    
+    // Special handling for Phantom Slash - reduce vertical knockback
+    if (attacker.characterName === 'Rakka' && move?.name === 'Phantom Slash') {
+      // Use a more horizontal angle instead of straight up
+      angle = -Math.PI/4; // 45 degrees up instead of 90 degrees
+    }
     // --- Knockback formula ---
     const victimPercent = this.damage;
     const weight = this.weight || 1.0;
     const screenScale = Player.getScreenScale();
     let chargeBonus = 1.0;
     if (isCharged) chargeBonus += 0.5 * chargeLevel; // Up to +50% for full charge
-    // Reduce knockback by lowering the final multiplier (from 1.0 to 0.3)
-    const rawK = (((((setDamage * 0.1) + (setDamage * victimPercent / 20)) * (200 / (weight * 100 + 100)) * 1.4) + 18) * knockbackMultiplier * chargeBonus) * screenScale * 0.3;
+    // Reduce knockback by lowering the final multiplier (from 1.0 to 0.15)
+    const rawK = (((((setDamage * 0.1) + (setDamage * victimPercent / 20)) * (200 / (weight * 100 + 100)) * 1.4) + 18) * knockbackMultiplier * chargeBonus) * screenScale * 0.15;
     // Calculate knockback vector
     const kx = Math.cos(angle) * rawK * direction;
     const ky = Math.sin(angle) * rawK;
