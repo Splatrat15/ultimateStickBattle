@@ -418,21 +418,33 @@ function drawKaonAttackPose(ctx, player, bobOffset) {
     orbTargets = orbTargets.map((_, i) => ({ x: spikeX, y: spikeY - i * getScaledSize(16) })); // Scaled from 16
     setOrbsState(player, 'attacking', orbTargets);
   } else if (activeMove.name === 'Dual Blast') {
-    // Orbs split: 2 orbs go to sides, rest stay
-    // Calculate side positions based on facing direction
-    const sideDistance = getScaledSize(60); // Distance from center
-    const leftX = centerX - sideDistance;
-    const rightX = centerX + sideDistance;
-    const y = attackHitbox.y + attackHitbox.height / 2;
+    // Orbs split: 2 orbs go to sides, evenly spaced from Kaon, near the ground
+    const orbDistance = player.width * 0.8; // Closer, evenly spaced distance
+    const leftX = centerX - orbDistance;
+    const rightX = centerX + orbDistance;
+    const groundY = player.y + player.height - player.width * 0.2; // Just near the ground
     
     orbTargets = [
-      { x: leftX, y: y },  // Left orb
-      { x: rightX, y: y }, // Right orb
+      { x: leftX, y: groundY },  // Left orb near ground
+      { x: rightX, y: groundY }, // Right orb near ground
       ...Array(player.orbs.length - 2).fill({ x: centerX, y: centerY }) // Rest stay in center
     ];
     setOrbsState(player, 'attacking', orbTargets);
-    // Draw orbs first, then body with down heavy pose
-    drawOrbs(ctx, player, bobOffset);
+    
+    // Draw larger orbs for Dual Blast
+    const largeOrbRadius = player.width * 0.25; // Much larger orbs for Dual Blast
+    player.orbs.forEach((orb, i) => {
+      ctx.save();
+      ctx.shadowColor = '#ffe53b';
+      ctx.shadowBlur = largeOrbRadius * 2;
+      ctx.fillStyle = '#ffe53b';
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, largeOrbRadius + Math.sin(Date.now() * 0.005 + i) * (largeOrbRadius * 0.1), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+    
     drawKaonBody(ctx, player, bobOffset, 'downHeavy');
     return;
   } else {
@@ -525,23 +537,8 @@ function drawAttackVisuals(ctx, player) {
     ctx.stroke();
     ctx.restore();
   } else if (activeMove.name === 'Dual Blast') {
-    // Two cartoonish blasts
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,255,0,0.5)';
-    ctx.fillRect(attackHitbox.x, attackHitbox.y, attackHitbox.width, attackHitbox.height);
-    if (attackHitbox2) ctx.fillRect(attackHitbox2.x, attackHitbox2.y, attackHitbox2.width, attackHitbox2.height);
-    // Impact rings
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = getScaledSize(3); // Scaled from 3
-    ctx.beginPath();
-    ctx.arc(attackHitbox.x + attackHitbox.width / 2, attackHitbox.y + attackHitbox.height / 2, getScaledSize(12), 0, Math.PI * 2); // Scaled from 12
-    ctx.stroke();
-    if (attackHitbox2) {
-      ctx.beginPath();
-      ctx.arc(attackHitbox2.x + attackHitbox2.width / 2, attackHitbox2.y + attackHitbox2.height / 2, getScaledSize(12), 0, Math.PI * 2); // Scaled from 12
-      ctx.stroke();
-    }
-    ctx.restore();
+    // Dual Blast uses orbs instead of hitbox visualization - handled in drawKaonAttackPose
+    // No additional visuals needed here
   } else {
     // Light attacks: quick orb smears
     ctx.save();
