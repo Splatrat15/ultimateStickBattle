@@ -256,6 +256,10 @@ class Settings {
       }
     });
 
+
+
+
+
     // Timer controls
     document.addEventListener('click', (e) => {
       if (e.target.id === 'decreaseTimer') {
@@ -530,6 +534,10 @@ class Settings {
     
     input.value = value;
   }
+
+
+
+
 
   decreaseTimer() {
     // Define the timer increments in seconds

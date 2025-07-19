@@ -47,8 +47,8 @@ window.addEventListener('DOMContentLoaded', () => {
   let winScore = 5; // Default win score
   if (window.winScore === undefined) window.winScore = 5;
 
-  // Create timer and lives display
-  const timerLivesDisplay = document.createElement('div');
+  // Create timer and lives display as a clickable button
+  const timerLivesDisplay = document.createElement('button');
   timerLivesDisplay.className = 'timerLivesDisplay';
   timerLivesDisplay.innerHTML = `
     <div class="timerLivesText">5:00 - 3 Lives</div>
@@ -57,6 +57,13 @@ window.addEventListener('DOMContentLoaded', () => {
   // Insert after the title
   const title = menu.querySelector('h1');
   title.parentNode.insertBefore(timerLivesDisplay, title.nextSibling);
+
+  // Add click event listener to open settings
+  timerLivesDisplay.addEventListener('click', () => {
+    if (window.settings && typeof window.settings.toggleSettings === 'function') {
+      window.settings.toggleSettings();
+    }
+  });
 
   // Function to reset character selection state
   function resetCharacterSelection() {
