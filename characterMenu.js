@@ -1,6 +1,7 @@
 // characterMenu.js
 import { showCharacterName, hideCharacterName } from './modules/playerPresentation.js';
 import { characters } from './modules/characters.js';
+import { audioManager } from './modules/audio.js';
 
 window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('characterMenu');

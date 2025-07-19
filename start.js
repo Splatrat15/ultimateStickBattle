@@ -1,4 +1,6 @@
 // start.js - Startup page for Ultimate Stick Battle
+import { audioManager } from './modules/audio.js';
+
 window.addEventListener('DOMContentLoaded', () => {
   // Hide character menu initially
   const characterMenu = document.getElementById('characterMenu');
@@ -9,6 +11,9 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // Create startup screen
   createStartupScreen();
+  
+  // Start playing background music when the page loads
+  audioManager.playMusic();
 });
 
 function createStartupScreen() {

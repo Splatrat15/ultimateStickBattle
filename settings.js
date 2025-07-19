@@ -15,7 +15,10 @@ class Settings {
       lives: 3,
       displayMode: 'windowed',
       showFPS: false,
-      audioDevice: 'default'
+      audioDevice: 'default',
+      masterVolume: 100, // Master volume (0-100)
+      musicVolume: 80,   // Music volume (0-100)
+      sfxVolume: 90      // SFX volume (0-100)
     };
     
     // Initialize window variables if they don't exist
@@ -24,6 +27,9 @@ class Settings {
     if (window.displayMode === undefined) window.displayMode = this.gameSettings.displayMode;
     if (window.showFPS === undefined) window.showFPS = this.gameSettings.showFPS;
     if (window.audioDevice === undefined) window.audioDevice = this.gameSettings.audioDevice;
+    if (window.masterVolume === undefined) window.masterVolume = this.gameSettings.masterVolume;
+    if (window.musicVolume === undefined) window.musicVolume = this.gameSettings.musicVolume;
+    if (window.sfxVolume === undefined) window.sfxVolume = this.gameSettings.sfxVolume;
     
     this.init();
   }
@@ -308,6 +314,8 @@ class Settings {
     document.addEventListener('input', (e) => {
       if (e.target.classList.contains('volumeSlider')) {
         this.updateVolumeDisplay(e.target);
+        // Update volume in real-time
+        this.updateVolumeInRealTime(e.target);
       }
     });
 
@@ -438,6 +446,26 @@ class Settings {
     if (audioDevice) {
       audioDevice.value = this.gameSettings.audioDevice;
     }
+    
+    // Update volume sliders and displays
+    const masterVolumeSlider = document.getElementById('masterVolume');
+    const musicVolumeSlider = document.getElementById('musicVolume');
+    const sfxVolumeSlider = document.getElementById('sfxVolume');
+    
+    if (masterVolumeSlider) {
+      masterVolumeSlider.value = this.gameSettings.masterVolume;
+      this.updateVolumeDisplay(masterVolumeSlider);
+    }
+    
+    if (musicVolumeSlider) {
+      musicVolumeSlider.value = this.gameSettings.musicVolume;
+      this.updateVolumeDisplay(musicVolumeSlider);
+    }
+    
+    if (sfxVolumeSlider) {
+      sfxVolumeSlider.value = this.gameSettings.sfxVolume;
+      this.updateVolumeDisplay(sfxVolumeSlider);
+    }
   }
 
   applySettings() {
@@ -466,15 +494,38 @@ class Settings {
       this.gameSettings.audioDevice = audioDevice.value;
     }
     
+    // Read volume settings
+    const masterVolumeSlider = document.getElementById('masterVolume');
+    const musicVolumeSlider = document.getElementById('musicVolume');
+    const sfxVolumeSlider = document.getElementById('sfxVolume');
+    
+    if (masterVolumeSlider) {
+      this.gameSettings.masterVolume = parseInt(masterVolumeSlider.value) || 100;
+    }
+    
+    if (musicVolumeSlider) {
+      this.gameSettings.musicVolume = parseInt(musicVolumeSlider.value) || 80;
+    }
+    
+    if (sfxVolumeSlider) {
+      this.gameSettings.sfxVolume = parseInt(sfxVolumeSlider.value) || 90;
+    }
+    
     // Update window variables
     window.gameTimer = this.gameSettings.timer;
     window.gameLives = this.gameSettings.lives;
     window.displayMode = this.gameSettings.displayMode;
     window.showFPS = this.gameSettings.showFPS;
     window.audioDevice = this.gameSettings.audioDevice;
+    window.masterVolume = this.gameSettings.masterVolume;
+    window.musicVolume = this.gameSettings.musicVolume;
+    window.sfxVolume = this.gameSettings.sfxVolume;
     
     // Apply display mode immediately
     this.applyDisplayMode();
+    
+    // Update audio volume
+    this.updateAudioVolume();
     
     // Update character menu display
     this.updateCharacterMenuDisplay();
@@ -576,8 +627,62 @@ class Settings {
       lives: this.gameSettings.lives,
       displayMode: this.gameSettings.displayMode,
       showFPS: this.gameSettings.showFPS,
-      audioDevice: this.gameSettings.audioDevice
+      audioDevice: this.gameSettings.audioDevice,
+      masterVolume: this.gameSettings.masterVolume,
+      musicVolume: this.gameSettings.musicVolume,
+      sfxVolume: this.gameSettings.sfxVolume
     };
+  }
+  
+  // Update audio volume based on settings
+  updateAudioVolume() {
+    // Direct check for 0% volume first
+    if (this.gameSettings.masterVolume === 0 || this.gameSettings.musicVolume === 0) {
+      console.log('Volume is 0%, forcing mute');
+      if (window.audioManager && typeof window.audioManager.forceMute === 'function') {
+        window.audioManager.forceMute();
+      }
+      return;
+    }
+    
+    // Calculate effective music volume (master volume * music volume / 100)
+    const effectiveMusicVolume = (this.gameSettings.masterVolume * this.gameSettings.musicVolume) / 100;
+    const normalizedMusicVolume = effectiveMusicVolume / 100; // Convert to 0.0-1.0 range
+    
+    console.log(`updateAudioVolume called - Master: ${this.gameSettings.masterVolume}%, Music: ${this.gameSettings.musicVolume}%, Effective: ${effectiveMusicVolume.toFixed(1)}%, Normalized: ${normalizedMusicVolume.toFixed(3)}`);
+    
+    // Update audio manager if it exists
+    if (window.audioManager && typeof window.audioManager.setMusicVolume === 'function') {
+      console.log('Calling audioManager.setMusicVolume...');
+      window.audioManager.setMusicVolume(normalizedMusicVolume);
+    } else {
+      console.warn('Audio manager not available');
+    }
+    
+    console.log(`Audio volume updated - Master: ${this.gameSettings.masterVolume}%, Music: ${this.gameSettings.musicVolume}%, Effective: ${effectiveMusicVolume.toFixed(1)}%`);
+  }
+  
+  // Update volume in real-time when sliders are moved
+  updateVolumeInRealTime(slider) {
+    // Update the corresponding setting based on which slider was moved
+    if (slider.id === 'masterVolume') {
+      this.gameSettings.masterVolume = parseInt(slider.value) || 100;
+    } else if (slider.id === 'musicVolume') {
+      this.gameSettings.musicVolume = parseInt(slider.value) || 80;
+    } else if (slider.id === 'sfxVolume') {
+      this.gameSettings.sfxVolume = parseInt(slider.value) || 90;
+    }
+    
+    // Check if either master volume or music volume is 0%
+    if (this.gameSettings.masterVolume === 0 || this.gameSettings.musicVolume === 0) {
+      console.log('Volume is 0%, forcing mute');
+      if (window.audioManager && typeof window.audioManager.forceMute === 'function') {
+        window.audioManager.forceMute();
+      }
+    } else {
+      // Update audio volume normally
+      this.updateAudioVolume();
+    }
   }
 
   validateLivesInput(input) {

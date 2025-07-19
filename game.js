@@ -5,6 +5,7 @@ import { drawKaon } from './characters/Kaon/designKaon.js';
 import { drawKaonShield } from './characters/Kaon/movesetKaon.js';
 import { drawRakka } from './characters/Rakka/designRakka.js';
 import { drawRakkaShield } from './characters/Rakka/designRakka.js';
+import { audioManager } from './modules/audio.js';
 
 const canvas = document.getElementById('gameCanvas');
 window.gameCanvas = canvas;
@@ -836,6 +837,9 @@ function resetGame() {
   if (window.pauseMenu && typeof window.pauseMenu.resetPauseState === 'function') {
     window.pauseMenu.resetPauseState();
   }
+  
+  // Restart background music when returning to character menu
+  audioManager.restartMusic();
 }
 
 // --- GLOBAL GAMEPAD POLLING LOOP ---
@@ -1395,6 +1399,9 @@ window.addEventListener('startGame', (e) => {
   
   // Set up players on the platform for the new game
   setupPlayersOnPlatform();
+  
+  // Restart background music when game starts
+  audioManager.restartMusic();
 });
 
 // Start game loop
