@@ -29,13 +29,16 @@ class Settings {
   }
 
   init() {
+    // ✅ Initialize EmailJS ONCE after DOM is ready
+    if (typeof emailjs !== 'undefined') {
+      emailjs.init('v_6THrO7foWXXRzq2');
+    }
+    
     this.createSettingsButton();
     this.createSettingsModal();
     this.addEventListeners();
     this.updateCharacterMenuDisplay();
     this.loadAudioDevices();
-    
-
   }
 
   async loadAudioDevices() {
@@ -143,6 +146,7 @@ class Settings {
           <button class="tabButton active" data-tab="game">Game</button>
           <button class="tabButton" data-tab="audio">Audio</button>
           <button class="tabButton" data-tab="display">Display</button>
+          <button class="tabButton" data-tab="other">Other</button>
         </div>
         
         <div class="tabContent">
@@ -225,6 +229,19 @@ class Settings {
               </div>
             </div>
           </div>
+          
+          <div id="otherTab" class="tabPanel">
+            <div class="settingsSection">
+              <div class="settingItem">
+                <label>Discord</label>
+                <div class="discordContainer">
+                  <button id="discordButton" class="discordIconButton">
+                    <div class="discordLogo"></div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div class="settingsFooter">
@@ -242,6 +259,17 @@ class Settings {
       this.toggleSettings();
     });
 
+    // Global ESC key listener for settings
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Only handle escape if character menu is visible
+        const characterMenu = document.getElementById('characterMenu');
+        if (characterMenu && characterMenu.style.display !== 'none') {
+          this.toggleSettings();
+        }
+      }
+    });
+
     // Close button
     document.addEventListener('click', (e) => {
       if (e.target.id === 'closeSettings') {
@@ -255,6 +283,10 @@ class Settings {
         this.switchTab(e.target.dataset.tab);
       }
     });
+
+
+
+
 
     // Timer controls
     document.addEventListener('click', (e) => {
@@ -286,6 +318,13 @@ class Settings {
       }
     });
 
+    // Discord button
+    document.addEventListener('click', (e) => {
+      if (e.target.id === 'discordButton') {
+        this.openDiscord();
+      }
+    });
+
     // Close modal when clicking outside
     document.addEventListener('click', (e) => {
       if (e.target === this.settingsModal) {
@@ -293,12 +332,32 @@ class Settings {
       }
     });
 
-    // --- CONTROLLER TAB SWITCHING ---
+    // --- CONTROLLER SUPPORT ---
     let lastR1 = false;
     let lastL1 = false;
-    const tabOrder = ['game', 'audio', 'display'];
-    const pollControllerTabs = () => {
-      // Only if settings modal is open/visible
+    let lastStart = false;
+    const tabOrder = ['game', 'audio', 'display', 'other'];
+    
+    const pollControllerInput = () => {
+      // Check for settings button press (Start button)
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (let i = 0; i < 2; i++) {
+        const gp = gamepads[i];
+        if (!gp || gp.mapping !== 'standard') continue;
+        
+        const btnStart = gp.buttons[9]?.pressed; // Start button
+        
+        // Toggle settings with Start button when character menu is visible
+        if (btnStart && !lastStart) {
+          const characterMenu = document.getElementById('characterMenu');
+          if (characterMenu && characterMenu.style.display !== 'none') {
+            this.toggleSettings();
+          }
+        }
+        lastStart = btnStart;
+      }
+      
+            // Only poll for tab switching if settings modal is open
       if (this.settingsModal && this.settingsModal.style.display !== 'none') {
         const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
         for (let i = 0; i < 2; i++) {
@@ -322,9 +381,9 @@ class Settings {
           lastR1 = btnR1;
         }
       }
-      requestAnimationFrame(pollControllerTabs);
+      requestAnimationFrame(pollControllerInput);
     };
-    requestAnimationFrame(pollControllerTabs);
+    requestAnimationFrame(pollControllerInput);
   }
 
   toggleSettings() {
@@ -531,6 +590,10 @@ class Settings {
     input.value = value;
   }
 
+
+
+
+
   decreaseTimer() {
     // Define the timer increments in seconds
     const timerIncrements = [
@@ -648,6 +711,11 @@ class Settings {
     if (valueDisplay) {
       valueDisplay.textContent = `${slider.value}%`;
     }
+  }
+
+  openDiscord() {
+    // Open Discord invite link in a new tab
+    window.open('https://discord.gg/KGfQQCcWkx', '_blank');
   }
 }
 

@@ -47,8 +47,8 @@ window.addEventListener('DOMContentLoaded', () => {
   let winScore = 5; // Default win score
   if (window.winScore === undefined) window.winScore = 5;
 
-  // Create timer and lives display
-  const timerLivesDisplay = document.createElement('div');
+  // Create timer and lives display as a clickable button
+  const timerLivesDisplay = document.createElement('button');
   timerLivesDisplay.className = 'timerLivesDisplay';
   timerLivesDisplay.innerHTML = `
     <div class="timerLivesText">5:00 - 3 Lives</div>
@@ -57,6 +57,13 @@ window.addEventListener('DOMContentLoaded', () => {
   // Insert after the title
   const title = menu.querySelector('h1');
   title.parentNode.insertBefore(timerLivesDisplay, title.nextSibling);
+
+  // Add click event listener to toggle settings
+  timerLivesDisplay.addEventListener('click', () => {
+    if (window.settings && typeof window.settings.toggleSettings === 'function') {
+      window.settings.toggleSettings();
+    }
+  });
 
   // Function to reset character selection state
   function resetCharacterSelection() {
@@ -448,18 +455,7 @@ window.addEventListener('DOMContentLoaded', () => {
   showCharacterName(characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent, '1');
   showCharacterName(characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent, '2');
   
-  // Add escape key listener to open settings
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      // Only handle escape if character menu is visible
-      if (menu.style.display !== 'none') {
-        // Check if settings system exists and toggle it
-        if (window.settings && typeof window.settings.toggleSettings === 'function') {
-          window.settings.toggleSettings();
-        }
-      }
-    }
-  });
+
 
   // Remove any old controls for player label boxes (these are now handled by showCharacterName)
   const oldP1Controls = player1Box.querySelector('.playerLabelBox');
