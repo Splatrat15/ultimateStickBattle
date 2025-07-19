@@ -21,6 +21,13 @@ class Settings {
       sfxVolume: 90      // SFX volume (0-100)
     };
     
+    // Mute states
+    this.muteStates = {
+      master: false,
+      music: false,
+      sfx: false
+    };
+    
     // Initialize window variables if they don't exist
     if (window.gameTimer === undefined) window.gameTimer = this.gameSettings.timer;
     if (window.gameLives === undefined) window.gameLives = this.gameSettings.lives;
@@ -142,6 +149,35 @@ class Settings {
     this.settingsModal.style.display = 'none';
     
     this.settingsModal.innerHTML = `
+      <style>
+        .muteButton {
+          background: none;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 4px;
+          margin-right: 8px;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+          color: #fff;
+        }
+        
+        .muteButton:hover {
+          background: rgba(255, 255, 255, 0.1);
+          transform: scale(1.1);
+        }
+        
+        .muteButton:active {
+          transform: scale(0.95);
+        }
+        
+        .volumeContainer {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+      </style>
+      
       <div class="settingsContent">
         <div class="settingsHeader">
           <h2>Settings</h2>
@@ -190,7 +226,8 @@ class Settings {
               <div class="settingItem">
                 <label>Master Volume</label>
                 <div class="volumeContainer">
-                  <input type="range" id="masterVolume" class="volumeSlider" min="0" max="100" value="100">
+                  <button id="masterMute" class="muteButton">🔇</button>
+                  <input type="range" id="masterVolume" class="volumeSlider" min="1" max="100" value="100">
                   <span class="volumeValue" id="masterVolumeValue">100%</span>
                 </div>
               </div>
@@ -198,7 +235,8 @@ class Settings {
               <div class="settingItem">
                 <label>Music Volume</label>
                 <div class="volumeContainer">
-                  <input type="range" id="musicVolume" class="volumeSlider" min="0" max="100" value="35">
+                  <button id="musicMute" class="muteButton">🔇</button>
+                  <input type="range" id="musicVolume" class="volumeSlider" min="1" max="100" value="35">
                   <span class="volumeValue" id="musicVolumeValue">35%</span>
                 </div>
               </div>
@@ -206,7 +244,8 @@ class Settings {
               <div class="settingItem">
                 <label>SFX Volume</label>
                 <div class="volumeContainer">
-                  <input type="range" id="sfxVolume" class="volumeSlider" min="0" max="100" value="90">
+                  <button id="sfxMute" class="muteButton">🔇</button>
+                  <input type="range" id="sfxVolume" class="volumeSlider" min="1" max="100" value="90">
                   <span class="volumeValue" id="sfxVolumeValue">90%</span>
                 </div>
               </div>
@@ -312,10 +351,26 @@ class Settings {
 
     // Volume sliders
     document.addEventListener('input', (e) => {
-      if (e.target.classList.contains('volumeSlider')) {
-        this.updateVolumeDisplay(e.target);
-        // Update volume in real-time
-        this.updateVolumeInRealTime(e.target);
+      if (e.target && e.target.classList && e.target.classList.contains('volumeSlider')) {
+        // Check if the element is still valid
+        if (document.contains(e.target)) {
+          this.updateVolumeDisplay(e.target);
+          // Update volume in real-time
+          this.updateVolumeInRealTime(e.target);
+        }
+      }
+    });
+
+    // Mute buttons
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.id) {
+        if (e.target.id === 'masterMute') {
+          this.toggleMute('master');
+        } else if (e.target.id === 'musicMute') {
+          this.toggleMute('music');
+        } else if (e.target.id === 'sfxMute') {
+          this.toggleMute('sfx');
+        }
       }
     });
 
@@ -452,20 +507,25 @@ class Settings {
     const musicVolumeSlider = document.getElementById('musicVolume');
     const sfxVolumeSlider = document.getElementById('sfxVolume');
     
-    if (masterVolumeSlider) {
+    if (masterVolumeSlider && masterVolumeSlider.value !== undefined) {
       masterVolumeSlider.value = this.gameSettings.masterVolume;
       this.updateVolumeDisplay(masterVolumeSlider);
     }
     
-    if (musicVolumeSlider) {
+    if (musicVolumeSlider && musicVolumeSlider.value !== undefined) {
       musicVolumeSlider.value = this.gameSettings.musicVolume;
       this.updateVolumeDisplay(musicVolumeSlider);
     }
     
-    if (sfxVolumeSlider) {
+    if (sfxVolumeSlider && sfxVolumeSlider.value !== undefined) {
       sfxVolumeSlider.value = this.gameSettings.sfxVolume;
       this.updateVolumeDisplay(sfxVolumeSlider);
     }
+    
+    // Update mute button states
+    this.updateMuteButton('master');
+    this.updateMuteButton('music');
+    this.updateMuteButton('sfx');
   }
 
   applySettings() {
@@ -504,7 +564,7 @@ class Settings {
     }
     
     if (musicVolumeSlider) {
-      this.gameSettings.musicVolume = parseInt(musicVolumeSlider.value) || 80;
+      this.gameSettings.musicVolume = parseInt(musicVolumeSlider.value) || 35;
     }
     
     if (sfxVolumeSlider) {
@@ -634,15 +694,37 @@ class Settings {
     };
   }
   
+  // Toggle mute for a specific audio type
+  toggleMute(type) {
+    this.muteStates[type] = !this.muteStates[type];
+    console.log(`${type} mute toggled to: ${this.muteStates[type]}`);
+    
+    // Update mute button appearance
+    this.updateMuteButton(type);
+    
+    // Update audio volume
+    this.updateAudioVolume();
+  }
+
+  // Update mute button appearance
+  updateMuteButton(type) {
+    const muteButton = document.getElementById(`${type}Mute`);
+    if (muteButton) {
+      // Show 🔊 when NOT muted (playing), show 🔇 when muted
+      muteButton.textContent = this.muteStates[type] ? '🔇' : '🔊';
+      muteButton.title = this.muteStates[type] ? 'Unmute' : 'Mute';
+    }
+  }
+
   // Update audio volume based on settings
   updateAudioVolume() {
-    // Direct check for 0% volume first
-    if (this.gameSettings.masterVolume === 0 || this.gameSettings.musicVolume === 0) {
-      console.log('Volume is 0%, forcing mute');
+    // Check if master or music is muted
+    if (this.muteStates.master || this.muteStates.music) {
+      console.log('Audio is muted, forcing mute');
       if (window.audioManager && typeof window.audioManager.forceMute === 'function') {
         window.audioManager.forceMute();
       }
-      return;
+      return; // Exit early, don't continue with volume calculation
     }
     
     // Calculate effective music volume (master volume * music volume / 100)
@@ -664,25 +746,38 @@ class Settings {
   
   // Update volume in real-time when sliders are moved
   updateVolumeInRealTime(slider) {
+    // Check if slider exists and has a valid value
+    if (!slider || slider.value === undefined) {
+      console.warn('Invalid slider element or value');
+      return;
+    }
+    
     // Update the corresponding setting based on which slider was moved
     if (slider.id === 'masterVolume') {
       this.gameSettings.masterVolume = parseInt(slider.value) || 100;
+      // Unmute master if it was muted
+      if (this.muteStates.master) {
+        this.muteStates.master = false;
+        this.updateMuteButton('master');
+      }
     } else if (slider.id === 'musicVolume') {
-      this.gameSettings.musicVolume = parseInt(slider.value) || 80;
+      this.gameSettings.musicVolume = parseInt(slider.value) || 35;
+      // Unmute music if it was muted
+      if (this.muteStates.music) {
+        this.muteStates.music = false;
+        this.updateMuteButton('music');
+      }
     } else if (slider.id === 'sfxVolume') {
       this.gameSettings.sfxVolume = parseInt(slider.value) || 90;
+      // Unmute SFX if it was muted
+      if (this.muteStates.sfx) {
+        this.muteStates.sfx = false;
+        this.updateMuteButton('sfx');
+      }
     }
     
-    // Check if either master volume or music volume is 0%
-    if (this.gameSettings.masterVolume === 0 || this.gameSettings.musicVolume === 0) {
-      console.log('Volume is 0%, forcing mute');
-      if (window.audioManager && typeof window.audioManager.forceMute === 'function') {
-        window.audioManager.forceMute();
-      }
-    } else {
-      // Update audio volume normally
-      this.updateAudioVolume();
-    }
+    // Update audio volume (mute state is handled in updateAudioVolume)
+    this.updateAudioVolume();
   }
 
   validateLivesInput(input) {
@@ -812,8 +907,14 @@ class Settings {
   }
 
   updateVolumeDisplay(slider) {
+    // Check if slider exists and has a valid id
+    if (!slider || !slider.id) {
+      console.warn('Invalid slider element');
+      return;
+    }
+    
     const valueDisplay = document.getElementById(`${slider.id}Value`);
-    if (valueDisplay) {
+    if (valueDisplay && slider.value !== undefined) {
       valueDisplay.textContent = `${slider.value}%`;
     }
   }

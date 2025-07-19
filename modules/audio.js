@@ -253,12 +253,14 @@ class AudioManager {
     if (this.backgroundMusic) {
       this.backgroundMusic.volume = this.musicVolume;
       
-      // If volume is 0, pause the music
+      // If volume is 0, pause the music immediately and don't try to restart
       if (this.musicVolume === 0) {
+        console.log('Volume set to 0, pausing music');
         this.backgroundMusic.pause();
         this.isMusicPlaying = false;
-      } else if (this.isMusicLoaded && !this.isMusicPlaying) {
-        // If volume is not 0 and music was paused, resume it
+        this.isStartingMusic = false; // Prevent any restart attempts
+      } else if (this.isMusicLoaded && !this.isMusicPlaying && this.userHasInteracted) {
+        // Only resume if volume is greater than 0
         this.startMusic();
       }
     }
@@ -286,11 +288,22 @@ class AudioManager {
   
   // Force mute
   forceMute() {
+    console.log('Force muting audio...');
     if (this.backgroundMusic) {
       this.backgroundMusic.volume = 0;
       this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
       this.isMusicPlaying = false;
       this.musicVolume = 0;
+      
+      // Double-check that it's actually muted
+      setTimeout(() => {
+        if (this.backgroundMusic && this.backgroundMusic.volume > 0) {
+          console.log('Volume still not 0, forcing again');
+          this.backgroundMusic.volume = 0;
+          this.backgroundMusic.pause();
+        }
+      }, 10);
     }
   }
   
