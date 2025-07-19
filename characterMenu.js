@@ -10,6 +10,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const player1Choice = document.getElementById('player1Choice');
   const player2Choice = document.getElementById('player2Choice');
 
+  // Hide character menu initially (startup screen will handle showing it)
+  if (menu) menu.style.display = 'none';
+
   // Create player boxes
   const player1Box = document.createElement('div');
   player1Box.id = 'player1Box';
@@ -248,17 +251,24 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function positionToken(token, index) {
     const box = characterBoxElements[index];
-    if (box) {
+    if (box && characterGrid) {
       const rect = box.getBoundingClientRect();
       const gridRect = characterGrid.getBoundingClientRect();
-      if (token === p1Token) {
-        // Top left
-        token.style.left = (rect.left - gridRect.left + 4) + 'px';
-        token.style.top = (rect.top - gridRect.top + 4) + 'px';
-      } else if (token === p2Token) {
-        // Top right
-        token.style.left = (rect.left - gridRect.left + rect.width - token.offsetWidth - 4) + 'px';
-        token.style.top = (rect.top - gridRect.top + 4) + 'px';
+      
+      // Check if elements are properly rendered
+      if (rect.width > 0 && rect.height > 0 && gridRect.width > 0) {
+        if (token === p1Token) {
+          // Top left
+          token.style.left = (rect.left - gridRect.left + 4) + 'px';
+          token.style.top = (rect.top - gridRect.top + 4) + 'px';
+        } else if (token === p2Token) {
+          // Top right
+          token.style.left = (rect.left - gridRect.left + rect.width - token.offsetWidth - 4) + 'px';
+          token.style.top = (rect.top - gridRect.top + 4) + 'px';
+        }
+      } else {
+        // If elements aren't properly rendered, try again after a short delay
+        setTimeout(() => positionToken(token, index), 50);
       }
     }
   }
@@ -266,6 +276,32 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initial placement on Random
   positionToken(p1Token, p1Index);
   positionToken(p2Token, p2Index);
+
+  // Function to reposition tokens after startup screen
+  function repositionTokensAfterStartup() {
+    // Multiple attempts to ensure proper positioning
+    const attempts = [100, 200, 500]; // Try at 100ms, 200ms, and 500ms
+    
+    attempts.forEach(delay => {
+      setTimeout(() => {
+        positionToken(p1Token, p1Index);
+        positionToken(p2Token, p2Index);
+      }, delay);
+    });
+  }
+
+  // Listen for startup completion
+  window.addEventListener('startupComplete', () => {
+    repositionTokensAfterStartup();
+  });
+
+  // Listen for window resize to reposition tokens
+  window.addEventListener('resize', () => {
+    setTimeout(() => {
+      positionToken(p1Token, p1Index);
+      positionToken(p2Token, p2Index);
+    }, 100);
+  });
 
   // Drag-and-drop logic for tokens
   let draggingToken = null;
