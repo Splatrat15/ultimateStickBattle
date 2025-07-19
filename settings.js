@@ -17,7 +17,7 @@ class Settings {
       showFPS: false,
       audioDevice: 'default',
       masterVolume: 100, // Master volume (0-100)
-      musicVolume: 50,   // Music volume (0-100) - changed to 50%
+      musicVolume: 35,   // Music volume (0-100) - changed to 35%
       sfxVolume: 90      // SFX volume (0-100)
     };
     
@@ -198,8 +198,8 @@ class Settings {
               <div class="settingItem">
                 <label>Music Volume</label>
                 <div class="volumeContainer">
-                  <input type="range" id="musicVolume" class="volumeSlider" min="0" max="100" value="50">
-                  <span class="volumeValue" id="musicVolumeValue">50%</span>
+                  <input type="range" id="musicVolume" class="volumeSlider" min="0" max="100" value="35">
+                  <span class="volumeValue" id="musicVolumeValue">35%</span>
                 </div>
               </div>
               
