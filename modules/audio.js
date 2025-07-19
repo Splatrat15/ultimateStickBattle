@@ -5,17 +5,50 @@ class AudioManager {
     this.backgroundMusic = null;
     this.isMusicLoaded = false;
     this.isMusicPlaying = false;
+    this.audioContext = null;
+    this.userHasInteracted = false;
+    this.isStartingMusic = false; // Prevent multiple simultaneous start attempts
     
     // Get initial volume from settings or use defaults
     const masterVolume = window.masterVolume || 100;
-    const musicVolume = window.musicVolume || 80;
+    const musicVolume = window.musicVolume || 50;
     const effectiveMusicVolume = (masterVolume * musicVolume) / 100;
-    this.musicVolume = effectiveMusicVolume / 100; // Convert to 0.0-1.0 range
+    this.musicVolume = effectiveMusicVolume / 100;
     
     console.log(`AudioManager initialized - Master: ${masterVolume}%, Music: ${musicVolume}%, Effective: ${effectiveMusicVolume.toFixed(1)}%, Normalized: ${this.musicVolume.toFixed(3)}`);
     
     // Initialize the audio context and music
     this.initAudio();
+    
+    // Listen for first user interaction
+    this.setupUserInteractionListener();
+  }
+
+  setupUserInteractionListener() {
+    const handleUserInteraction = () => {
+      if (!this.userHasInteracted) {
+        this.userHasInteracted = true;
+        console.log('First user interaction detected, creating AudioContext and ensuring music plays');
+        
+        // Create AudioContext after user interaction
+        this.createAudioContext();
+        
+        // Try to start music if it's not playing
+        if (!this.isMusicPlaying && this.shouldBePlaying()) {
+          this.startMusic();
+        }
+        
+        // Remove listeners after first interaction
+        ['click', 'keydown', 'touchstart'].forEach(eventType => {
+          document.removeEventListener(eventType, handleUserInteraction);
+        });
+      }
+    };
+
+    // Listen for user interactions
+    ['click', 'keydown', 'touchstart'].forEach(eventType => {
+      document.addEventListener(eventType, handleUserInteraction, { once: false });
+    });
   }
 
   initAudio() {
@@ -23,7 +56,7 @@ class AudioManager {
       // Create audio element for background music
       this.backgroundMusic = new Audio();
       this.backgroundMusic.src = 'assets/music/screenMusic.mp3';
-      this.backgroundMusic.loop = true; // Loop the music
+      this.backgroundMusic.loop = true;
       this.backgroundMusic.volume = this.musicVolume;
       this.backgroundMusic.preload = 'auto';
       
@@ -31,6 +64,11 @@ class AudioManager {
       this.backgroundMusic.addEventListener('canplaythrough', () => {
         this.isMusicLoaded = true;
         console.log('Background music loaded successfully');
+        
+        // Only start music if user has interacted and not already playing
+        if (this.userHasInteracted && !this.isMusicPlaying && !this.isStartingMusic) {
+          this.startMusic();
+        }
       });
       
       // Handle music errors
@@ -39,8 +77,19 @@ class AudioManager {
         this.isMusicLoaded = false;
       });
       
-      // Handle music end (for non-looping scenarios)
+      // Handle music end
       this.backgroundMusic.addEventListener('ended', () => {
+        this.isMusicPlaying = false;
+      });
+      
+      // Handle play event
+      this.backgroundMusic.addEventListener('play', () => {
+        this.isMusicPlaying = true;
+        this.isStartingMusic = false;
+      });
+      
+      // Handle pause event
+      this.backgroundMusic.addEventListener('pause', () => {
         this.isMusicPlaying = false;
       });
       
@@ -49,98 +98,168 @@ class AudioManager {
     }
   }
 
-  // Start playing background music
-  playMusic() {
-    if (this.backgroundMusic && this.isMusicLoaded) {
-      try {
-        // Reset to beginning and play
-        this.backgroundMusic.currentTime = 0;
-        
-        // Only play if volume is not 0
-        if (this.musicVolume > 0) {
-          this.backgroundMusic.play().then(() => {
-            this.isMusicPlaying = true;
-            console.log('Background music started playing');
-          }).catch(error => {
-            console.error('Error playing music:', error);
-            this.isMusicPlaying = false;
-          });
-        } else {
-          // If volume is 0, don't play but mark as ready
-          this.isMusicPlaying = false;
-          console.log('Music ready but muted (volume is 0)');
-        }
-      } catch (error) {
+  // Create AudioContext after user interaction
+  createAudioContext() {
+    if (!this.audioContext && (window.AudioContext || window.webkitAudioContext)) {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      console.log('AudioContext created after user interaction');
+    }
+  }
+
+  // Main method to start music - this is the single trigger
+  startMusic() {
+    // Only start music if user has interacted
+    if (!this.userHasInteracted) {
+      console.log('Cannot start music - user has not interacted yet');
+      return;
+    }
+    
+    // Prevent multiple simultaneous start attempts
+    if (this.isStartingMusic) {
+      return;
+    }
+    
+    this.isStartingMusic = true;
+    
+    // Resume audio context if suspended
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().then(() => {
+        this.attemptPlay();
+      }).catch(error => {
+        console.error('Failed to resume audio context:', error);
+        this.attemptPlay();
+      });
+    } else {
+      this.attemptPlay();
+    }
+  }
+
+  // Attempt to play the music
+  attemptPlay() {
+    if (!this.backgroundMusic || !this.isMusicLoaded) {
+      this.isStartingMusic = false;
+      return;
+    }
+
+    if (this.musicVolume <= 0) {
+      this.isStartingMusic = false;
+      return;
+    }
+
+    try {
+      // Reset to beginning and play
+      this.backgroundMusic.currentTime = 0;
+      this.backgroundMusic.volume = this.musicVolume;
+      
+      this.backgroundMusic.play().then(() => {
+        console.log('Background music started playing successfully');
+        this.isMusicPlaying = true;
+        this.isStartingMusic = false;
+      }).catch(error => {
         console.error('Error playing music:', error);
         this.isMusicPlaying = false;
-      }
-    } else {
-      console.warn('Music not loaded yet, cannot play');
+        this.isStartingMusic = false;
+        
+        // If autoplay blocked, try muted approach
+        if (error.name === 'NotAllowedError') {
+          this.backgroundMusic.muted = true;
+          this.backgroundMusic.play().then(() => {
+            this.backgroundMusic.muted = false;
+            this.isMusicPlaying = true;
+            this.isStartingMusic = false;
+          }).catch(muteError => {
+            this.isStartingMusic = false;
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in attemptPlay:', error);
+      this.isMusicPlaying = false;
+      this.isStartingMusic = false;
     }
   }
 
-  // Stop playing background music
-  stopMusic() {
-    if (this.backgroundMusic && this.isMusicPlaying) {
-      try {
-        this.backgroundMusic.pause();
-        this.backgroundMusic.currentTime = 0;
-        this.isMusicPlaying = false;
-        console.log('Background music stopped');
-      } catch (error) {
-        console.error('Error stopping music:', error);
-      }
-    }
-  }
-
-  // Restart music (stop and start again)
+  // Restart music (used after games)
   restartMusic() {
+    console.log('Restarting music...');
     this.stopMusic();
-    // Small delay to ensure stop completes
     setTimeout(() => {
-      this.playMusic();
+      this.startMusic();
     }, 100);
   }
 
-  // Set music volume (0.0 to 1.0)
+  // Stop music
+  stopMusic() {
+    if (this.backgroundMusic && this.isMusicPlaying) {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+      this.isMusicPlaying = false;
+      console.log('Music stopped');
+    }
+  }
+
+  // Debug method to check audio status
+  debugStatus() {
+    console.log('=== Audio Debug Status ===');
+    console.log(`isMusicLoaded: ${this.isMusicLoaded}`);
+    console.log(`isMusicPlaying: ${this.isMusicPlaying}`);
+    console.log(`musicVolume: ${this.musicVolume}`);
+    console.log(`userHasInteracted: ${this.userHasInteracted}`);
+    
+    if (this.backgroundMusic) {
+      console.log(`Audio element readyState: ${this.backgroundMusic.readyState}`);
+      console.log(`Audio element networkState: ${this.backgroundMusic.networkState}`);
+      console.log(`Audio element currentTime: ${this.backgroundMusic.currentTime}`);
+      console.log(`Audio element volume: ${this.backgroundMusic.volume}`);
+      console.log(`Audio element paused: ${this.backgroundMusic.paused}`);
+      console.log(`Audio element src: ${this.backgroundMusic.src}`);
+      console.log(`Audio element error: ${this.backgroundMusic.error ? this.backgroundMusic.error.message : 'None'}`);
+    } else {
+      console.log('No audio element');
+    }
+    
+    if (this.audioContext) {
+      console.log(`Audio context state: ${this.audioContext.state}`);
+    } else {
+      console.log('No audio context');
+    }
+    console.log('========================');
+  }
+
+  // Force restart music (for debugging)
+  forceRestart() {
+    console.log('Force restarting music...');
+    this.isMusicLoaded = false;
+    this.isMusicPlaying = false;
+    
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+      this.backgroundMusic.load(); // Reload the audio
+    }
+    
+    setTimeout(() => {
+      this.startMusic();
+    }, 500);
+  }
+
+  // Set music volume
   setMusicVolume(volume) {
     const oldVolume = this.musicVolume;
     this.musicVolume = Math.max(0, Math.min(1, volume));
     
-    console.log(`setMusicVolume called - Old: ${oldVolume.toFixed(3)}, New: ${this.musicVolume.toFixed(3)}, Volume param: ${volume.toFixed(3)}`);
+    console.log(`setMusicVolume called - Old: ${oldVolume.toFixed(3)}, New: ${this.musicVolume.toFixed(3)}`);
     
     if (this.backgroundMusic) {
-      // Force the volume to be set and verify it
       this.backgroundMusic.volume = this.musicVolume;
       
-      // Double-check that the volume was actually set
-      setTimeout(() => {
-        const actualVolume = this.backgroundMusic.volume;
-        console.log(`Audio element volume verification - Expected: ${this.musicVolume.toFixed(3)}, Actual: ${actualVolume.toFixed(3)}`);
-        
-        if (Math.abs(actualVolume - this.musicVolume) > 0.001) {
-          console.warn('Volume mismatch detected, forcing volume again');
-          this.backgroundMusic.volume = this.musicVolume;
-        }
-      }, 10);
-      
-      console.log(`Audio element volume set to: ${this.backgroundMusic.volume.toFixed(3)}`);
-      
-      // If volume is 0, pause the music (mute it)
+      // If volume is 0, pause the music
       if (this.musicVolume === 0) {
-        console.log('Volume is 0, pausing music');
         this.backgroundMusic.pause();
         this.isMusicPlaying = false;
       } else if (this.isMusicLoaded && !this.isMusicPlaying) {
-        // If volume is not 0 and music was previously playing, resume it
-        console.log('Volume > 0, resuming music');
-        this.backgroundMusic.play().then(() => {
-          this.isMusicPlaying = true;
-          console.log('Music resumed successfully');
-        }).catch(error => {
-          console.error('Error resuming music:', error);
-          this.isMusicPlaying = false;
-        });
+        // If volume is not 0 and music was paused, resume it
+        this.startMusic();
       }
     }
   }
@@ -160,45 +279,28 @@ class AudioManager {
     return this.isMusicLoaded;
   }
   
-  // Check if music should be playing (loaded and volume > 0)
+  // Check if music should be playing
   shouldBePlaying() {
     return this.isMusicLoaded && this.musicVolume > 0;
   }
   
-  // Force mute the audio element
+  // Force mute
   forceMute() {
     if (this.backgroundMusic) {
-      console.log('Force muting audio element');
       this.backgroundMusic.volume = 0;
       this.backgroundMusic.pause();
       this.isMusicPlaying = false;
       this.musicVolume = 0;
-      
-      // Double-check that it's actually muted
-      setTimeout(() => {
-        if (this.backgroundMusic.volume > 0) {
-          console.warn('Volume still not 0, forcing again');
-          this.backgroundMusic.volume = 0;
-          this.backgroundMusic.pause();
-        }
-        console.log(`Final volume check: ${this.backgroundMusic.volume}`);
-      }, 50);
     }
   }
   
-  // Force unmute the audio element
+  // Force unmute
   forceUnmute(volume) {
     if (this.backgroundMusic) {
-      console.log(`Force unmuting audio element with volume: ${volume}`);
       this.musicVolume = Math.max(0, Math.min(1, volume));
       this.backgroundMusic.volume = this.musicVolume;
       if (this.isMusicLoaded && this.musicVolume > 0) {
-        this.backgroundMusic.play().then(() => {
-          this.isMusicPlaying = true;
-        }).catch(error => {
-          console.error('Error resuming music:', error);
-          this.isMusicPlaying = false;
-        });
+        this.startMusic();
       }
     }
   }
@@ -210,6 +312,31 @@ const audioManager = new AudioManager();
 // Make audio manager globally available
 window.audioManager = audioManager;
 
+// Add global debug commands
+window.debugAudio = () => {
+  if (audioManager) {
+    audioManager.debugStatus();
+  } else {
+    console.log('AudioManager not available');
+  }
+};
+
+window.forceRestartAudio = () => {
+  if (audioManager) {
+    audioManager.forceRestart();
+  } else {
+    console.log('AudioManager not available');
+  }
+};
+
+window.startAudio = () => {
+  if (audioManager) {
+    audioManager.startMusic();
+  } else {
+    console.log('AudioManager not available');
+  }
+};
+
 // Update volume when settings are ready
 window.addEventListener('DOMContentLoaded', () => {
   // Wait a bit for settings to initialize
@@ -219,6 +346,15 @@ window.addEventListener('DOMContentLoaded', () => {
       window.settings.updateAudioVolume();
     }
   }, 500);
+});
+
+// Add a fallback mechanism to ensure audio plays
+window.addEventListener('startupComplete', () => {
+  console.log('Startup complete, ensuring audio is ready...');
+  if (audioManager && !audioManager.isPlaying() && audioManager.shouldBePlaying()) {
+    console.log('Audio should be playing but isn\'t, attempting to start...');
+    audioManager.startMusic();
+  }
 });
 
 // Export for use in other modules
