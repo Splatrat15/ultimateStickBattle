@@ -58,7 +58,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const title = menu.querySelector('h1');
   title.parentNode.insertBefore(timerLivesDisplay, title.nextSibling);
 
-  // Add click event listener to open settings
+  // Add click event listener to toggle settings
   timerLivesDisplay.addEventListener('click', () => {
     if (window.settings && typeof window.settings.toggleSettings === 'function') {
       window.settings.toggleSettings();
@@ -455,18 +455,7 @@ window.addEventListener('DOMContentLoaded', () => {
   showCharacterName(characterBoxElements[p1Index]?.querySelector('.characterName')?.textContent, '1');
   showCharacterName(characterBoxElements[p2Index]?.querySelector('.characterName')?.textContent, '2');
   
-  // Add escape key listener to open settings
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      // Only handle escape if character menu is visible
-      if (menu.style.display !== 'none') {
-        // Check if settings system exists and toggle it
-        if (window.settings && typeof window.settings.toggleSettings === 'function') {
-          window.settings.toggleSettings();
-        }
-      }
-    }
-  });
+
 
   // Remove any old controls for player label boxes (these are now handled by showCharacterName)
   const oldP1Controls = player1Box.querySelector('.playerLabelBox');
