@@ -19,6 +19,13 @@ const RESET_COOLDOWN = 30; // Frames to wait between resets
 // Pause state
 let isPaused = false;
 
+// Victory screen state
+let showVictoryScreen = false;
+let victoryText = '';
+let victoryColor = '#ffffff';
+let victoryStartTime = 0;
+const VICTORY_DISPLAY_TIME = 10000; // 3 seconds to display victory screen
+
 // Timer and lives state
 let gameTimer = 300; // 5 minutes in seconds (default)
 let gameLives = 3; // Default lives
@@ -298,6 +305,12 @@ function drawStage() {
   
   // Draw platform with Battlefield style
   drawBattlefieldPlatform();
+  
+  // If victory screen is active and game is started, draw it and return early
+  if (showVictoryScreen && gameStarted) {
+    drawVictoryScreen();
+    return;
+  }
   
   // Draw players
   [player1, player2].forEach((player, index) => {
@@ -604,6 +617,173 @@ function drawEnhancedUSBDesign(x, y, width, height) {
   ctx.fillText('USB', centerX, centerY);
 }
 
+function drawVictoryScreen() {
+  // Safety check - don't draw if game is not properly initialized
+  if (!gameStarted || !canvas) {
+    return;
+  }
+  
+  const currentTime = Date.now();
+  const timeElapsed = currentTime - victoryStartTime;
+  
+  // Draw animated background with fighting game effects
+  drawVictoryBackground(timeElapsed);
+  
+  // Draw victory text with enhanced styling
+  const victoryTextSize = getScaledTextSize(64);
+  const subtitleTextSize = getScaledTextSize(28);
+  
+  // Draw victory text with glow effect
+  ctx.font = `bold ${victoryTextSize}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  // Draw glow effect
+  ctx.shadowColor = victoryColor;
+  ctx.shadowBlur = getScaledSize(20);
+  ctx.fillStyle = victoryColor;
+  ctx.fillText(victoryText, canvas.width / 2, canvas.height / 2 - getScaledSize(80));
+  
+  // Reset shadow
+  ctx.shadowBlur = 0;
+  
+  // Draw subtitle with animation
+  ctx.font = `bold ${subtitleTextSize}px Arial`;
+  ctx.fillStyle = '#ffffff';
+  
+  if (timeElapsed < 2000) {
+    // First 2 seconds - show "Victory!" message with pulse effect
+    const pulseScale = 1 + Math.sin(timeElapsed * 0.01) * 0.1;
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2 + getScaledSize(20));
+    ctx.scale(pulseScale, pulseScale);
+    ctx.fillText('Victory!', 0, 0);
+    ctx.restore();
+  } else {
+    // After 2 seconds - show skip instruction
+    ctx.fillText('Press any key or button to continue', canvas.width / 2, canvas.height / 2 + getScaledSize(20));
+  }
+  
+  // Draw kill count with fighting game style
+  drawKillCount();
+  
+  // Draw victory effects
+  drawVictoryEffects(timeElapsed);
+}
+
+function drawVictoryBackground(timeElapsed) {
+  // Safety check
+  if (!canvas || !ctx) {
+    return;
+  }
+  
+  // Create animated gradient background
+  const gradient = ctx.createRadialGradient(
+    canvas.width / 2, canvas.height / 2, 0,
+    canvas.width / 2, canvas.height / 2, canvas.width / 2
+  );
+  
+  // Animate colors based on time
+  const hue = (timeElapsed * 0.1) % 360;
+  const saturation = 50 + Math.sin(timeElapsed * 0.005) * 20;
+  
+  gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, 20%, 0.9)`);
+  gradient.addColorStop(0.5, `hsla(${hue + 30}, ${saturation}%, 15%, 0.8)`);
+  gradient.addColorStop(1, `hsla(${hue + 60}, ${saturation}%, 10%, 0.9)`);
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw animated energy rings
+  for (let i = 0; i < 5; i++) {
+    const ringRadius = getScaledSize(100) + Math.sin(timeElapsed * 0.002 + i) * getScaledSize(50) + i * getScaledSize(80);
+    const alpha = 0.1 - (i * 0.02);
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = getScaledSize(3);
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, canvas.height / 2, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawKillCount() {
+  // Safety check
+  if (!canvas || !ctx) {
+    return;
+  }
+  
+  const killTextSize = getScaledTextSize(32);
+  const killY = canvas.height / 2 + getScaledSize(120);
+  
+  ctx.font = `bold ${killTextSize}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  
+  // Calculate kills (3 - remaining lives)
+  const player1Kills = 3 - player1Lives;
+  const player2Kills = 3 - player2Lives;
+  
+  // Draw kill count with fighting game style
+  ctx.fillText(`Kills: ${player1Kills} - ${player2Kills}`, canvas.width / 2, killY);
+  
+  // Draw character names above kills
+  const nameTextSize = getScaledTextSize(24);
+  ctx.font = `bold ${nameTextSize}px Arial`;
+  
+  const player1Name = window.selectedCharacter1 || 'Player 1';
+  const player2Name = window.selectedCharacter2 || 'Player 2';
+  
+  ctx.fillStyle = '#2196f3'; // Blue for player 1
+  ctx.fillText(player1Name, canvas.width / 2 - getScaledSize(150), killY - getScaledSize(40));
+  
+  ctx.fillStyle = '#e53935'; // Red for player 2
+  ctx.fillText(player2Name, canvas.width / 2 + getScaledSize(150), killY - getScaledSize(40));
+}
+
+function drawVictoryEffects(timeElapsed) {
+  // Safety check
+  if (!canvas || !ctx) {
+    return;
+  }
+  
+  // Draw floating particles
+  for (let i = 0; i < 20; i++) {
+    const angle = (i / 20) * Math.PI * 2 + timeElapsed * 0.001;
+    const radius = getScaledSize(200) + Math.sin(timeElapsed * 0.002 + i) * getScaledSize(50);
+    const x = canvas.width / 2 + Math.cos(angle) * radius;
+    const y = canvas.height / 2 + Math.sin(angle) * radius;
+    const size = Math.max(1, Math.sin(timeElapsed * 0.003 + i) * getScaledSize(3) + getScaledSize(2));
+    
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(timeElapsed * 0.002 + i) * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Draw victory sparkles
+  for (let i = 0; i < 15; i++) {
+    const sparkleX = canvas.width / 2 + (Math.random() - 0.5) * canvas.width * 0.8;
+    const sparkleY = canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.6;
+    const sparkleSize = Math.max(1, getScaledSize(4));
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(timeElapsed * 0.005 + i) * 0.3})`;
+    ctx.lineWidth = getScaledSize(2);
+    
+    // Draw star shape
+    ctx.beginPath();
+    for (let j = 0; j < 5; j++) {
+      const angle = (j / 5) * Math.PI * 2;
+      const x = sparkleX + Math.cos(angle) * sparkleSize;
+      const y = sparkleY + Math.sin(angle) * sparkleSize;
+      if (j === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+}
+
 function resetGame() {
   // Prevent update loop from running after leaving game
   window.gameIsTrulyOver = true;
@@ -616,6 +796,12 @@ function resetGame() {
   isPaused = false; // Reset pause state
   frameCount = 0;
   lastResetFrame = 0;
+  
+  // Reset victory screen state
+  showVictoryScreen = false;
+  victoryText = '';
+  victoryColor = '#ffffff';
+  victoryStartTime = 0;
   
   // Reset input state
   resetKeys();
@@ -660,6 +846,20 @@ function pollGamepadsLoop() {
 requestAnimationFrame(pollGamepadsLoop);
 
 function handleGamepadForPlayer(gp, player, prevIndex) {
+  // Handle victory screen input
+  if (showVictoryScreen) {
+    // Allow skipping victory screen after minimum time (2 seconds)
+    const currentTime = Date.now();
+    if (currentTime - victoryStartTime >= 2000) {
+      const anyButtonPressed = gp.buttons.some(btn => btn?.pressed);
+      const anyStickMovement = Math.abs(gp.axes[0]) > 0.2 || Math.abs(gp.axes[1]) > 0.2;
+      if (anyButtonPressed || anyStickMovement) {
+        resetGame();
+        return;
+      }
+    }
+  }
+  
   // Axes: 0 = left/right, 1 = up/down
   const lx = gp.axes[0] || 0;
   const ly = gp.axes[1] || 0;
@@ -766,6 +966,23 @@ function update() {
     return;
   }
 
+  // Check if victory screen is active
+  if (showVictoryScreen) {
+    // Check if enough time has passed
+    const currentTime = Date.now();
+    if (currentTime - victoryStartTime >= VICTORY_DISPLAY_TIME) {
+      // Return to character menu after the full display time
+      resetGame();
+      requestAnimationFrame(update);
+      return;
+    }
+    
+    // Draw victory screen
+    drawStage();
+    requestAnimationFrame(update);
+    return;
+  }
+
   // Check if game is paused
   if (isPaused) {
     // Still draw the stage but don't update game logic
@@ -828,15 +1045,33 @@ function update() {
       winnerCharacter = window.selectedCharacter1;
     }
     
+    // Set up victory screen
     if (winnerName === 'Tie') {
-      alert(`Game Over - Tie! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
+      victoryText = 'Tie';
+      victoryColor = '#ffffff'; // White for tie
     } else {
-      alert(`${winnerName} (${winnerCharacter}) wins! Final Score - Player 1: ${player1Lives} lives, ${player1.damage}% damage | Player 2: ${player2Lives} lives, ${player2.damage}% damage`);
+      // Determine color based on winner
+      if (winner === player1) {
+        // Player 1 wins - use blue color
+        victoryColor = '#2196f3';
+      } else if (winner === player2) {
+        // Player 2 wins - use red color
+        victoryColor = '#e53935';
+      } else {
+        // CPU wins - use grey color
+        victoryColor = '#808080';
+      }
+      
+      // Set victory text to character name
+      victoryText = `${winnerCharacter} Wins!`;
     }
     
-    // Reset game and return to character menu
-    resetGame();
-    requestAnimationFrame(update); // Keep the game loop alive in an idle state
+    // Show victory screen
+    showVictoryScreen = true;
+    victoryStartTime = Date.now();
+    
+    // Continue the game loop to show victory screen
+    requestAnimationFrame(update);
     return;
   }
 
@@ -931,6 +1166,16 @@ function update() {
 
 // Input handling
 window.addEventListener('keydown', (e) => {
+  // Handle victory screen input
+  if (showVictoryScreen) {
+    // Allow skipping victory screen after minimum time (2 seconds)
+    const currentTime = Date.now();
+    if (currentTime - victoryStartTime >= 2000) {
+      resetGame();
+      return;
+    }
+  }
+  
   if (!gameStarted) return;
   // Don't process game input if paused
   if (isPaused) return;
@@ -1093,6 +1338,12 @@ window.addEventListener('startGame', (e) => {
   
   // Reset the game over flag so update loop resumes
   window.gameIsTrulyOver = false;
+  
+  // Reset victory screen state
+  showVictoryScreen = false;
+  victoryText = '';
+  victoryColor = '#ffffff';
+  victoryStartTime = 0;
   
   // Initialize timer and lives from settings - ensure they are never null
   gameTimer = window.gameTimer || 300;
