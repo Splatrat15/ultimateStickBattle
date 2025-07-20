@@ -42,11 +42,6 @@ class Settings {
   }
 
   init() {
-    // ✅ Initialize EmailJS ONCE after DOM is ready
-    if (typeof emailjs !== 'undefined') {
-      emailjs.init('v_6THrO7foWXXRzq2');
-    }
-    
     this.createSettingsButton();
     this.createSettingsModal();
     this.addEventListeners();

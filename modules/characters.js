@@ -68,8 +68,8 @@ export const characters = {
     moveset: defaultMoveset,
   }
 };
-
 // Function to get character by name
 export function getCharacter(name) {
   return characters[name.toLowerCase()] || null;
 }
+
