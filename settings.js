@@ -731,7 +731,11 @@ class Settings {
     const effectiveMusicVolume = (this.gameSettings.masterVolume * this.gameSettings.musicVolume) / 100;
     const normalizedMusicVolume = effectiveMusicVolume / 100; // Convert to 0.0-1.0 range
     
-    console.log(`updateAudioVolume called - Master: ${this.gameSettings.masterVolume}%, Music: ${this.gameSettings.musicVolume}%, Effective: ${effectiveMusicVolume.toFixed(1)}%, Normalized: ${normalizedMusicVolume.toFixed(3)}`);
+    // Calculate effective SFX volume (master volume * sfx volume / 100)
+    const effectiveSFXVolume = (this.gameSettings.masterVolume * this.gameSettings.sfxVolume) / 100;
+    const normalizedSFXVolume = effectiveSFXVolume / 100; // Convert to 0.0-1.0 range
+    
+    console.log(`updateAudioVolume called - Master: ${this.gameSettings.masterVolume}%, Music: ${this.gameSettings.musicVolume}%, SFX: ${this.gameSettings.sfxVolume}%, Effective Music: ${effectiveMusicVolume.toFixed(1)}%, Effective SFX: ${effectiveSFXVolume.toFixed(1)}%`);
     
     // Update audio manager if it exists
     if (window.audioManager && typeof window.audioManager.setMusicVolume === 'function') {
@@ -741,7 +745,13 @@ class Settings {
       console.warn('Audio manager not available');
     }
     
-    console.log(`Audio volume updated - Master: ${this.gameSettings.masterVolume}%, Music: ${this.gameSettings.musicVolume}%, Effective: ${effectiveMusicVolume.toFixed(1)}%`);
+    // Update SFX volume if audio manager supports it
+    if (window.audioManager && typeof window.audioManager.setSFXVolume === 'function') {
+      console.log('Calling audioManager.setSFXVolume...');
+      window.audioManager.setSFXVolume(normalizedSFXVolume);
+    }
+    
+    console.log(`Audio volume updated - Master: ${this.gameSettings.masterVolume}%, Music: ${this.gameSettings.musicVolume}%, SFX: ${this.gameSettings.sfxVolume}%`);
   }
   
   // Update volume in real-time when sliders are moved

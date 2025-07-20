@@ -41,6 +41,7 @@ export class Player extends PhysicsBody {
     this.chargeTime = 0;
     this.maxChargeTime = 120; // 2 seconds at 60fps (increased from 60)
     this.chargeLevel = 0; // 0-1 scale
+    this.demonBreathingSound = null; // Track the demon breathing sound
 
     // Initialize character-specific properties
     if (this.characterName === 'Kaon') {
@@ -125,6 +126,7 @@ export class Player extends PhysicsBody {
     this.isCharging = false;
     this.chargeTime = 0;
     this.chargeLevel = 0;
+    this.demonBreathingSound = null; // Reset sound
 
     // Reset character-specific properties
     if (this.characterName === 'Kaon') {
@@ -559,7 +561,11 @@ export class Player extends PhysicsBody {
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
-        this.createAttackHitbox();
+        
+        // Play metal hit woosh sound for Shadow Sneak
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
       } else if (move.name === 'Rising Cut') {
         // Start Rising Cut sword swing animation
         if (this.risingCutSwing) {
@@ -609,6 +615,11 @@ export class Player extends PhysicsBody {
         
         // Create initial hitbox
         this.createAttackHitbox();
+        
+        // Play metal hit woosh sound for Phantom Slash
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
       } else if (move.name === 'Demon Fang') {
         // For Demon Fang, teleport and hit anyone in the path
         const thrustDistance = 100 + (this.chargeLevel * 200); // 100-300px dash
@@ -620,6 +631,11 @@ export class Player extends PhysicsBody {
           
           // Teleport to end position
           this.x = this.demonFangEffects.endX;
+        }
+      } else if (move.name === 'Void Splitter') {
+        // Play metal hit woosh sound for Void Splitter
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
         }
       }
     }
@@ -1261,12 +1277,28 @@ export class Player extends PhysicsBody {
     this.isCharging = true;
     this.chargeTime = 0;
     this.chargeLevel = 0;
+    this.demonBreathingSound = null; // Reset sound
+    
+    // Play demon breathing sound for Rakka's Demon Fang
+    if (this.characterName === 'Rakka' && this.activeMove && this.activeMove.name === 'Demon Fang') {
+      if (window.audioManager && typeof window.audioManager.playSoundEffect === 'function') {
+        this.demonBreathingSound = window.audioManager.playSoundEffect('demonBreathing');
+      }
+    }
   }
 
   releaseCharge() {
     if (this.isCharging) {
       
       this.isCharging = false;
+      
+      // Stop the demon breathing sound
+      if (this.demonBreathingSound) {
+        if (window.audioManager && typeof window.audioManager.stopSoundEffect === 'function') {
+          window.audioManager.stopSoundEffect('demonBreathing');
+        }
+        this.demonBreathingSound = null;
+      }
       
       // Only fire if we have some charge and the move is chargeable
       if (this.chargeLevel > 0.1) {
@@ -1325,6 +1357,11 @@ export class Player extends PhysicsBody {
           this.demonFangAlreadyHit = new Set();
 
         }
+        
+        // Play metal hit woosh sound for Demon Fang
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
       } else if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
         if (this.shadowSneak && this.shadowSneak.active) {
@@ -1348,6 +1385,11 @@ export class Player extends PhysicsBody {
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
+        
+        // Play metal hit woosh sound for Shadow Sneak
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
       }
     }
     

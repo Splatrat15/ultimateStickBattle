@@ -12,6 +12,10 @@ class AudioManager {
     this.userHasInteracted = false;
     this.isStartingMusic = false; // Prevent multiple simultaneous start attempts
     
+    // Sound effects
+    this.soundEffects = {};
+    this.sfxVolume = 0.9; // Default SFX volume
+    
     // Battle music shuffle system
     this.battleMusicPlaylist = [
       'assets/battleMusic/8-bit-space-123218.mp3',
@@ -85,6 +89,11 @@ class AudioManager {
       
       // Initialize battle music queue
       this.shuffleBattleMusic();
+      
+      // Load sound effects
+      this.loadSoundEffect('demonBreathing', 'assets/sounds/mixkit-creepy-demon-heavy-breathing-2240.wav');
+      this.loadSoundEffect('metalHitWoosh', 'assets/sounds/mixkit-metal-hit-woosh-1485.wav');
+      this.loadSoundEffect('daggerWoosh', 'assets/sounds/mixkit-dagger-woosh-1487.wav');
       
       // Handle background music loading
       this.backgroundMusic.addEventListener('canplaythrough', () => {
@@ -619,6 +628,75 @@ class AudioManager {
     setTimeout(() => {
       this.startBattleMusic();
     }, 100);
+  }
+
+  // Load a sound effect
+  loadSoundEffect(name, src) {
+    if (this.soundEffects[name]) {
+      return; // Already loaded
+    }
+    
+    const audio = new Audio();
+    audio.src = src;
+    audio.volume = this.sfxVolume;
+    audio.preload = 'auto';
+    
+    this.soundEffects[name] = audio;
+  }
+
+  // Play a sound effect
+  playSoundEffect(name, volumeMultiplier = 1.0) {
+    if (!this.userHasInteracted) {
+      return null; // Don't play sounds before user interaction
+    }
+    
+    const sound = this.soundEffects[name];
+    if (!sound) {
+      console.warn(`Sound effect '${name}' not loaded`);
+      return null;
+    }
+    
+    try {
+      // Reset to beginning and play
+      sound.currentTime = 0;
+      sound.volume = this.sfxVolume * volumeMultiplier;
+      sound.play().catch(error => {
+        console.error(`Error playing sound effect '${name}':`, error);
+      });
+      return sound; // Return the audio element for control
+    } catch (error) {
+      console.error(`Error playing sound effect '${name}':`, error);
+      return null;
+    }
+  }
+
+  // Play sword slash sound effect at 35% volume
+  playSwordSlashSound() {
+    this.playSoundEffect('metalHitWoosh', 0.35);
+  }
+
+  // Play dagger woosh sound effect for light attacks
+  playDaggerWooshSound() {
+    this.playSoundEffect('daggerWoosh', 0.35);
+  }
+
+  // Stop a sound effect
+  stopSoundEffect(name) {
+    const sound = this.soundEffects[name];
+    if (sound) {
+      sound.pause();
+      sound.currentTime = 0;
+    }
+  }
+
+  // Set SFX volume
+  setSFXVolume(volume) {
+    this.sfxVolume = Math.max(0, Math.min(1, volume));
+    
+    // Update volume for all loaded sound effects
+    Object.values(this.soundEffects).forEach(sound => {
+      sound.volume = this.sfxVolume;
+    });
   }
 }
 
