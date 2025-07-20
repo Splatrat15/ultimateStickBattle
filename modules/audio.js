@@ -95,6 +95,9 @@ class AudioManager {
       this.loadSoundEffect('metalHitWoosh', 'assets/sounds/mixkit-metal-hit-woosh-1485.wav');
       this.loadSoundEffect('daggerWoosh', 'assets/sounds/mixkit-dagger-woosh-1487.wav');
       this.loadSoundEffect('swordStrikesArmor', 'assets/sounds/mixkit-sword-strikes-armor-2765.wav');
+      this.loadSoundEffect('electricityStatic', 'assets/sounds/mixkit-electricity-static-power-up-2600.wav');
+      this.loadSoundEffect('laserCannonShot', 'assets/sounds/mixkit-laser-cannon-shot-1678.wav');
+      this.loadSoundEffect('impactOfBlow', 'assets/sounds/mixkit-impact-of-a-blow-2150.wav');
       
       // Handle background music loading
       this.backgroundMusic.addEventListener('canplaythrough', () => {
@@ -686,12 +689,35 @@ class AudioManager {
     this.playSoundEffect('swordStrikesArmor', 0.35);
   }
 
+  // Play electricity static sound effect for Kaon's charging
+  playElectricityStaticSound() {
+    const sound = this.playSoundEffect('electricityStatic', 0.35);
+    if (sound) {
+      // Ensure the sound doesn't loop
+      sound.loop = false;
+    }
+    return sound;
+  }
+
+  // Play laser cannon shot sound effect for Kaon's heavy attacks
+  playLaserCannonShotSound() {
+    this.playSoundEffect('laserCannonShot', 0.35);
+  }
+
+  // Play impact of blow sound effect for Kaon's hits
+  playImpactOfBlowSound() {
+    this.playSoundEffect('impactOfBlow', 0.35);
+  }
+
   // Stop a sound effect
   stopSoundEffect(name) {
     const sound = this.soundEffects[name];
     if (sound) {
+      console.log(`Stopping sound effect: ${name}`);
       sound.pause();
       sound.currentTime = 0;
+    } else {
+      console.warn(`Sound effect '${name}' not found to stop`);
     }
   }
 
