@@ -994,12 +994,7 @@ class Settings {
     // Show confirmation dialog
     if (confirm('Are you sure you want to leave the game?')) {
       window.close();
-      // If window is not closed, show a message
-      setTimeout(() => {
-        if (!window.closed) {
-          alert('Unable to close the window automatically. Please close the tab or window manually.');
-        }
-      }, 300);
+      // No alert if window.close() fails
     }
   }
 
