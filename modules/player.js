@@ -468,6 +468,11 @@ export class Player extends PhysicsBody {
         this.rakkaJabComboStep = 1;
         this.rakkaJabComboTimer = 0;
       }
+      
+      // Play dagger woosh sound for Quick Draw
+      if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+        window.audioManager.playDaggerWooshSound();
+      }
       return;
     }
 
@@ -495,6 +500,11 @@ export class Player extends PhysicsBody {
       this.rakkaShadowSliceActive = true;
       this.rakkaShadowSliceFrames = move.duration; // Lunge for the duration of the move
       this.rakkaShadowSliceLungeSpeed = 7.5; // Adjusted for longer duration (was 12, now 7.5 for similar total distance)
+      
+      // Play dagger woosh sound for Shadow Slice
+      if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+        window.audioManager.playDaggerWooshSound();
+      }
     }
 
     // Aerial restrictions for heavy attacks
@@ -576,6 +586,11 @@ export class Player extends PhysicsBody {
           this.risingCutSwing.shadowTrails = [];
           this.risingCutSwing.trailFrame = 0;
         }
+        
+        // Play dagger woosh sound for Rising Cut
+        if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+          window.audioManager.playDaggerWooshSound();
+        }
       } else if (move.name === 'Ground Poke') {
         // Start Down Light sword swing animation based on grounded/aerial state
         if (this.downLightSwing) {
@@ -596,6 +611,11 @@ export class Player extends PhysicsBody {
             this.downLightSwing.startAngle = move.aerialSwing.startAngle;
             this.downLightSwing.endAngle = move.aerialSwing.endAngle;
           }
+        }
+        
+        // Play dagger woosh sound for Ground Poke
+        if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+          window.audioManager.playDaggerWooshSound();
         }
       } else if (move.name === 'Phantom Slash') {
         // Set up multi-hit data for Phantom Slash
@@ -1112,6 +1132,12 @@ export class Player extends PhysicsBody {
     // Don't take damage if respawn invincibility is active
     if (this.respawnInvincibilityFrames > 0) return;
     if (this.isShielding) return;
+    
+    // Play sword strikes armor sound for Rakka's attacks when they hit
+    if (attacker.characterName === 'Rakka' && window.audioManager && typeof window.audioManager.playSwordStrikesArmorSound === 'function') {
+      window.audioManager.playSwordStrikesArmorSound();
+    }
+    
     // Get move data
     const move = attacker.activeMove || attacker.moveset?.neutralLight;
     // Always use the set damage % for the attack if available

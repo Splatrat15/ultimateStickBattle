@@ -94,6 +94,7 @@ class AudioManager {
       this.loadSoundEffect('demonBreathing', 'assets/sounds/mixkit-creepy-demon-heavy-breathing-2240.wav');
       this.loadSoundEffect('metalHitWoosh', 'assets/sounds/mixkit-metal-hit-woosh-1485.wav');
       this.loadSoundEffect('daggerWoosh', 'assets/sounds/mixkit-dagger-woosh-1487.wav');
+      this.loadSoundEffect('swordStrikesArmor', 'assets/sounds/mixkit-sword-strikes-armor-2765.wav');
       
       // Handle background music loading
       this.backgroundMusic.addEventListener('canplaythrough', () => {
@@ -678,6 +679,11 @@ class AudioManager {
   // Play dagger woosh sound effect for light attacks
   playDaggerWooshSound() {
     this.playSoundEffect('daggerWoosh', 0.35);
+  }
+
+  // Play sword strikes armor sound effect for hits
+  playSwordStrikesArmorSound() {
+    this.playSoundEffect('swordStrikesArmor', 0.35);
   }
 
   // Stop a sound effect
