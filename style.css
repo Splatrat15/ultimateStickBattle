@@ -20,27 +20,6 @@ canvas {
   position: relative;
 }
 
-#debugOverlay {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: rgba(0,0,0,0.8);
-  color: white;
-  padding: 10px;
-  font-family: monospace;
-  z-index: 1000;
-  border: 1px solid #666;
-  border-radius: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  max-width: 300px;
-  pointer-events: none;
-  text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
-}
-
-#debugOverlay br {
-  margin: 2px 0;
-}
 
 
 
@@ -50,39 +29,10 @@ canvas {
 
 
 
-.tokenLabel {
-  color: white; /* Text color */
-  font-size: 1.2rem; /* Adjust size as needed */
-  font-weight: bold; /* Make the text bold */
-  text-align: center; /* Center the text */
-  width: 100%; /* Make the label take full width of the token */
-}
 
 
 
-.scoreText {
-  color: white; /* Ensure score text is visible */
-  font-size: 1.5rem; /* Adjust font size for better visibility */
-}
 
-/* Add styles for player elements */
-.player {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  pointer-events: none;
-  z-index: 1;
-  box-sizing: border-box;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.player1 {
-  background-color: #2196f3;
-}
-
-.player2 {
-  background-color: #e53935;
-}
 
 
 
