@@ -7,6 +7,7 @@ const CPU_STATES = {
   BLOCK: 'block',
   DODGE: 'dodge',
   RECOVER: 'recover',
+  EDGEGUARD: 'edgeguard', // New state for edgeguarding
 };
 
 export class CPU {
@@ -26,7 +27,10 @@ export class CPU {
     this.shieldTimer = 0;
     this.chargeTimer = 0; // Timer for charging neutral heavy attacks
     this.isCharging = false; // Track if CPU is currently charging
+    this.chargeTime = 0; // Track how long we've been charging
     this.recoveryJumpTimer = 0; // Timer to space out jumps during recovery
+    this.edgeguardTimer = 0; // Timer for edgeguarding behavior
+    this.killMoveCooldown = 0; // Cooldown to prevent spam of kill moves
   }
 
   setDifficultyParams(difficulty) {
@@ -34,47 +38,57 @@ export class CPU {
       case 'EASY':
         this.reactionMin = 30; // slow
         this.reactionMax = 60;
-        this.attackAccuracy = 0.5; // 50% chance to attack when in range
-        this.shieldChance = 0.1; // 10% chance to shield
-        this.comboChance = 0.1;
-        this.heavyChance = 0.1;
-        this.chargeChance = 0.0;
+        this.attackAccuracy = 0.7; // Increased from 0.5
+        this.shieldChance = 0.05; // Reduced from 0.1 - less defensive
+        this.comboChance = 0.3; // Increased from 0.1
+        this.heavyChance = 0.6; // Increased from 0.2
+        this.chargeChance = 0.3; // Increased from 0.1
+        this.killMoveThreshold = 80; // Lowered from 120
+        this.aggressionMultiplier = 1.2; // New: makes CPU more aggressive
         break;
       case 'MEDIUM':
         this.reactionMin = 15;
         this.reactionMax = 30;
-        this.attackAccuracy = 0.8;
-        this.shieldChance = 0.3;
-        this.comboChance = 0.5;
-        this.heavyChance = 0.4;
-        this.chargeChance = 0.3;
+        this.attackAccuracy = 0.9; // Increased from 0.8
+        this.shieldChance = 0.15; // Reduced from 0.3 - less defensive
+        this.comboChance = 0.7; // Increased from 0.5
+        this.heavyChance = 0.8; // Increased from 0.6
+        this.chargeChance = 0.7; // Increased from 0.5
+        this.killMoveThreshold = 60; // Lowered from 80
+        this.aggressionMultiplier = 1.5;
         break;
       case 'HARD':
         this.reactionMin = 5;
         this.reactionMax = 15;
-        this.attackAccuracy = 0.97;
-        this.shieldChance = 0.6;
-        this.comboChance = 0.8;
-        this.heavyChance = 0.7;
-        this.chargeChance = 0.7;
+        this.attackAccuracy = 0.99; // Increased from 0.97
+        this.shieldChance = 0.25; // Reduced from 0.6 - less defensive
+        this.comboChance = 0.9; // Increased from 0.8
+        this.heavyChance = 0.95; // Increased from 0.85
+        this.chargeChance = 0.9; // Increased from 0.8
+        this.killMoveThreshold = 40; // Lowered from 60
+        this.aggressionMultiplier = 2.0;
         break;
       case 'EXPERT':
         this.reactionMin = 1;
         this.reactionMax = 3;
         this.attackAccuracy = 1.0;
-        this.shieldChance = 0.98;
+        this.shieldChance = 0.3; // Reduced from 0.98 - much less defensive
         this.comboChance = 1.0;
         this.heavyChance = 1.0;
         this.chargeChance = 1.0;
+        this.killMoveThreshold = 25; // Lowered from 40
+        this.aggressionMultiplier = 3.0;
         break;
       default:
         this.reactionMin = 15;
         this.reactionMax = 30;
-        this.attackAccuracy = 0.8;
-        this.shieldChance = 0.3;
-        this.comboChance = 0.5;
-        this.heavyChance = 0.4;
-        this.chargeChance = 0.3;
+        this.attackAccuracy = 0.9;
+        this.shieldChance = 0.15;
+        this.comboChance = 0.7;
+        this.heavyChance = 0.8;
+        this.chargeChance = 0.7;
+        this.killMoveThreshold = 60;
+        this.aggressionMultiplier = 1.5;
     }
   }
 
@@ -92,7 +106,98 @@ export class CPU {
         if (this.chargeTimer === 0 && this.isCharging) {
           this.player.releaseCharge();
           this.isCharging = false;
+          this.chargeTime = 0; // Reset charge time
         }
+      }
+      
+      // Update charge time when charging
+      if (this.isCharging) {
+        this.chargeTime++;
+      } else {
+        this.chargeTime = 0; // Reset when not charging
+      }
+      
+      // Special handling for Demon Fang charging - release for movement and positioning
+      if (this.isCharging && this.player.characterName === 'Rakka' && 
+          this.player.activeMove && this.player.activeMove.name === 'Demon Fang') {
+        
+        // Release conditions for Demon Fang:
+        // 1. Charged enough for good damage (15+ frames)
+        // 2. Opponent is in good position for the dash
+        // 3. We need to move to a better position
+        const chargeTime = this.chargeTime || 0;
+        const centerX = this.platform.x + this.platform.width / 2;
+        const distanceFromCenter = Math.abs(this.player.x - centerX);
+        const isNearCenter = distanceFromCenter < 100;
+        
+        // Check if opponent is in good position for Demon Fang
+        const opponentInRange = this.distanceToTarget < 200 && this.distanceToTarget > 50;
+        const opponentInDashPath = Math.abs(this.player.y - this.otherPlayer.y) < 30;
+        
+        // Release for damage if opponent is in good position
+        const goodTarget = opponentInRange && opponentInDashPath && chargeTime > 15;
+        
+        // Release for movement if we're not in center and have enough charge
+        const needMovement = !isNearCenter && chargeTime > 10;
+        
+        // Emergency release if charging too long
+        const emergencyRelease = chargeTime > 50;
+        
+        if (goodTarget || needMovement || emergencyRelease) {
+          this.player.releaseCharge();
+          this.isCharging = false;
+          this.chargeTimer = 0;
+          this.chargeTime = 0;
+        }
+      }
+      
+      // Special handling for Shadow Sneak charging - release early if shadow is in good position
+      if (this.isCharging && this.player.characterName === 'Rakka' && 
+          this.player.activeMove && this.player.activeMove.name === 'Shadow Sneak') {
+        
+        // Check if shadow is in a good position to release
+        if (this.player.shadowSneak && this.player.shadowSneak.active) {
+          const shadowX = this.player.shadowSneak.x;
+          const platformLeft = this.platform.x + 30;
+          const platformRight = this.platform.x + this.platform.width - 30;
+          
+          // Check if opponent is near the shadow position (good target)
+          const shadowToOpponent = Math.abs(shadowX - this.otherPlayer.x);
+          const opponentNearShadow = shadowToOpponent < 80;
+          
+          // Check if shadow is on stage
+          const shadowOnStage = shadowX >= platformLeft && shadowX <= platformRight;
+          
+          // Release conditions:
+          // 1. Shadow is on stage AND opponent is near shadow (ideal)
+          // 2. Shadow is on stage AND we've charged enough (safe)
+          // 3. Emergency: shadow is going off-screen
+          const idealRelease = shadowOnStage && opponentNearShadow && this.chargeTime > 10;
+          const safeRelease = shadowOnStage && this.chargeTime > 20;
+          const emergencyRelease = !shadowOnStage || this.chargeTime > 45;
+          
+          if (idealRelease || safeRelease || emergencyRelease) {
+            this.player.releaseCharge();
+            this.isCharging = false;
+            this.chargeTimer = 0;
+            this.chargeTime = 0;
+          }
+        }
+        
+        // Emergency release if charging too long
+        if (this.chargeTime > 60) {
+          this.player.releaseCharge();
+          this.isCharging = false;
+          this.chargeTimer = 0;
+          this.chargeTime = 0;
+        }
+      }
+      
+      if (this.edgeguardTimer > 0) {
+        this.edgeguardTimer--;
+      }
+      if (this.killMoveCooldown > 0) {
+        this.killMoveCooldown--;
       }
       if (this.reactionTimer > 0) {
         this.reactionTimer--;
@@ -124,8 +229,17 @@ export class CPU {
     const shouldRecover = this.player.y > this.platform.y + 120;
     const shouldApproach = this.distanceToTarget > 60;
     const shouldAttack = inRange && !this.player.isAttacking && !this.isCharging;
-    const oppHighPercent = this.otherPlayer.damage > 100;
+    const oppHighPercent = this.otherPlayer.damage > this.killMoveThreshold;
     const selfHighPercent = this.player.damage > 120;
+    
+    // New edgeguarding logic
+    const opponentOffstage = this.otherPlayer.y > this.platform.y + 60 || 
+                            this.otherPlayer.x < this.platform.x - 40 || 
+                            this.otherPlayer.x > this.platform.x + this.platform.width + 40;
+    const canEdgeguard = opponentOffstage && this.player.damage < 80 && 
+                        (this.player.jumpsRemaining > 0 || this.player.isGrounded) &&
+                        this.killMoveCooldown === 0;
+    
     // --- EXPERT: Frame-perfect, always optimal ---
     if (this.difficulty === 'EXPERT') {
       // Always recover if offstage
@@ -133,8 +247,13 @@ export class CPU {
         this.changeState(CPU_STATES.RECOVER);
         return;
       }
-      // Always block if player is attacking and in range
-      if (shouldBlock && !this.player.isShielding) {
+      // Always edgeguard if opponent is offstage and we can safely do so
+      if (canEdgeguard) {
+        this.changeState(CPU_STATES.EDGEGUARD);
+        return;
+      }
+      // Only block if absolutely necessary (very low chance)
+      if (shouldBlock && !this.player.isShielding && Math.random() < 0.1) {
         this.changeState(CPU_STATES.BLOCK);
         return;
       }
@@ -158,14 +277,17 @@ export class CPU {
       return;
     }
     // --- END EXPERT ---
-    // State transitions for other difficulties
+    
+    // State transitions for other difficulties - MUCH MORE AGGRESSIVE
     switch (this.state) {
       case CPU_STATES.IDLE:
         if (shouldRecover) {
           this.changeState(CPU_STATES.RECOVER);
-        } else if (shouldBlock && Math.random() < this.shieldChance) {
+        } else if (canEdgeguard && Math.random() < 0.9) { // Increased from 0.8
+          this.changeState(CPU_STATES.EDGEGUARD);
+        } else if (shouldBlock && Math.random() < this.shieldChance * 0.3) { // Much less likely to shield
           this.changeState(CPU_STATES.BLOCK);
-        } else if (shouldDodge && Math.random() < 0.7) {
+        } else if (shouldDodge && Math.random() < 0.8) { // Increased from 0.7
           this.changeState(CPU_STATES.DODGE);
         } else if (shouldAttack && !selfHighPercent) {
           this.changeState(CPU_STATES.ATTACK);
@@ -176,6 +298,8 @@ export class CPU {
       case CPU_STATES.APPROACH:
         if (shouldAttack && !selfHighPercent) {
           this.changeState(CPU_STATES.ATTACK);
+        } else if (canEdgeguard && Math.random() < 0.8) { // Increased from 0.6
+          this.changeState(CPU_STATES.EDGEGUARD);
         } else if (!shouldApproach || selfHighPercent) {
           this.changeState(CPU_STATES.IDLE);
         }
@@ -186,7 +310,8 @@ export class CPU {
         }
         break;
       case CPU_STATES.BLOCK:
-        if (!shouldBlock) {
+        // Exit block state much faster - don't stay defensive
+        if (!shouldBlock || Math.random() < 0.3) {
           this.changeState(CPU_STATES.IDLE);
         }
         break;
@@ -195,6 +320,11 @@ export class CPU {
         break;
       case CPU_STATES.RECOVER:
         if (isGrounded) {
+          this.changeState(CPU_STATES.IDLE);
+        }
+        break;
+      case CPU_STATES.EDGEGUARD:
+        if (!opponentOffstage || this.player.damage >= 80 || this.killMoveCooldown > 0) {
           this.changeState(CPU_STATES.IDLE);
         }
         break;
@@ -250,6 +380,9 @@ export class CPU {
       case CPU_STATES.RECOVER:
         this.executeRecover();
         break;
+      case CPU_STATES.EDGEGUARD:
+        this.executeEdgeguard();
+        break;
     }
     this.stateTimer++;
   }
@@ -268,6 +401,28 @@ export class CPU {
     const opp = this.otherPlayer;
     const platformCenter = this.platform.x + this.platform.width / 2;
     const stageEdgeBuffer = 60; // How close to the edge before being cautious
+    
+    // Define optimal spacing based on character and situation
+    let optimalDistance = 80; // Default optimal distance
+    
+    // Adjust optimal distance based on character
+    if (char === 'Kaon') {
+      optimalDistance = 90; // Kaon prefers more range for Core Beam
+    } else if (char === 'Rakka') {
+      optimalDistance = 70; // Rakka prefers closer range for sword attacks
+    }
+    
+    // Adjust optimal distance based on opponent's state
+    if (opp.isAttacking) {
+      optimalDistance += 30; // Stay further away when opponent is attacking
+    }
+    if (this.player.damage > 80) {
+      optimalDistance += 20; // Stay further away when at high damage
+    }
+    if (opp.damage > 80) {
+      optimalDistance -= 15; // Get closer when opponent is at high damage (for kills)
+    }
+    
     // If near the edge, prefer to move toward center unless edgeguarding
     if ((this.player.x < this.platform.x + stageEdgeBuffer || this.player.x > this.platform.x + this.platform.width - stageEdgeBuffer)) {
       // If opponent is not offstage, move toward center
@@ -281,6 +436,7 @@ export class CPU {
         return;
       }
     }
+    
     // If opponent is offstage, do NOT follow them offstage. Stay near the edge but don't move off.
     const oppOffstage = (opp.y > this.platform.y + 60 || opp.x < this.platform.x - 40 || opp.x > this.platform.x + this.platform.width + 40);
     if (oppOffstage) {
@@ -294,26 +450,45 @@ export class CPU {
       }
       return;
     }
-    // For Rakka, sometimes approach with a jump (aggressive)
-    if (char === 'Rakka' && dist > 80 && Math.random() < 0.08 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
-      this.tryJump();
-    }
-    // For Kaon, floaty approach (sometimes jump)
-    if (char === 'Kaon' && dist > 80 && Math.random() < 0.05 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
-      this.tryJump();
-    }
-    // Retreat if high damage and close to opponent (defensive play)
-    if (this.player.damage > 100 && dist < 60 && Math.random() < 0.2 * (this.difficulty === 'HARD' ? 2 : 1)) {
-      this.player.move(this.player.x < opp.x ? -1 : 1);
-      return;
-    }
-    // Default: approach
-    if (this.player.x < opp.x - 10) {
-      this.player.move(1);
-    } else if (this.player.x > opp.x + 10) {
-      this.player.move(-1);
-    } else {
+    
+    // MAIN POSITIONING LOGIC - Maintain optimal distance
+    const distanceDiff = dist - optimalDistance;
+    const tolerance = 15; // Acceptable range around optimal distance
+    
+    if (Math.abs(distanceDiff) <= tolerance) {
+      // At optimal distance - hold position or make small adjustments
       this.player.move(0);
+      
+      // Occasionally make small spacing adjustments
+      if (Math.random() < 0.1) {
+        if (distanceDiff > 0) {
+          this.player.move(1); // Move slightly closer
+        } else {
+          this.player.move(-1); // Move slightly away
+        }
+      }
+    } else if (distanceDiff > tolerance) {
+      // Too far away - approach
+      if (this.player.x < opp.x - 5) {
+        this.player.move(1);
+      } else if (this.player.x > opp.x + 5) {
+        this.player.move(-1);
+      }
+    } else {
+      // Too close - back away
+      if (this.player.x < opp.x) {
+        this.player.move(-1); // Move left to get away
+      } else {
+        this.player.move(1); // Move right to get away
+      }
+    }
+    
+    // Character-specific movement adjustments
+    if (char === 'Rakka' && dist > optimalDistance + 20 && Math.random() < 0.08 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
+      this.tryJump(); // Rakka sometimes approaches with jumps
+    }
+    if (char === 'Kaon' && dist > optimalDistance + 30 && Math.random() < 0.05 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
+      this.tryJump(); // Kaon sometimes approaches with jumps
     }
   }
 
@@ -329,124 +504,302 @@ export class CPU {
     const canCombo = Math.random() < this.comboChance;
     const canHeavy = Math.random() < this.heavyChance;
     const canCharge = Math.random() < this.chargeChance;
-    const oppHighPercent = opp.damage > 100;
-    // --- Edgeguard safety check ---
-    const canRecover = this.player.jumpsRemaining > 0 || (!this.player.isGrounded && !this.player.isAttacking && this.player.heavyAttackCooldown === 0);
+    const oppHighPercent = opp.damage > this.killMoveThreshold;
+    const nearEdge = opp.x < this.platform.x + 80 || opp.x > this.platform.x + this.platform.width - 80;
+    
+    // AGGRESSIVE ATTACK LOGIC - Prioritize heavy attacks and kill moves
+    
     // --- Character-specific logic ---
     if (char === 'Kaon') {
-      // If opponent is at high percent, always prefer kill moves
-      if (oppHighPercent && !this.player.isAttacking) {
-        if (canHeavy && Math.random() < 0.5) this.player.attack('side', 'heavy');
-        else if (canHeavy) this.player.attack('up', 'heavy');
-        else this.player.attack('neutral', 'heavy');
-        return;
-      }
-      if (dist > 120 && canHeavy) {
-        // Use Core Beam or Big Bang Attack at range
-        if (!this.player.isAttacking && !this.isCharging) {
-          if (Math.random() < 0.5) this.player.attack('neutral', 'heavy');
-          else this.player.attack('side', 'heavy');
+      // PRIORITY 1: KILL MOVES - Use immediately when opponent is at kill percent
+      if (oppHighPercent && !this.player.isAttacking && this.killMoveCooldown === 0) {
+        this.killMoveCooldown = 30; // Shorter cooldown for more aggression
+        // Always use the best kill move for the situation
+        if (nearEdge || onEdge) {
+          this.player.attack('side', 'heavy'); // Big Bang Attack - strongest kill move
+        } else if (above) {
+          this.player.attack('up', 'light'); // Use up light for anti-air, not up heavy
+        } else {
+          this.player.attack('side', 'heavy'); // Big Bang Attack - most reliable
         }
         return;
       }
+      
+      // PRIORITY 2: HEAVY ATTACKS - Use heavy attacks much more frequently
+      if (canHeavy && !this.player.isAttacking && this.killMoveCooldown === 0) {
+        this.killMoveCooldown = 20; // Short cooldown
+        if (dist > 100) {
+          this.player.attack('neutral', 'heavy'); // Core Beam at range
+        } else if (above) {
+          this.player.attack('up', 'light'); // Use up light for anti-air, not up heavy
+        } else if (below) {
+          this.player.attack('down', 'heavy'); // Dual Blast spike
+        } else if (nearEdge) {
+          this.player.attack('side', 'heavy'); // Big Bang Attack for edge pressure
+        } else {
+          this.player.attack('side', 'heavy'); // Big Bang Attack - best general heavy
+        }
+        return;
+      }
+      
+      // PRIORITY 3: RANGE ATTACKS - Use heavy attacks at range
+      if (dist > 120 && !this.player.isAttacking && !this.isCharging) {
+        if (Math.random() < 0.8) { // High chance to use heavy
+          this.player.attack('neutral', 'heavy'); // Core Beam
+        } else {
+          this.player.attack('side', 'heavy'); // Big Bang Attack
+        }
+        return;
+      }
+      
+      // PRIORITY 4: ANTI-AIR - Use light attacks for anti-air (up heavy is recovery)
       if (above && !this.player.isAttacking) {
-        // Anti-air
-        if (canCombo) this.player.attack('up', 'light');
-        else if (canHeavy) this.player.attack('up', 'heavy');
+        this.player.attack('up', 'light'); // Use up light for anti-air, up heavy is recovery
         return;
       }
-      if (below && !this.player.isAttacking && canHeavy) {
-        // Spike
-        this.player.attack('down', 'heavy');
+      
+      // PRIORITY 5: SPIKE - Always use heavy for spike
+      if (below && !this.player.isAttacking) {
+        this.player.attack('down', 'heavy'); // Dual Blast
         return;
       }
+      
+      // PRIORITY 6: RECOVERY - Use up heavy for recovery when needed
+      if (!this.player.isAttacking && !this.player.isGrounded && this.player.jumpsRemaining === 0) {
+        // Use up heavy for recovery when out of jumps
+        this.player.attack('up', 'heavy'); // Gravity Spike for recovery
+        return;
+      }
+      
+      // PRIORITY 7: CLOSE RANGE - Mix of light and heavy
       if (inRange && !this.player.isAttacking) {
-        // Combo or light attack
-        if (canCombo) {
+        if (Math.random() < 0.6) { // 60% chance for heavy even at close range
+          this.player.attack('side', 'heavy'); // Big Bang Attack
+        } else if (canCombo) {
           this.player.attack('neutral', 'light');
-          setTimeout(() => this.player.attack('side', 'light'), 30);
+          setTimeout(() => this.player.attack('side', 'light'), 20);
         } else {
           this.player.attack('neutral', 'light');
         }
         return;
       }
-      // Prefer high knockback moves if opponent is at high damage or near edge
-      if ((opp.damage > 80 || onEdge) && canHeavy && !this.player.isAttacking) {
-        this.player.attack('side', 'heavy');
-        return;
-      }
+      
     } else if (char === 'Rakka') {
-      // If opponent is at high percent, always prefer kill moves
-      if (oppHighPercent && !this.player.isAttacking) {
-        if (canHeavy && Math.random() < 0.5) this.player.attack('side', 'heavy');
-        else if (canHeavy) this.player.attack('up', 'heavy');
-        else this.player.attack('down', 'heavy');
+      // PRIORITY 1: KILL MOVES - Use immediately when opponent is at kill percent
+      if (oppHighPercent && !this.player.isAttacking && this.killMoveCooldown === 0) {
+        this.killMoveCooldown = 30;
+        // Always use the best kill move for the situation
+        if (nearEdge || onEdge) {
+          // For edge kills, prefer Void Splitter over Shadow Sneak (safer)
+          this.player.attack('down', 'heavy'); // Void Splitter - safer edge kill
+        } else if (above) {
+          this.player.attack('up', 'heavy'); // Phantom Slash - aerial kill
+        } else {
+          this.player.attack('down', 'heavy'); // Void Splitter - strong kill
+        }
         return;
       }
-      if (dist > 120 && canCharge && !this.player.isAttacking && !this.isCharging) {
-        // Charge Demon Fang or use Shadow Sneak
-        if (Math.random() < 0.5) {
-          this.player.startCharge();
+      
+      // PRIORITY 2: HEAVY ATTACKS - Use heavy attacks much more frequently
+      if (canHeavy && !this.player.isAttacking && this.killMoveCooldown === 0) {
+        this.killMoveCooldown = 20;
+        if (dist > 100) {
+          // For range attacks, prefer Demon Fang charging over Shadow Sneak
+          this.player.startCharge(); // Charge Demon Fang
           this.isCharging = true;
-          this.chargeTimer = 10;
+          this.chargeTimer = 15 + Math.floor(Math.random() * 10); // Charge for 15-25 frames
+        } else if (above) {
+          this.player.attack('up', 'heavy'); // Phantom Slash anti-air
+        } else if (below) {
+          this.player.attack('down', 'heavy'); // Void Splitter spike
+        } else if (nearEdge) {
+          // For edge pressure, use Void Splitter (safer than Shadow Sneak)
+          this.player.attack('down', 'heavy'); // Void Splitter for edge pressure
         } else {
-          this.player.attack('side', 'heavy');
+          // For general heavy attacks, prefer Void Splitter
+          this.player.attack('down', 'heavy'); // Void Splitter - more reliable
         }
         return;
       }
-      // Only edgeguard if at low damage and can recover
-      if (onEdge && this.player.isGrounded && canHeavy && this.player.damage < 60 && canRecover) {
-        // Edgeguard with down heavy
-        this.player.attack('down', 'heavy');
+      
+      // PRIORITY 3: RANGE ATTACKS - Use chargeable moves
+      if (dist > 120 && !this.player.isAttacking && !this.isCharging) {
+        // Mix between Demon Fang charging and Shadow Sneak for movement
+        if (Math.random() < 0.7) { // 70% chance for Demon Fang
+          this.player.startCharge(); // Charge Demon Fang
+          this.isCharging = true;
+          this.chargeTimer = 15 + Math.floor(Math.random() * 15); // Charge for 15-30 frames
+        } else {
+          // Use Shadow Sneak for movement/positioning
+          const shadowDistance = Math.min(150, dist - 30); // Don't go past opponent
+          const shadowEndX = this.player.x + (shadowDistance * this.player.facing);
+          const platformLeft = this.platform.x + 30;
+          const platformRight = this.platform.x + this.platform.width - 30;
+          
+          // Use Shadow Sneak if it's safe and gives good positioning
+          if (shadowEndX >= platformLeft && shadowEndX <= platformRight) {
+            this.player.attack('side', 'heavy'); // Shadow Sneak for movement
+          } else {
+            // Fallback to Demon Fang if Shadow Sneak isn't safe
+            this.player.startCharge();
+            this.isCharging = true;
+            this.chargeTimer = 15 + Math.floor(Math.random() * 15);
+          }
+        }
         return;
       }
-      // If edgeguarding is too risky, stay on stage and control center
-      if (onEdge && (!canRecover || this.player.damage >= 60)) {
-        // Move toward center instead of attacking
-        const platformCenter = this.platform.x + this.platform.width / 2;
-        const dirToCenter = platformCenter > this.player.x ? 1 : -1;
-        this.player.move(dirToCenter);
-        return;
-      }
+      
+      // PRIORITY 4: ANTI-AIR - Use heavy attacks for anti-air
       if (above && !this.player.isAttacking) {
-        // Anti-air
-        if (canCombo) this.player.attack('up', 'light');
-        else if (canHeavy) this.player.attack('up', 'heavy');
+        if (opp.damage > 30 || Math.random() < 0.8) { // Use heavy more often
+          this.player.attack('up', 'heavy'); // Phantom Slash
+        } else {
+          this.player.attack('up', 'light');
+        }
         return;
       }
-      if (below && !this.player.isAttacking && canHeavy) {
-        // Spike
-        this.player.attack('down', 'light');
+      
+      // PRIORITY 5: SPIKE - Use heavy for spike
+      if (below && !this.player.isAttacking) {
+        if (opp.damage > 20 || Math.random() < 0.7) { // Use heavy more often
+          this.player.attack('down', 'heavy'); // Void Splitter
+        } else {
+          this.player.attack('down', 'light'); // Ground Poke
+        }
         return;
       }
+      
+      // PRIORITY 6: CLOSE RANGE - Mix of light and heavy
       if (inRange && !this.player.isAttacking) {
-        // Jab combo
-        if (canCombo) {
-          this.player.attack('neutral', 'light');
-          setTimeout(() => this.player.attack('neutral', 'light'), 30);
-          setTimeout(() => this.player.attack('neutral', 'heavy'), 60);
+        if (Math.random() < 0.4) { // Reduced chance for heavy at close range
+          // Prefer Void Splitter over Shadow Sneak at close range
+          this.player.attack('down', 'heavy'); // Void Splitter - more reliable
+        } else if (canCombo) {
+          this.player.attack('neutral', 'light'); // Start jab combo
+          setTimeout(() => this.player.attack('neutral', 'light'), 20);
+          setTimeout(() => this.player.attack('neutral', 'light'), 40);
         } else {
           this.player.attack('neutral', 'light');
         }
         return;
       }
-      // Prefer high knockback moves if opponent is at high damage or near edge
-      if ((opp.damage > 80 || onEdge) && canHeavy && !this.player.isAttacking) {
-        this.player.attack('side', 'heavy');
-        return;
+      
+      // MOVEMENT PRIORITY: Use Shadow Sneak and Demon Fang for positioning
+      if (!this.player.isAttacking && !this.isCharging && this.killMoveCooldown === 0) {
+        const centerX = this.platform.x + this.platform.width / 2;
+        const distanceFromCenter = Math.abs(this.player.x - centerX);
+        const isNearCenter = distanceFromCenter < 150; // Within 150px of center
+        const hasJumps = this.player.jumpsRemaining > 0; // Has recovery options
+        
+        // Use Shadow Sneak for movement when in good position
+        if (isNearCenter && hasJumps && Math.random() < 0.15) { // 15% chance for movement
+          // Calculate movement distance based on positioning
+          let shadowDistance;
+          if (this.player.facing > 0 && this.player.x < centerX) {
+            // Facing right but on left side - move toward center
+            shadowDistance = Math.min(100, centerX - this.player.x + 50);
+          } else if (this.player.facing < 0 && this.player.x > centerX) {
+            // Facing left but on right side - move toward center
+            shadowDistance = Math.min(100, this.player.x - centerX + 50);
+          } else {
+            // Move toward opponent for surprise attack
+            shadowDistance = Math.min(120, dist - 20);
+          }
+          
+          const shadowEndX = this.player.x + (shadowDistance * this.player.facing);
+          const platformLeft = this.platform.x + 40;
+          const platformRight = this.platform.x + this.platform.width - 40;
+          
+          // Use Shadow Sneak if it's safe and gives good positioning
+          if (shadowEndX >= platformLeft && shadowEndX <= platformRight) {
+            this.player.attack('side', 'heavy'); // Shadow Sneak for movement
+            this.killMoveCooldown = 45; // Shorter cooldown for movement
+          }
+        }
+        
+        // Use Demon Fang for movement and surprise attacks
+        if (Math.random() < 0.12) { // 12% chance for Demon Fang movement
+          this.player.startCharge(); // Charge Demon Fang
+          this.isCharging = true;
+          this.chargeTimer = 10 + Math.floor(Math.random() * 20); // Variable charge time
+        }
       }
     }
-    // Fallback: default attack
+    
+    // FALLBACK: If nothing else works, use heavy attack
     if (!this.player.isAttacking && !this.isCharging) {
-      this.player.attack('neutral', 'light');
+      if (Math.random() < 0.7) { // 70% chance for heavy even as fallback
+        this.player.attack('side', 'heavy');
+      } else {
+        this.player.attack('neutral', 'light');
+      }
+    }
+  }
+
+  executeEdgeguard() {
+    const char = this.player.characterName;
+    const opp = this.otherPlayer;
+    const dist = this.distanceToTarget;
+    const above = opp.y < this.player.y - 30;
+    const below = opp.y > this.player.y + 30;
+    const inRange = dist < 120 && Math.abs(this.player.y - opp.y) < 80;
+    
+    // Stay near the edge but not too close
+    const edgeBuffer = 40;
+    if (this.player.x < this.platform.x + edgeBuffer) {
+      this.player.move(1);
+    } else if (this.player.x > this.platform.x + this.platform.width - edgeBuffer) {
+      this.player.move(-1);
+    } else {
+      this.player.move(0);
+    }
+    
+    // Attack if opponent is in range
+    if (inRange && !this.player.isAttacking && this.killMoveCooldown === 0) {
+      this.killMoveCooldown = 30;
+      
+      if (char === 'Kaon') {
+        if (above) {
+          this.player.attack('up', 'light'); // Use up light for anti-air, not up heavy
+        } else if (below) {
+          this.player.attack('down', 'heavy'); // Dual Blast spike
+        } else {
+          this.player.attack('side', 'heavy'); // Big Bang Attack
+        }
+      } else if (char === 'Rakka') {
+        if (above) {
+          this.player.attack('up', 'heavy'); // Phantom Slash anti-air
+        } else if (below) {
+          this.player.attack('down', 'heavy'); // Void Splitter spike
+        } else {
+          // For horizontal edgeguarding, prefer Void Splitter over Shadow Sneak
+          // Shadow Sneak can be risky when edgeguarding
+          this.player.attack('down', 'heavy'); // Void Splitter - safer edgeguard
+        }
+      }
+    }
+    
+    // Occasionally jump for better positioning
+    if (Math.random() < 0.02 && this.player.jumpsRemaining > 0) {
+      this.tryJump();
     }
   }
 
   executeShield() {
     try {
-      if (Math.random() < this.shieldChance) {
+      // Much less likely to shield - be aggressive instead
+      if (Math.random() < this.shieldChance * 0.2) { // Reduced shield chance by 80%
         this.player.activateShield();
-        this.shieldTimer = Math.floor(Math.random() * 20) + 15;
+        this.shieldTimer = Math.floor(Math.random() * 10) + 5; // Much shorter shield duration
+      } else {
+        // Instead of shielding, try to attack or dodge
+        if (Math.random() < 0.7) {
+          // Try to attack instead of shield
+          this.executeAttack();
+        } else {
+          // Try to dodge instead of shield
+          this.executeDodge();
+        }
       }
     } catch (error) {
       console.error('CPU executeShield error:', error);
@@ -454,9 +807,15 @@ export class CPU {
   }
 
   executeDodge() {
-    // Placeholder: jump as a "dodge"
+    // More aggressive dodge - jump and attack
     if (this.player.isGrounded) {
       this.player.jump();
+      // After dodge, immediately try to attack
+      setTimeout(() => {
+        if (!this.player.isAttacking && !this.isCharging) {
+          this.executeAttack();
+        }
+      }, 10);
     }
   }
 
@@ -467,6 +826,12 @@ export class CPU {
     const platformY = this.platform.y;
     const cpuCenterX = this.player.x + this.player.width / 2;
     const cpuBottomY = this.player.y + this.player.height;
+    
+    // Check if we're off stage
+    const isOffStage = this.player.x < platformLeft - 50 || 
+                      this.player.x > platformRight + 50 || 
+                      this.player.y > platformY + 100;
+    
     // Find the closest safe x-position on the platform
     let targetX = Math.max(platformLeft + 10, Math.min(cpuCenterX, platformRight - 10));
     // If below the platform, aim for the nearest edge
@@ -488,26 +853,59 @@ export class CPU {
       if (cpuCenterX < platformLeft) this.player.x = platformLeft - this.player.width / 2 + 1;
       if (cpuCenterX > platformRight) this.player.x = platformRight - this.player.width / 2 - 1;
     }
-    // Only use a jump if falling and below the platform, and space out jumps
-    const belowStage = cpuBottomY > platformY + 10;
-    const isFalling = this.player.vy > 0.5;
-    if (this.player.jumpsRemaining > 0 && belowStage && isFalling && this.recoveryJumpTimer <= 0) {
-      this.player.jump();
-      this.recoveryJumpTimer = 18 + Math.floor(Math.random() * 8); // Wait ~18-26 frames before next jump
+    
+    // Enhanced recovery for off-stage situations
+    if (isOffStage) {
+      // Use jumps more aggressively when off stage
+      const belowStage = cpuBottomY > platformY + 10;
+      const isFalling = this.player.vy > 0.5;
+      const farFromStage = Math.abs(cpuCenterX - (platformLeft + platformRight) / 2) > 200;
+      
+      // Use jumps immediately if we have them and are falling
+      if (this.player.jumpsRemaining > 0 && (belowStage || farFromStage) && this.recoveryJumpTimer <= 0) {
+        this.player.jump();
+        this.recoveryJumpTimer = 15 + Math.floor(Math.random() * 5); // Shorter delay when off stage
+      }
+      
+      // Use up heavy for recovery if jumps are exhausted or if very far from stage
+      if ((this.player.jumpsRemaining === 0 || farFromStage) && 
+          !this.player.isGrounded && 
+          !this.player.isAttacking && 
+          this.player.heavyAttackCooldown === 0) {
+        this.player.attack('up', 'heavy');
+      }
+      
+      // Move more aggressively toward the stage when off stage
+      const stageCenter = (platformLeft + platformRight) / 2;
+      if (cpuCenterX < stageCenter) {
+        this.player.move(1); // Move right toward stage
+      } else {
+        this.player.move(-1); // Move left toward stage
+      }
+    } else {
+      // Normal recovery logic when not far off stage
+      // Only use a jump if falling and below the platform, and space out jumps
+      const belowStage = cpuBottomY > platformY + 10;
+      const isFalling = this.player.vy > 0.5;
+      if (this.player.jumpsRemaining > 0 && belowStage && isFalling && this.recoveryJumpTimer <= 0) {
+        this.player.jump();
+        this.recoveryJumpTimer = 18 + Math.floor(Math.random() * 8); // Wait ~18-26 frames before next jump
+      }
+      // Only use up heavy for recovery if jumps are exhausted or if far below the platform
+      if ((this.player.jumpsRemaining === 0 || (this.player.y > platformY + 60 && Math.abs(cpuCenterX - targetX) < this.platform.width / 2))
+        && !this.player.isGrounded && !this.player.isAttacking && this.player.heavyAttackCooldown === 0) {
+        this.player.attack('up', 'heavy');
+      }
+      // Move horizontally toward the target
+      this.player.move(direction);
     }
+    
     if (this.recoveryJumpTimer > 0) {
       this.recoveryJumpTimer--;
     }
-    // Only use up heavy for recovery if jumps are exhausted or if far below the platform
-    if ((this.player.jumpsRemaining === 0 || (this.player.y > platformY + 60 && Math.abs(cpuCenterX - targetX) < this.platform.width / 2))
-      && !this.player.isGrounded && !this.player.isAttacking && this.player.heavyAttackCooldown === 0) {
-      this.player.attack('up', 'heavy');
-    }
-    // Move horizontally toward the target
-    this.player.move(direction);
   }
 
-  // Emergency actions for survival
+  // Emergency actions for survival - but still aggressive
   handleEmergency() {
     try {
       if (this.player.y > this.platform.y + 150) {
@@ -518,18 +916,32 @@ export class CPU {
         const direction = platformCenter > this.player.x ? 1 : -1;
         this.player.move(direction);
       }
-      if (this.player.damage > 70 && Math.random() < this.shieldChance) {
+      // Much less likely to shield in emergencies - be aggressive instead
+      if (this.player.damage > 70 && Math.random() < this.shieldChance * 0.1) { // Reduced by 90%
         if (!this.player.isShielding && this.shieldTimer === 0) {
           this.player.activateShield();
-          this.shieldTimer = 30;
+          this.shieldTimer = 15; // Shorter shield
+        }
+      } else if (this.player.damage > 70) {
+        // Instead of shielding, try to attack aggressively
+        if (!this.player.isAttacking && !this.isCharging && this.distanceToTarget < 120) {
+          this.executeAttack();
         }
       }
-      if (this.otherPlayer.isAttacking && this.distanceToTarget < 80 && Math.random() < this.shieldChance && this.shieldTimer === 0) {
+      // Very unlikely to shield when opponent attacks - dodge or attack instead
+      if (this.otherPlayer.isAttacking && this.distanceToTarget < 80 && Math.random() < this.shieldChance * 0.05) { // Reduced by 95%
         this.player.activateShield();
-        this.shieldTimer = 15;
+        this.shieldTimer = 10; // Very short shield
+      } else if (this.otherPlayer.isAttacking && this.distanceToTarget < 80) {
+        // Instead of shielding, try to dodge or attack
+        if (Math.random() < 0.6) {
+          this.executeDodge();
+        } else if (!this.player.isAttacking && !this.isCharging) {
+          this.executeAttack();
+        }
       }
     } catch (error) {
       console.error('CPU handleEmergency error:', error);
     }
   }
-} 
+}

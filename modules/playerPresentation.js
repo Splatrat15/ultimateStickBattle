@@ -186,6 +186,8 @@ export function showCharacterName(name, playerNumber) {
       } else {
         nameBox.classList.remove('cpu');
         nameBox.innerText = 'Player 1';
+        // Restore Player 1 blue color
+        nameBox.style.background = 'blue';
       }
     } else {
       if (window.player2IsCPU === undefined) window.player2IsCPU = false;
@@ -220,6 +222,8 @@ export function showCharacterName(name, playerNumber) {
       } else {
         nameBox.classList.remove('cpu');
         nameBox.innerText = 'Player 2';
+        // Restore Player 2 red color
+        nameBox.style.background = 'red';
       }
     }
   });

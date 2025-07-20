@@ -319,6 +319,15 @@ function drawStage() {
     let playerColor = player.color;
     if ((index === 0 && window.player1IsCPU) || (index === 1 && window.player2IsCPU)) {
       playerColor = '#808080'; // Grey for CPU players
+      // Update the player's color property to ensure drawing functions use the correct color
+      player.color = playerColor;
+    } else {
+      // Restore original color for human players
+      if (index === 0) {
+        player.color = '#2196f3'; // Blue for player 1
+      } else {
+        player.color = '#e53935'; // Red for player 2
+      }
     }
     
     // Draw player (blink if respawn invincibility is active)
@@ -356,21 +365,7 @@ function drawStage() {
       }
     }
     
-    // Draw attack lag indicator
-    if (player.attackLag > 0) {
-      // Draw a red outline around the player during attack lag
-      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
-      ctx.lineWidth = getScaledSize(3);
-      ctx.strokeRect(player.x - getScaledSize(2), player.y - getScaledSize(2), 
-                    player.width + getScaledSize(4), player.height + getScaledSize(4));
-      
-      // Draw attack lag text above player
-      const lagTextSize = getScaledTextSize(12);
-      ctx.font = `bold ${lagTextSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.9)';
-      ctx.fillText('LAG', player.x + player.width / 2, player.y - getScaledSize(10));
-    }
+    // Attack lag indicator removed - no more red box with LAG text
     
     // Draw attack hitbox if attacking
     if (player.isAttacking && player.attackHitbox) {
@@ -380,7 +375,7 @@ function drawStage() {
         // Don't draw red box for Shadow Sneak - the sword swing is the visual
         if (player.activeMove && player.activeMove.name === 'Shadow Sneak') {
           // Skip drawing hitbox for Shadow Sneak
-        } else if (player.activeMove && player.activeMove.name && player.activeMove.name.startsWith('Quick Draw')) {
+        } else if (player.activeMove && player.activeMove.name && (player.activeMove.name.startsWith('Quick Draw') || player.activeMove.name === 'Quick Draw')) {
           // Skip drawing hitbox for Rakka's jab (Quick Draw)
         } else if (player.activeMove && player.activeMove.name === 'Shadow Slice') {
           // Skip drawing hitbox for Shadow Slice - the sword swing is the visual

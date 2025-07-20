@@ -114,9 +114,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Listen for game reset event
   window.addEventListener('gameReset', () => {
-    // Always reset CPU flags to false unless toggled by user
-    window.player1IsCPU = false;
-    window.player2IsCPU = false;
+    // Don't reset CPU flags - let them persist until manually toggled by user
+    // window.player1IsCPU = false;  // REMOVED - keep CPU state
+    // window.player2IsCPU = false;  // REMOVED - keep CPU state
     resetCharacterSelection();
   });
 

@@ -995,12 +995,16 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
     // Normal stance - original code
     // Body
     ctx.beginPath();
+    ctx.strokeStyle = isShadow ? '#222' : color || '#000';
+    ctx.lineWidth = bodyLineWidth;
     ctx.moveTo(centerX, baseY - getScaledSize(42)); // Scaled from 42
     ctx.lineTo(centerX, baseY);
     ctx.stroke();
 
-    // Arms
+    // Arms - ensure proper stroke color and width
     ctx.beginPath();
+    ctx.strokeStyle = isShadow ? '#222' : color || '#000';
+    ctx.lineWidth = armLineWidth;
     // Resting arm (closer to body)
     ctx.moveTo(centerX, baseY - getScaledSize(32)); // Scaled from 32
     ctx.lineTo(centerX - getScaledSize(24) * facing, baseY - getScaledSize(22)); // Scaled from 24 and 22
@@ -1011,6 +1015,8 @@ function drawRakkaBody(ctx, x, y, width, height, facing, isShadow, color, player
     
     // Legs with walking animation
     ctx.beginPath();
+    ctx.strokeStyle = isShadow ? '#222' : color || '#000';
+    ctx.lineWidth = legLineWidth;
     if (player.animation.isWalking) {
       const walkCycle = (player.animation.frame / player.animation.numFrames) * Math.PI * 2;
       const legSwing = Math.sin(walkCycle) * getScaledSize(8); // Scaled from 8

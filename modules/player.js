@@ -290,6 +290,33 @@ export class Player extends PhysicsBody {
           this.risingCutSwing.glowIntensity = 0;
           this.risingCutSwing.shadowTrails = [];
         }
+        
+        // Reset Phantom Slash effects when attack ends
+        if (this.phantomSlashEffects) {
+          this.phantomSlashEffects.shadowWings.isActive = false;
+          this.phantomSlashEffects.circlingBlade.isActive = false;
+          this.phantomSlashEffects.circlingBlade.bladeTrails = [];
+          this.phantomSlashEffects.demonicAura.isActive = false;
+          this.phantomSlashEffects.demonicAura.particles = [];
+        }
+        
+        // Reset multi-hit data when attack ends
+        if (this.multiHitData) {
+          this.multiHitData.currentHit = 0;
+          this.multiHitData.maxHits = 0;
+          this.multiHitData.hitCooldown = 0;
+          this.multiHitData.lastHitTarget = null;
+          this.multiHitData.hitTiming = [];
+        }
+        
+        // Reset Void Splitter effects when attack ends
+        if (this.voidSplitterEffects) {
+          this.voidSplitterEffects.groundSlam.isActive = false;
+          this.voidSplitterEffects.groundSlam.shockwaveParticles = [];
+          this.voidSplitterEffects.groundSlam.groundCrack.isActive = false;
+          this.voidSplitterEffects.wave.isActive = false;
+          this.voidSplitterEffects.wave.particles = [];
+        }
       }
     }
     
