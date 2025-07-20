@@ -402,6 +402,27 @@ export class CPU {
     const platformCenter = this.platform.x + this.platform.width / 2;
     const stageEdgeBuffer = 60; // How close to the edge before being cautious
     
+    // Define optimal spacing based on character and situation
+    let optimalDistance = 80; // Default optimal distance
+    
+    // Adjust optimal distance based on character
+    if (char === 'Kaon') {
+      optimalDistance = 90; // Kaon prefers more range for Core Beam
+    } else if (char === 'Rakka') {
+      optimalDistance = 70; // Rakka prefers closer range for sword attacks
+    }
+    
+    // Adjust optimal distance based on opponent's state
+    if (opp.isAttacking) {
+      optimalDistance += 30; // Stay further away when opponent is attacking
+    }
+    if (this.player.damage > 80) {
+      optimalDistance += 20; // Stay further away when at high damage
+    }
+    if (opp.damage > 80) {
+      optimalDistance -= 15; // Get closer when opponent is at high damage (for kills)
+    }
+    
     // If near the edge, prefer to move toward center unless edgeguarding
     if ((this.player.x < this.platform.x + stageEdgeBuffer || this.player.x > this.platform.x + this.platform.width - stageEdgeBuffer)) {
       // If opponent is not offstage, move toward center
@@ -430,26 +451,44 @@ export class CPU {
       return;
     }
     
-    // For Rakka, sometimes approach with a jump (aggressive)
-    if (char === 'Rakka' && dist > 80 && Math.random() < 0.08 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
-      this.tryJump();
-    }
-    // For Kaon, floaty approach (sometimes jump)
-    if (char === 'Kaon' && dist > 80 && Math.random() < 0.05 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
-      this.tryJump();
-    }
-    // Retreat if high damage and close to opponent (defensive play)
-    if (this.player.damage > 100 && dist < 60 && Math.random() < 0.2 * (this.difficulty === 'HARD' ? 2 : 1)) {
-      this.player.move(this.player.x < opp.x ? -1 : 1);
-      return;
-    }
-    // Default: approach
-    if (this.player.x < opp.x - 10) {
-      this.player.move(1);
-    } else if (this.player.x > opp.x + 10) {
-      this.player.move(-1);
-    } else {
+    // MAIN POSITIONING LOGIC - Maintain optimal distance
+    const distanceDiff = dist - optimalDistance;
+    const tolerance = 15; // Acceptable range around optimal distance
+    
+    if (Math.abs(distanceDiff) <= tolerance) {
+      // At optimal distance - hold position or make small adjustments
       this.player.move(0);
+      
+      // Occasionally make small spacing adjustments
+      if (Math.random() < 0.1) {
+        if (distanceDiff > 0) {
+          this.player.move(1); // Move slightly closer
+        } else {
+          this.player.move(-1); // Move slightly away
+        }
+      }
+    } else if (distanceDiff > tolerance) {
+      // Too far away - approach
+      if (this.player.x < opp.x - 5) {
+        this.player.move(1);
+      } else if (this.player.x > opp.x + 5) {
+        this.player.move(-1);
+      }
+    } else {
+      // Too close - back away
+      if (this.player.x < opp.x) {
+        this.player.move(-1); // Move left to get away
+      } else {
+        this.player.move(1); // Move right to get away
+      }
+    }
+    
+    // Character-specific movement adjustments
+    if (char === 'Rakka' && dist > optimalDistance + 20 && Math.random() < 0.08 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
+      this.tryJump(); // Rakka sometimes approaches with jumps
+    }
+    if (char === 'Kaon' && dist > optimalDistance + 30 && Math.random() < 0.05 * (this.difficulty === 'EXPERT' ? 2 : 1)) {
+      this.tryJump(); // Kaon sometimes approaches with jumps
     }
   }
 
@@ -479,7 +518,7 @@ export class CPU {
         if (nearEdge || onEdge) {
           this.player.attack('side', 'heavy'); // Big Bang Attack - strongest kill move
         } else if (above) {
-          this.player.attack('up', 'heavy'); // Gravity Spike - vertical kill
+          this.player.attack('up', 'light'); // Use up light for anti-air, not up heavy
         } else {
           this.player.attack('side', 'heavy'); // Big Bang Attack - most reliable
         }
@@ -492,7 +531,7 @@ export class CPU {
         if (dist > 100) {
           this.player.attack('neutral', 'heavy'); // Core Beam at range
         } else if (above) {
-          this.player.attack('up', 'heavy'); // Gravity Spike anti-air
+          this.player.attack('up', 'light'); // Use up light for anti-air, not up heavy
         } else if (below) {
           this.player.attack('down', 'heavy'); // Dual Blast spike
         } else if (nearEdge) {
@@ -513,13 +552,9 @@ export class CPU {
         return;
       }
       
-      // PRIORITY 4: ANTI-AIR - Use heavy attacks for anti-air
+      // PRIORITY 4: ANTI-AIR - Use light attacks for anti-air (up heavy is recovery)
       if (above && !this.player.isAttacking) {
-        if (opp.damage > 40 || Math.random() < 0.7) { // Use heavy more often
-          this.player.attack('up', 'heavy'); // Gravity Spike
-        } else {
-          this.player.attack('up', 'light');
-        }
+        this.player.attack('up', 'light'); // Use up light for anti-air, up heavy is recovery
         return;
       }
       
@@ -529,7 +564,14 @@ export class CPU {
         return;
       }
       
-      // PRIORITY 6: CLOSE RANGE - Mix of light and heavy
+      // PRIORITY 6: RECOVERY - Use up heavy for recovery when needed
+      if (!this.player.isAttacking && !this.player.isGrounded && this.player.jumpsRemaining === 0) {
+        // Use up heavy for recovery when out of jumps
+        this.player.attack('up', 'heavy'); // Gravity Spike for recovery
+        return;
+      }
+      
+      // PRIORITY 7: CLOSE RANGE - Mix of light and heavy
       if (inRange && !this.player.isAttacking) {
         if (Math.random() < 0.6) { // 60% chance for heavy even at close range
           this.player.attack('side', 'heavy'); // Big Bang Attack
@@ -718,7 +760,7 @@ export class CPU {
       
       if (char === 'Kaon') {
         if (above) {
-          this.player.attack('up', 'heavy'); // Gravity Spike anti-air
+          this.player.attack('up', 'light'); // Use up light for anti-air, not up heavy
         } else if (below) {
           this.player.attack('down', 'heavy'); // Dual Blast spike
         } else {
