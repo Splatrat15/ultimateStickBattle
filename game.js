@@ -838,8 +838,15 @@ function resetGame() {
     window.pauseMenu.resetPauseState();
   }
   
-  // Restart background music when returning to character menu
-  audioManager.restartMusic();
+  // Stop battle music and restart background music when returning to character menu
+  if (audioManager) {
+    if (typeof audioManager.stopBattleMusic === 'function') {
+      audioManager.stopBattleMusic();
+    }
+    if (typeof audioManager.restartMusic === 'function') {
+      audioManager.restartMusic();
+    }
+  }
 }
 
 // --- GLOBAL GAMEPAD POLLING LOOP ---
@@ -1400,8 +1407,10 @@ window.addEventListener('startGame', (e) => {
   // Set up players on the platform for the new game
   setupPlayersOnPlatform();
   
-  // Restart background music when game starts
-  audioManager.restartMusic();
+  // Start battle music when game starts
+  if (audioManager && typeof audioManager.startBattleMusic === 'function') {
+    audioManager.startBattleMusic();
+  }
 });
 
 // Start game loop
@@ -1414,6 +1423,12 @@ window.addEventListener('gamePaused', () => {
 
 window.addEventListener('gameResumed', () => {
   isPaused = false;
+});
+
+// Game reset event listener (for pause menu leave game)
+window.addEventListener('gameReset', () => {
+  console.log('Game reset event received, calling resetGame()');
+  resetGame();
 });
 
 function pollGamepads() {

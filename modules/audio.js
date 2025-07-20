@@ -3,15 +3,32 @@
 class AudioManager {
   constructor() {
     this.backgroundMusic = null;
+    this.battleMusic = null;
     this.isMusicLoaded = false;
+    this.isBattleMusicLoaded = false;
     this.isMusicPlaying = false;
+    this.isBattleMusicPlaying = false;
     this.audioContext = null;
     this.userHasInteracted = false;
     this.isStartingMusic = false; // Prevent multiple simultaneous start attempts
     
+    // Battle music shuffle system
+    this.battleMusicPlaylist = [
+      'assets/battleMusic/8-bit-space-123218.mp3',
+      'assets/battleMusic/epic-battle-153400.mp3',
+      'assets/battleMusic/8-bit-chiptune-action-music-for-video-games-329940.mp3',
+      'assets/battleMusic/retro-8bit-happy-videogame-music-243997.mp3',
+      'assets/battleMusic/pixify-230092.mp3',
+      'assets/battleMusic/pixel-dreams-259187.mp3',
+      'assets/battleMusic/palabras-perdidas-en-8-bits-263566.mp3',
+      'assets/battleMusic/026491_pixel-song-8-72675.mp3'
+    ];
+    this.battleMusicQueue = []; // Current shuffle queue
+    this.currentBattleSongIndex = 0;
+    
     // Get initial volume from settings or use defaults
     const masterVolume = window.masterVolume || 100;
-    const musicVolume = window.musicVolume || 50;
+    const musicVolume = window.musicVolume || 35;
     const effectiveMusicVolume = (masterVolume * musicVolume) / 100;
     this.musicVolume = effectiveMusicVolume / 100;
     
@@ -60,7 +77,16 @@ class AudioManager {
       this.backgroundMusic.volume = this.musicVolume;
       this.backgroundMusic.preload = 'auto';
       
-      // Handle music loading
+      // Create audio element for battle music
+      this.battleMusic = new Audio();
+      this.battleMusic.loop = false; // Don't loop individual songs
+      this.battleMusic.volume = this.musicVolume;
+      this.battleMusic.preload = 'auto';
+      
+      // Initialize battle music queue
+      this.shuffleBattleMusic();
+      
+      // Handle background music loading
       this.backgroundMusic.addEventListener('canplaythrough', () => {
         this.isMusicLoaded = true;
         console.log('Background music loaded successfully');
@@ -71,10 +97,27 @@ class AudioManager {
         }
       });
       
+      // Handle battle music loading
+      this.battleMusic.addEventListener('canplaythrough', () => {
+        this.isBattleMusicLoaded = true;
+        console.log('Battle music loaded successfully');
+      });
+      
+      // Handle battle music ending - play next song
+      this.battleMusic.addEventListener('ended', () => {
+        console.log('Battle music ended, playing next song');
+        this.playNextBattleSong();
+      });
+      
       // Handle music errors
       this.backgroundMusic.addEventListener('error', (e) => {
         console.error('Error loading background music:', e);
         this.isMusicLoaded = false;
+      });
+      
+      this.battleMusic.addEventListener('error', (e) => {
+        console.error('Error loading battle music:', e);
+        this.isBattleMusicLoaded = false;
       });
       
       // Handle music end
@@ -88,9 +131,17 @@ class AudioManager {
         this.isStartingMusic = false;
       });
       
+      this.battleMusic.addEventListener('play', () => {
+        this.isBattleMusicPlaying = true;
+      });
+      
       // Handle pause event
       this.backgroundMusic.addEventListener('pause', () => {
         this.isMusicPlaying = false;
+      });
+      
+      this.battleMusic.addEventListener('pause', () => {
+        this.isBattleMusicPlaying = false;
       });
       
     } catch (error) {
@@ -179,10 +230,58 @@ class AudioManager {
     }
   }
 
-  // Restart music (used after games)
+  // Restart music
   restartMusic() {
-    console.log('Restarting music...');
-    this.stopMusic();
+    console.log('Restarting background music...');
+    
+    // Stop battle music first
+    this.stopBattleMusic();
+    
+    // Recreate background music element if it was destroyed
+    if (!this.backgroundMusic) {
+      console.log('Recreating background music element...');
+      this.backgroundMusic = new Audio();
+      this.backgroundMusic.src = 'assets/music/screenMusic.mp3';
+      this.backgroundMusic.loop = true;
+      this.backgroundMusic.volume = this.musicVolume;
+      this.backgroundMusic.preload = 'auto';
+      
+      // Re-add event listeners
+      this.backgroundMusic.addEventListener('canplaythrough', () => {
+        this.isMusicLoaded = true;
+        console.log('Background music loaded successfully');
+        
+        // Only start music if user has interacted and not already playing
+        if (this.userHasInteracted && !this.isMusicPlaying && !this.isStartingMusic) {
+          this.startMusic();
+        }
+      });
+      
+      this.backgroundMusic.addEventListener('error', (e) => {
+        console.error('Error loading background music:', e);
+        this.isMusicLoaded = false;
+      });
+      
+      this.backgroundMusic.addEventListener('ended', () => {
+        this.isMusicPlaying = false;
+      });
+      
+      this.backgroundMusic.addEventListener('play', () => {
+        this.isMusicPlaying = true;
+        this.isStartingMusic = false;
+      });
+      
+      this.backgroundMusic.addEventListener('pause', () => {
+        this.isMusicPlaying = false;
+      });
+    } else {
+      // Just restore volume if element still exists
+      this.backgroundMusic.volume = this.musicVolume;
+    }
+    
+    // Reset the starting flag
+    this.isStartingMusic = false;
+    
     setTimeout(() => {
       this.startMusic();
     }, 100);
@@ -250,19 +349,30 @@ class AudioManager {
     
     console.log(`setMusicVolume called - Old: ${oldVolume.toFixed(3)}, New: ${this.musicVolume.toFixed(3)}`);
     
+    // Update both background and battle music volumes
     if (this.backgroundMusic) {
       this.backgroundMusic.volume = this.musicVolume;
-      
-      // If volume is 0, pause the music immediately and don't try to restart
-      if (this.musicVolume === 0) {
-        console.log('Volume set to 0, pausing music');
+    }
+    
+    if (this.battleMusic) {
+      this.battleMusic.volume = this.musicVolume;
+    }
+    
+    // If volume is 0, pause all music immediately and don't try to restart
+    if (this.musicVolume === 0) {
+      console.log('Volume set to 0, pausing all music');
+      if (this.backgroundMusic) {
         this.backgroundMusic.pause();
         this.isMusicPlaying = false;
-        this.isStartingMusic = false; // Prevent any restart attempts
-      } else if (this.isMusicLoaded && !this.isMusicPlaying && this.userHasInteracted) {
-        // Only resume if volume is greater than 0
-        this.startMusic();
       }
+      if (this.battleMusic) {
+        this.battleMusic.pause();
+        this.isBattleMusicPlaying = false;
+      }
+      this.isStartingMusic = false; // Prevent any restart attempts
+    } else if (this.isMusicLoaded && !this.isMusicPlaying && !this.isBattleMusicPlaying && this.userHasInteracted) {
+      // Only resume background music if no music is playing and volume is greater than 0
+      this.startMusic();
     }
   }
 
@@ -294,17 +404,30 @@ class AudioManager {
       this.backgroundMusic.pause();
       this.backgroundMusic.currentTime = 0;
       this.isMusicPlaying = false;
-      this.musicVolume = 0;
-      
-      // Double-check that it's actually muted
-      setTimeout(() => {
-        if (this.backgroundMusic && this.backgroundMusic.volume > 0) {
-          console.log('Volume still not 0, forcing again');
-          this.backgroundMusic.volume = 0;
-          this.backgroundMusic.pause();
-        }
-      }, 10);
     }
+    
+    if (this.battleMusic) {
+      this.battleMusic.volume = 0;
+      this.battleMusic.pause();
+      this.battleMusic.currentTime = 0;
+      this.isBattleMusicPlaying = false;
+    }
+    
+    this.musicVolume = 0;
+    
+    // Double-check that it's actually muted
+    setTimeout(() => {
+      if (this.backgroundMusic && this.backgroundMusic.volume > 0) {
+        console.log('Background music volume still not 0, forcing again');
+        this.backgroundMusic.volume = 0;
+        this.backgroundMusic.pause();
+      }
+      if (this.battleMusic && this.battleMusic.volume > 0) {
+        console.log('Battle music volume still not 0, forcing again');
+        this.battleMusic.volume = 0;
+        this.battleMusic.pause();
+      }
+    }, 10);
   }
   
   // Force unmute
@@ -316,6 +439,186 @@ class AudioManager {
         this.startMusic();
       }
     }
+  }
+
+  // Shuffle battle music playlist
+  shuffleBattleMusic() {
+    // Create a copy of the playlist and shuffle it
+    this.battleMusicQueue = [...this.battleMusicPlaylist];
+    
+    // Fisher-Yates shuffle algorithm
+    for (let i = this.battleMusicQueue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.battleMusicQueue[i], this.battleMusicQueue[j]] = [this.battleMusicQueue[j], this.battleMusicQueue[i]];
+    }
+    
+    this.currentBattleSongIndex = 0;
+    console.log('Battle music playlist shuffled');
+  }
+
+  // Force stop background music (more aggressive than stopMusic)
+  forceStopBackgroundMusic() {
+    console.log('Force stopping background music...');
+    if (this.backgroundMusic) {
+      // Set volume to 0 first to immediately silence it
+      this.backgroundMusic.volume = 0;
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+      this.isMusicPlaying = false;
+      this.isStartingMusic = false; // Prevent any restart attempts
+      
+      // Try to stop it more aggressively
+      try {
+        this.backgroundMusic.stop && this.backgroundMusic.stop();
+      } catch (e) {
+        console.log('stop() method not available, using alternative approach');
+      }
+      
+      // Double-check after a short delay
+      setTimeout(() => {
+        if (this.backgroundMusic && !this.backgroundMusic.paused) {
+          console.log('Background music still playing, forcing pause again');
+          this.backgroundMusic.pause();
+          this.backgroundMusic.currentTime = 0;
+          this.backgroundMusic.volume = 0;
+        }
+      }, 50);
+      
+      console.log('Background music force stopped');
+    }
+  }
+
+  // Nuclear option - completely destroy and recreate background music
+  nuclearStopBackgroundMusic() {
+    console.log('NUCLEAR: Completely destroying background music element...');
+    
+    if (this.backgroundMusic) {
+      // Remove all event listeners
+      this.backgroundMusic.oncanplaythrough = null;
+      this.backgroundMusic.onerror = null;
+      this.backgroundMusic.onended = null;
+      this.backgroundMusic.onplay = null;
+      this.backgroundMusic.onpause = null;
+      
+      // Try to stop it
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+      this.backgroundMusic.volume = 0;
+      
+      // Remove from DOM if it was added
+      if (this.backgroundMusic.parentNode) {
+        this.backgroundMusic.parentNode.removeChild(this.backgroundMusic);
+      }
+      
+      // Nullify the reference
+      this.backgroundMusic = null;
+      this.isMusicLoaded = false;
+      this.isMusicPlaying = false;
+      this.isStartingMusic = false;
+      
+      console.log('Background music element destroyed');
+    }
+  }
+
+  // Start battle music
+  startBattleMusic() {
+    if (!this.userHasInteracted) {
+      console.log('Cannot start battle music - user has not interacted yet');
+      return;
+    }
+    
+    console.log('Starting battle music...');
+    
+    // Nuclear option - completely destroy background music
+    this.nuclearStopBackgroundMusic();
+    
+    // Ensure battle music is loaded
+    if (!this.isBattleMusicLoaded) {
+      console.log('Battle music not loaded yet, loading first song...');
+      // Load the first song to initialize battle music
+      if (this.battleMusicQueue.length > 0) {
+        this.battleMusic.src = this.battleMusicQueue[0];
+        this.battleMusic.load();
+      }
+    }
+    
+    // Start battle music
+    this.playNextBattleSong();
+  }
+
+  // Play next battle song
+  playNextBattleSong() {
+    if (!this.battleMusic) {
+      console.log('Battle music element not available');
+      return;
+    }
+
+    if (this.musicVolume <= 0) {
+      console.log('Music volume is 0, not playing battle music');
+      return;
+    }
+
+    // If we've played all songs, reshuffle
+    if (this.currentBattleSongIndex >= this.battleMusicQueue.length) {
+      console.log('All battle songs played, reshuffling...');
+      this.shuffleBattleMusic();
+    }
+
+    try {
+      const currentSong = this.battleMusicQueue[this.currentBattleSongIndex];
+      console.log(`Playing battle song ${this.currentBattleSongIndex + 1}/${this.battleMusicQueue.length}: ${currentSong}`);
+      
+      this.battleMusic.src = currentSong;
+      this.battleMusic.volume = this.musicVolume;
+      this.battleMusic.currentTime = 0;
+      
+      // Load the audio before playing
+      this.battleMusic.load();
+      
+      this.battleMusic.play().then(() => {
+        console.log('Battle music started playing successfully');
+        this.isBattleMusicPlaying = true;
+        this.currentBattleSongIndex++;
+      }).catch(error => {
+        console.error('Error playing battle music:', error);
+        this.isBattleMusicPlaying = false;
+        
+        // If autoplay blocked, try muted approach
+        if (error.name === 'NotAllowedError') {
+          this.battleMusic.muted = true;
+          this.battleMusic.play().then(() => {
+            this.battleMusic.muted = false;
+            this.isBattleMusicPlaying = true;
+            this.currentBattleSongIndex++;
+          }).catch(muteError => {
+            console.log('Battle music muted approach also failed:', muteError);
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in playNextBattleSong:', error);
+      this.isBattleMusicPlaying = false;
+    }
+  }
+
+  // Stop battle music
+  stopBattleMusic() {
+    if (this.battleMusic && this.isBattleMusicPlaying) {
+      this.battleMusic.pause();
+      this.battleMusic.currentTime = 0;
+      this.isBattleMusicPlaying = false;
+      console.log('Battle music stopped');
+    }
+  }
+
+  // Restart battle music
+  restartBattleMusic() {
+    console.log('Restarting battle music...');
+    this.stopBattleMusic();
+    this.currentBattleSongIndex = 0; // Reset to beginning of current shuffle
+    setTimeout(() => {
+      this.startBattleMusic();
+    }, 100);
   }
 }
 
@@ -345,6 +648,30 @@ window.forceRestartAudio = () => {
 window.startAudio = () => {
   if (audioManager) {
     audioManager.startMusic();
+  } else {
+    console.log('AudioManager not available');
+  }
+};
+
+window.startBattleAudio = () => {
+  if (audioManager) {
+    audioManager.startBattleMusic();
+  } else {
+    console.log('AudioManager not available');
+  }
+};
+
+window.stopBattleAudio = () => {
+  if (audioManager) {
+    audioManager.stopBattleMusic();
+  } else {
+    console.log('AudioManager not available');
+  }
+};
+
+window.nuclearStopBackground = () => {
+  if (audioManager) {
+    audioManager.nuclearStopBackgroundMusic();
   } else {
     console.log('AudioManager not available');
   }
