@@ -1,4 +1,6 @@
 // start.js - Startup page for Ultimate Stick Battle
+import { audioManager } from './modules/audio.js';
+
 window.addEventListener('DOMContentLoaded', () => {
   // Hide character menu initially
   const characterMenu = document.getElementById('characterMenu');
@@ -9,6 +11,9 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // Create startup screen
   createStartupScreen();
+  
+  // AudioManager will handle music playback automatically
+  // No need to call playMusic here as it's handled in the constructor
 });
 
 function createStartupScreen() {
@@ -198,6 +203,46 @@ function simulateLoading(loadingBar, loadingText, startButton, startupContainer)
   setTimeout(updateLoading, 500);
 }
 
+// Handle Enter key to start
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const startButton = document.querySelector('#startupContainer button');
+    if (startButton && startButton.style.display !== 'none') {
+      startButton.click();
+    }
+  }
+});
+
+// Handle start button click
+document.addEventListener('click', (e) => {
+  if (e.target.textContent === 'START GAME') {
+    const startupContainer = document.getElementById('startupContainer');
+    const characterMenu = document.getElementById('characterMenu');
+    
+    if (startupContainer && characterMenu) {
+      // Fade out startup screen
+      startupContainer.style.animation = 'startupFadeOut 0.5s ease-out forwards';
+      
+      setTimeout(() => {
+        // Remove startup screen
+        startupContainer.remove();
+        
+        // Show character menu
+        characterMenu.style.display = 'flex';
+        
+        // Ensure music is playing after user interaction
+        if (audioManager && audioManager.shouldBePlaying() && !audioManager.isPlaying()) {
+          console.log('User clicked start, ensuring music plays');
+          audioManager.playMusic();
+        }
+        
+        // Trigger any necessary initialization
+        window.dispatchEvent(new CustomEvent('startupComplete'));
+      }, 500);
+    }
+  }
+});
+
 // Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
@@ -249,38 +294,4 @@ style.textContent = `
     }
   }
 `;
-document.head.appendChild(style);
-
-// Handle start button click
-document.addEventListener('click', (e) => {
-  if (e.target.textContent === 'START GAME') {
-    const startupContainer = document.getElementById('startupContainer');
-    const characterMenu = document.getElementById('characterMenu');
-    
-    if (startupContainer && characterMenu) {
-      // Fade out startup screen
-      startupContainer.style.animation = 'startupFadeOut 0.5s ease-out forwards';
-      
-      setTimeout(() => {
-        // Remove startup screen
-        startupContainer.remove();
-        
-        // Show character menu
-        characterMenu.style.display = 'flex';
-        
-        // Trigger any necessary initialization
-        window.dispatchEvent(new CustomEvent('startupComplete'));
-      }, 500);
-    }
-  }
-});
-
-// Handle Enter key to start
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const startButton = document.querySelector('#startupContainer button');
-    if (startButton && startButton.style.display !== 'none') {
-      startButton.click();
-    }
-  }
-}); 
+document.head.appendChild(style); 

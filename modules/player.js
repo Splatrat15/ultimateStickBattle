@@ -41,6 +41,8 @@ export class Player extends PhysicsBody {
     this.chargeTime = 0;
     this.maxChargeTime = 120; // 2 seconds at 60fps (increased from 60)
     this.chargeLevel = 0; // 0-1 scale
+    this.demonBreathingSound = null; // Track the demon breathing sound
+    this.electricityStaticSound = null; // Track the electricity static sound
 
     // Initialize character-specific properties
     if (this.characterName === 'Kaon') {
@@ -121,10 +123,17 @@ export class Player extends PhysicsBody {
     this.upHeavyUsedInAir = false;
     this.fastFallActive = false;
 
+    // Stop charging sounds before resetting charging state
+    if (this.isCharging) {
+      this.releaseCharge();
+    }
+
     // Reset charging system
     this.isCharging = false;
     this.chargeTime = 0;
     this.chargeLevel = 0;
+    this.demonBreathingSound = null; // Reset sound
+    this.electricityStaticSound = null; // Reset sound
 
     // Reset character-specific properties
     if (this.characterName === 'Kaon') {
@@ -152,23 +161,6 @@ export class Player extends PhysicsBody {
     this.rakkaShadowSliceActive = false;
     this.rakkaShadowSliceFrames = 0;
     this.rakkaShadowSliceLungeSpeed = 0;
-
-    // Reset Rising Cut sword animation when attack ends
-    if (this.risingCutSwing) {
-      this.risingCutSwing.isActive = false;
-      this.risingCutSwing.frame = 0;
-      this.risingCutSwing.glowIntensity = 0;
-      this.risingCutSwing.shadowTrails = [];
-    }
-    
-    // Reset Down Light sword animation when attack ends
-    if (this.downLightSwing) {
-      this.downLightSwing.isActive = false;
-      this.downLightSwing.frame = 0;
-      this.downLightSwing.glowIntensity = 0;
-      this.downLightSwing.shadowTrails = [];
-    }
-
 
   }
 
@@ -466,6 +458,11 @@ export class Player extends PhysicsBody {
         this.rakkaJabComboStep = 1;
         this.rakkaJabComboTimer = 0;
       }
+      
+      // Play dagger woosh sound for Quick Draw
+      if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+        window.audioManager.playDaggerWooshSound();
+      }
       return;
     }
 
@@ -493,6 +490,11 @@ export class Player extends PhysicsBody {
       this.rakkaShadowSliceActive = true;
       this.rakkaShadowSliceFrames = move.duration; // Lunge for the duration of the move
       this.rakkaShadowSliceLungeSpeed = 7.5; // Adjusted for longer duration (was 12, now 7.5 for similar total distance)
+      
+      // Play dagger woosh sound for Shadow Slice
+      if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+        window.audioManager.playDaggerWooshSound();
+      }
     }
 
     // Aerial restrictions for heavy attacks
@@ -559,7 +561,11 @@ export class Player extends PhysicsBody {
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
-        this.createAttackHitbox();
+        
+        // Play metal hit woosh sound for Shadow Sneak
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
       } else if (move.name === 'Rising Cut') {
         // Start Rising Cut sword swing animation
         if (this.risingCutSwing) {
@@ -570,26 +576,22 @@ export class Player extends PhysicsBody {
           this.risingCutSwing.shadowTrails = [];
           this.risingCutSwing.trailFrame = 0;
         }
+        
+        // Play dagger woosh sound for Rising Cut
+        if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+          window.audioManager.playDaggerWooshSound();
+        }
       } else if (move.name === 'Ground Poke') {
         // Start Down Light sword swing animation based on grounded/aerial state
         if (this.downLightSwing) {
           this.downLightSwing.isActive = true;
           this.downLightSwing.frame = 0;
-          this.downLightSwing.glowIntensity = 0;
-          this.downLightSwing.shadowTrails = [];
-          this.downLightSwing.trailFrame = 0;
           this.downLightSwing.isGrounded = this.isGrounded;
-          
-          // Set swing angles based on grounded/aerial state
-          if (this.isGrounded) {
-            // Ground version: sword poke near the ground
-            this.downLightSwing.startAngle = move.groundSwing.startAngle;
-            this.downLightSwing.endAngle = move.groundSwing.endAngle;
-          } else {
-            // Aerial version: downward sword slash
-            this.downLightSwing.startAngle = move.aerialSwing.startAngle;
-            this.downLightSwing.endAngle = move.aerialSwing.endAngle;
-          }
+        }
+        
+        // Play dagger woosh sound for Ground Poke
+        if (window.audioManager && typeof window.audioManager.playDaggerWooshSound === 'function') {
+          window.audioManager.playDaggerWooshSound();
         }
       } else if (move.name === 'Phantom Slash') {
         // Set up multi-hit data for Phantom Slash
@@ -607,20 +609,46 @@ export class Player extends PhysicsBody {
           this.vy = -launchForce;
         }
         
-        // Create initial hitbox
-        this.createAttackHitbox();
-      } else if (move.name === 'Demon Fang') {
-        // For Demon Fang, teleport and hit anyone in the path
-        const thrustDistance = 100 + (this.chargeLevel * 200); // 100-300px dash
-        if (this.demonFangEffects) {
-          this.demonFangEffects.originalX = this.x;
-          this.demonFangEffects.thrustDistance = thrustDistance;
-          this.demonFangEffects.startX = this.x;
-          this.demonFangEffects.endX = this.x + (thrustDistance * this.facing);
-          
-          // Teleport to end position
-          this.x = this.demonFangEffects.endX;
+        // Start Phantom Slash effects
+        if (this.phantomSlashEffects) {
+          this.phantomSlashEffects.shadowWingsActive = true;
+          this.phantomSlashEffects.wingFrame = 0;
+          this.phantomSlashEffects.circlingBladeActive = true;
+          this.phantomSlashEffects.bladeAngle = 0;
+          this.phantomSlashEffects.bladeFrame = 0;
+          this.phantomSlashEffects.hitTargets = new Set();
         }
+        
+        // Play metal hit woosh sound for Phantom Slash
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
+      } else if (move.name === 'Void Splitter') {
+        // Start Void Splitter effects
+        if (this.voidSplitterEffects) {
+          this.voidSplitterEffects.waveActive = true;
+          this.voidSplitterEffects.waveX = this.x;
+          this.voidSplitterEffects.waveY = this.y;
+          this.voidSplitterEffects.waveDistance = 0;
+          this.voidSplitterEffects.waveDirection = this.facing;
+          this.voidSplitterEffects.slamActive = true;
+          this.voidSplitterEffects.slamFrame = 0;
+          this.voidSplitterEffects.slamY = this.y;
+          this.voidSplitterEffects.shockwaveActive = false;
+          this.voidSplitterEffects.shockwaveFrame = 0;
+          this.voidSplitterEffects.shockwaveRadius = 0;
+          this.voidSplitterEffects.hitTargets = new Set();
+        }
+        
+        // Play metal hit woosh sound for Void Splitter
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
+      }
+    } else if (this.characterName === 'Kaon') {
+      // Play laser cannon shot sound for Kaon's heavy attacks
+      if (move.type === 'heavy' && window.audioManager && typeof window.audioManager.playLaserCannonShotSound === 'function') {
+        window.audioManager.playLaserCannonShotSound();
       }
     }
   }
@@ -1096,6 +1124,17 @@ export class Player extends PhysicsBody {
     // Don't take damage if respawn invincibility is active
     if (this.respawnInvincibilityFrames > 0) return;
     if (this.isShielding) return;
+    
+    // Play sword strikes armor sound for Rakka's attacks when they hit
+    if (attacker.characterName === 'Rakka' && window.audioManager && typeof window.audioManager.playSwordStrikesArmorSound === 'function') {
+      window.audioManager.playSwordStrikesArmorSound();
+    }
+    
+    // Play impact of blow sound for Kaon's attacks when they hit
+    if (attacker.characterName === 'Kaon' && window.audioManager && typeof window.audioManager.playImpactOfBlowSound === 'function') {
+      window.audioManager.playImpactOfBlowSound();
+    }
+    
     // Get move data
     const move = attacker.activeMove || attacker.moveset?.neutralLight;
     // Always use the set damage % for the attack if available
@@ -1261,12 +1300,46 @@ export class Player extends PhysicsBody {
     this.isCharging = true;
     this.chargeTime = 0;
     this.chargeLevel = 0;
+    this.demonBreathingSound = null; // Reset sound
+    this.electricityStaticSound = null; // Reset sound
+    
+    // Play demon breathing sound for Rakka's Demon Fang
+    if (this.characterName === 'Rakka' && this.activeMove && this.activeMove.name === 'Demon Fang') {
+      if (window.audioManager && typeof window.audioManager.playSoundEffect === 'function') {
+        this.demonBreathingSound = window.audioManager.playSoundEffect('demonBreathing');
+      }
+    }
+    
+    // Play electricity static sound for Kaon's charging
+    if (this.characterName === 'Kaon') {
+      if (window.audioManager && typeof window.audioManager.playElectricityStaticSound === 'function') {
+        this.electricityStaticSound = window.audioManager.playElectricityStaticSound();
+      }
+    }
   }
 
   releaseCharge() {
     if (this.isCharging) {
+      console.log(`Releasing charge for ${this.characterName}`);
       
       this.isCharging = false;
+      
+      // Stop the demon breathing sound
+      if (this.demonBreathingSound) {
+        if (window.audioManager && typeof window.audioManager.stopSoundEffect === 'function') {
+          window.audioManager.stopSoundEffect('demonBreathing');
+        }
+        this.demonBreathingSound = null;
+      }
+      
+      // Stop the electricity static sound
+      if (this.electricityStaticSound) {
+        console.log('Stopping electricity static sound');
+        if (window.audioManager && typeof window.audioManager.stopSoundEffect === 'function') {
+          window.audioManager.stopSoundEffect('electricityStatic');
+        }
+        this.electricityStaticSound = null;
+      }
       
       // Only fire if we have some charge and the move is chargeable
       if (this.chargeLevel > 0.1) {
@@ -1325,6 +1398,11 @@ export class Player extends PhysicsBody {
           this.demonFangAlreadyHit = new Set();
 
         }
+        
+        // Play metal hit woosh sound for Demon Fang
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
       } else if (move.name === 'Shadow Sneak') {
         // Teleport to shadow position
         if (this.shadowSneak && this.shadowSneak.active) {
@@ -1348,6 +1426,16 @@ export class Player extends PhysicsBody {
           offsetY: 8
         };
         this.activeMove.hitbox = swingHitbox;
+        
+        // Play metal hit woosh sound for Shadow Sneak
+        if (window.audioManager && typeof window.audioManager.playSwordSlashSound === 'function') {
+          window.audioManager.playSwordSlashSound();
+        }
+      }
+    } else if (this.characterName === 'Kaon') {
+      // Play laser cannon shot sound for Kaon's charged attacks
+      if (window.audioManager && typeof window.audioManager.playLaserCannonShotSound === 'function') {
+        window.audioManager.playLaserCannonShotSound();
       }
     }
     
