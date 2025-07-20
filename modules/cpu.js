@@ -27,6 +27,7 @@ export class CPU {
     this.shieldTimer = 0;
     this.chargeTimer = 0; // Timer for charging neutral heavy attacks
     this.isCharging = false; // Track if CPU is currently charging
+    this.chargeTime = 0; // Track how long we've been charging
     this.recoveryJumpTimer = 0; // Timer to space out jumps during recovery
     this.edgeguardTimer = 0; // Timer for edgeguarding behavior
     this.killMoveCooldown = 0; // Cooldown to prevent spam of kill moves
@@ -105,8 +106,93 @@ export class CPU {
         if (this.chargeTimer === 0 && this.isCharging) {
           this.player.releaseCharge();
           this.isCharging = false;
+          this.chargeTime = 0; // Reset charge time
         }
       }
+      
+      // Update charge time when charging
+      if (this.isCharging) {
+        this.chargeTime++;
+      } else {
+        this.chargeTime = 0; // Reset when not charging
+      }
+      
+      // Special handling for Demon Fang charging - release for movement and positioning
+      if (this.isCharging && this.player.characterName === 'Rakka' && 
+          this.player.activeMove && this.player.activeMove.name === 'Demon Fang') {
+        
+        // Release conditions for Demon Fang:
+        // 1. Charged enough for good damage (15+ frames)
+        // 2. Opponent is in good position for the dash
+        // 3. We need to move to a better position
+        const chargeTime = this.chargeTime || 0;
+        const centerX = this.platform.x + this.platform.width / 2;
+        const distanceFromCenter = Math.abs(this.player.x - centerX);
+        const isNearCenter = distanceFromCenter < 100;
+        
+        // Check if opponent is in good position for Demon Fang
+        const opponentInRange = this.distanceToTarget < 200 && this.distanceToTarget > 50;
+        const opponentInDashPath = Math.abs(this.player.y - this.otherPlayer.y) < 30;
+        
+        // Release for damage if opponent is in good position
+        const goodTarget = opponentInRange && opponentInDashPath && chargeTime > 15;
+        
+        // Release for movement if we're not in center and have enough charge
+        const needMovement = !isNearCenter && chargeTime > 10;
+        
+        // Emergency release if charging too long
+        const emergencyRelease = chargeTime > 50;
+        
+        if (goodTarget || needMovement || emergencyRelease) {
+          this.player.releaseCharge();
+          this.isCharging = false;
+          this.chargeTimer = 0;
+          this.chargeTime = 0;
+        }
+      }
+      
+      // Special handling for Shadow Sneak charging - release early if shadow is in good position
+      if (this.isCharging && this.player.characterName === 'Rakka' && 
+          this.player.activeMove && this.player.activeMove.name === 'Shadow Sneak') {
+        
+        // Check if shadow is in a good position to release
+        if (this.player.shadowSneak && this.player.shadowSneak.active) {
+          const shadowX = this.player.shadowSneak.x;
+          const platformLeft = this.platform.x + 30;
+          const platformRight = this.platform.x + this.platform.width - 30;
+          
+          // Check if opponent is near the shadow position (good target)
+          const shadowToOpponent = Math.abs(shadowX - this.otherPlayer.x);
+          const opponentNearShadow = shadowToOpponent < 80;
+          
+          // Check if shadow is on stage
+          const shadowOnStage = shadowX >= platformLeft && shadowX <= platformRight;
+          
+          // Release conditions:
+          // 1. Shadow is on stage AND opponent is near shadow (ideal)
+          // 2. Shadow is on stage AND we've charged enough (safe)
+          // 3. Emergency: shadow is going off-screen
+          const idealRelease = shadowOnStage && opponentNearShadow && this.chargeTime > 10;
+          const safeRelease = shadowOnStage && this.chargeTime > 20;
+          const emergencyRelease = !shadowOnStage || this.chargeTime > 45;
+          
+          if (idealRelease || safeRelease || emergencyRelease) {
+            this.player.releaseCharge();
+            this.isCharging = false;
+            this.chargeTimer = 0;
+            this.chargeTime = 0;
+          }
+        }
+        
+        // Emergency release if charging too long
+        if (this.chargeTime > 60) {
+          this.player.releaseCharge();
+          this.isCharging = false;
+          this.chargeTimer = 0;
+          this.chargeTime = 0;
+        }
+      }
+      
       if (this.edgeguardTimer > 0) {
         this.edgeguardTimer--;
       }
@@ -462,7 +548,8 @@ export class CPU {
         this.killMoveCooldown = 30;
         // Always use the best kill move for the situation
         if (nearEdge || onEdge) {
-          this.player.attack('side', 'heavy'); // Shadow Sneak - teleport kill
+          // For edge kills, prefer Void Splitter over Shadow Sneak (safer)
+          this.player.attack('down', 'heavy'); // Void Splitter - safer edge kill
         } else if (above) {
           this.player.attack('up', 'heavy'); // Phantom Slash - aerial kill
         } else {
@@ -475,27 +562,47 @@ export class CPU {
       if (canHeavy && !this.player.isAttacking && this.killMoveCooldown === 0) {
         this.killMoveCooldown = 20;
         if (dist > 100) {
-          this.player.attack('side', 'heavy'); // Shadow Sneak at range
+          // For range attacks, prefer Demon Fang charging over Shadow Sneak
+          this.player.startCharge(); // Charge Demon Fang
+          this.isCharging = true;
+          this.chargeTimer = 15 + Math.floor(Math.random() * 10); // Charge for 15-25 frames
         } else if (above) {
           this.player.attack('up', 'heavy'); // Phantom Slash anti-air
         } else if (below) {
           this.player.attack('down', 'heavy'); // Void Splitter spike
         } else if (nearEdge) {
-          this.player.attack('side', 'heavy'); // Shadow Sneak for edge pressure
+          // For edge pressure, use Void Splitter (safer than Shadow Sneak)
+          this.player.attack('down', 'heavy'); // Void Splitter for edge pressure
         } else {
-          this.player.attack('side', 'heavy'); // Shadow Sneak - best general heavy
+          // For general heavy attacks, prefer Void Splitter
+          this.player.attack('down', 'heavy'); // Void Splitter - more reliable
         }
         return;
       }
       
-      // PRIORITY 3: RANGE ATTACKS - Use chargeable moves and heavy attacks
+      // PRIORITY 3: RANGE ATTACKS - Use chargeable moves
       if (dist > 120 && !this.player.isAttacking && !this.isCharging) {
-        if (Math.random() < 0.7) { // High chance to use heavy
-          this.player.attack('side', 'heavy'); // Shadow Sneak
-        } else {
+        // Mix between Demon Fang charging and Shadow Sneak for movement
+        if (Math.random() < 0.7) { // 70% chance for Demon Fang
           this.player.startCharge(); // Charge Demon Fang
           this.isCharging = true;
-          this.chargeTimer = 10 + Math.floor(Math.random() * 15); // Charge for 10-25 frames
+          this.chargeTimer = 15 + Math.floor(Math.random() * 15); // Charge for 15-30 frames
+        } else {
+          // Use Shadow Sneak for movement/positioning
+          const shadowDistance = Math.min(150, dist - 30); // Don't go past opponent
+          const shadowEndX = this.player.x + (shadowDistance * this.player.facing);
+          const platformLeft = this.platform.x + 30;
+          const platformRight = this.platform.x + this.platform.width - 30;
+          
+          // Use Shadow Sneak if it's safe and gives good positioning
+          if (shadowEndX >= platformLeft && shadowEndX <= platformRight) {
+            this.player.attack('side', 'heavy'); // Shadow Sneak for movement
+          } else {
+            // Fallback to Demon Fang if Shadow Sneak isn't safe
+            this.player.startCharge();
+            this.isCharging = true;
+            this.chargeTimer = 15 + Math.floor(Math.random() * 15);
+          }
         }
         return;
       }
@@ -522,8 +629,9 @@ export class CPU {
       
       // PRIORITY 6: CLOSE RANGE - Mix of light and heavy
       if (inRange && !this.player.isAttacking) {
-        if (Math.random() < 0.5) { // 50% chance for heavy even at close range
-          this.player.attack('side', 'heavy'); // Shadow Sneak
+        if (Math.random() < 0.4) { // Reduced chance for heavy at close range
+          // Prefer Void Splitter over Shadow Sneak at close range
+          this.player.attack('down', 'heavy'); // Void Splitter - more reliable
         } else if (canCombo) {
           this.player.attack('neutral', 'light'); // Start jab combo
           setTimeout(() => this.player.attack('neutral', 'light'), 20);
@@ -532,6 +640,47 @@ export class CPU {
           this.player.attack('neutral', 'light');
         }
         return;
+      }
+      
+      // MOVEMENT PRIORITY: Use Shadow Sneak and Demon Fang for positioning
+      if (!this.player.isAttacking && !this.isCharging && this.killMoveCooldown === 0) {
+        const centerX = this.platform.x + this.platform.width / 2;
+        const distanceFromCenter = Math.abs(this.player.x - centerX);
+        const isNearCenter = distanceFromCenter < 150; // Within 150px of center
+        const hasJumps = this.player.jumpsRemaining > 0; // Has recovery options
+        
+        // Use Shadow Sneak for movement when in good position
+        if (isNearCenter && hasJumps && Math.random() < 0.15) { // 15% chance for movement
+          // Calculate movement distance based on positioning
+          let shadowDistance;
+          if (this.player.facing > 0 && this.player.x < centerX) {
+            // Facing right but on left side - move toward center
+            shadowDistance = Math.min(100, centerX - this.player.x + 50);
+          } else if (this.player.facing < 0 && this.player.x > centerX) {
+            // Facing left but on right side - move toward center
+            shadowDistance = Math.min(100, this.player.x - centerX + 50);
+          } else {
+            // Move toward opponent for surprise attack
+            shadowDistance = Math.min(120, dist - 20);
+          }
+          
+          const shadowEndX = this.player.x + (shadowDistance * this.player.facing);
+          const platformLeft = this.platform.x + 40;
+          const platformRight = this.platform.x + this.platform.width - 40;
+          
+          // Use Shadow Sneak if it's safe and gives good positioning
+          if (shadowEndX >= platformLeft && shadowEndX <= platformRight) {
+            this.player.attack('side', 'heavy'); // Shadow Sneak for movement
+            this.killMoveCooldown = 45; // Shorter cooldown for movement
+          }
+        }
+        
+        // Use Demon Fang for movement and surprise attacks
+        if (Math.random() < 0.12) { // 12% chance for Demon Fang movement
+          this.player.startCharge(); // Charge Demon Fang
+          this.isCharging = true;
+          this.chargeTimer = 10 + Math.floor(Math.random() * 20); // Variable charge time
+        }
       }
     }
     
@@ -581,7 +730,9 @@ export class CPU {
         } else if (below) {
           this.player.attack('down', 'heavy'); // Void Splitter spike
         } else {
-          this.player.attack('side', 'heavy'); // Shadow Sneak
+          // For horizontal edgeguarding, prefer Void Splitter over Shadow Sneak
+          // Shadow Sneak can be risky when edgeguarding
+          this.player.attack('down', 'heavy'); // Void Splitter - safer edgeguard
         }
       }
     }
@@ -633,6 +784,12 @@ export class CPU {
     const platformY = this.platform.y;
     const cpuCenterX = this.player.x + this.player.width / 2;
     const cpuBottomY = this.player.y + this.player.height;
+    
+    // Check if we're off stage
+    const isOffStage = this.player.x < platformLeft - 50 || 
+                      this.player.x > platformRight + 50 || 
+                      this.player.y > platformY + 100;
+    
     // Find the closest safe x-position on the platform
     let targetX = Math.max(platformLeft + 10, Math.min(cpuCenterX, platformRight - 10));
     // If below the platform, aim for the nearest edge
@@ -654,23 +811,56 @@ export class CPU {
       if (cpuCenterX < platformLeft) this.player.x = platformLeft - this.player.width / 2 + 1;
       if (cpuCenterX > platformRight) this.player.x = platformRight - this.player.width / 2 - 1;
     }
-    // Only use a jump if falling and below the platform, and space out jumps
-    const belowStage = cpuBottomY > platformY + 10;
-    const isFalling = this.player.vy > 0.5;
-    if (this.player.jumpsRemaining > 0 && belowStage && isFalling && this.recoveryJumpTimer <= 0) {
-      this.player.jump();
-      this.recoveryJumpTimer = 18 + Math.floor(Math.random() * 8); // Wait ~18-26 frames before next jump
+    
+    // Enhanced recovery for off-stage situations
+    if (isOffStage) {
+      // Use jumps more aggressively when off stage
+      const belowStage = cpuBottomY > platformY + 10;
+      const isFalling = this.player.vy > 0.5;
+      const farFromStage = Math.abs(cpuCenterX - (platformLeft + platformRight) / 2) > 200;
+      
+      // Use jumps immediately if we have them and are falling
+      if (this.player.jumpsRemaining > 0 && (belowStage || farFromStage) && this.recoveryJumpTimer <= 0) {
+        this.player.jump();
+        this.recoveryJumpTimer = 15 + Math.floor(Math.random() * 5); // Shorter delay when off stage
+      }
+      
+      // Use up heavy for recovery if jumps are exhausted or if very far from stage
+      if ((this.player.jumpsRemaining === 0 || farFromStage) && 
+          !this.player.isGrounded && 
+          !this.player.isAttacking && 
+          this.player.heavyAttackCooldown === 0) {
+        this.player.attack('up', 'heavy');
+      }
+      
+      // Move more aggressively toward the stage when off stage
+      const stageCenter = (platformLeft + platformRight) / 2;
+      if (cpuCenterX < stageCenter) {
+        this.player.move(1); // Move right toward stage
+      } else {
+        this.player.move(-1); // Move left toward stage
+      }
+    } else {
+      // Normal recovery logic when not far off stage
+      // Only use a jump if falling and below the platform, and space out jumps
+      const belowStage = cpuBottomY > platformY + 10;
+      const isFalling = this.player.vy > 0.5;
+      if (this.player.jumpsRemaining > 0 && belowStage && isFalling && this.recoveryJumpTimer <= 0) {
+        this.player.jump();
+        this.recoveryJumpTimer = 18 + Math.floor(Math.random() * 8); // Wait ~18-26 frames before next jump
+      }
+      // Only use up heavy for recovery if jumps are exhausted or if far below the platform
+      if ((this.player.jumpsRemaining === 0 || (this.player.y > platformY + 60 && Math.abs(cpuCenterX - targetX) < this.platform.width / 2))
+        && !this.player.isGrounded && !this.player.isAttacking && this.player.heavyAttackCooldown === 0) {
+        this.player.attack('up', 'heavy');
+      }
+      // Move horizontally toward the target
+      this.player.move(direction);
     }
+    
     if (this.recoveryJumpTimer > 0) {
       this.recoveryJumpTimer--;
     }
-    // Only use up heavy for recovery if jumps are exhausted or if far below the platform
-    if ((this.player.jumpsRemaining === 0 || (this.player.y > platformY + 60 && Math.abs(cpuCenterX - targetX) < this.platform.width / 2))
-      && !this.player.isGrounded && !this.player.isAttacking && this.player.heavyAttackCooldown === 0) {
-      this.player.attack('up', 'heavy');
-    }
-    // Move horizontally toward the target
-    this.player.move(direction);
   }
 
   // Emergency actions for survival - but still aggressive
@@ -712,4 +902,4 @@ export class CPU {
       console.error('CPU handleEmergency error:', error);
     }
   }
-} 
+}
