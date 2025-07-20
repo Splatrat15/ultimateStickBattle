@@ -319,6 +319,15 @@ function drawStage() {
     let playerColor = player.color;
     if ((index === 0 && window.player1IsCPU) || (index === 1 && window.player2IsCPU)) {
       playerColor = '#808080'; // Grey for CPU players
+      // Update the player's color property to ensure drawing functions use the correct color
+      player.color = playerColor;
+    } else {
+      // Restore original color for human players
+      if (index === 0) {
+        player.color = '#2196f3'; // Blue for player 1
+      } else {
+        player.color = '#e53935'; // Red for player 2
+      }
     }
     
     // Draw player (blink if respawn invincibility is active)
