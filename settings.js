@@ -171,6 +171,46 @@ class Settings {
           align-items: center;
           gap: 8px;
         }
+        .leaveGameButton {
+          background: #d32f2f;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 8px 18px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.2s;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .leaveGameButton:hover {
+          background: #b71c1c;
+          transform: scale(1.05);
+        }
+        .leaveGameButton:active {
+          background: #c62828;
+          transform: scale(0.97);
+        }
+        .creditsButton {
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 8px 18px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.2s;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .creditsButton:hover {
+          background: #0d47a1;
+          transform: scale(1.05);
+        }
+        .creditsButton:active {
+          background: #1565c0;
+          transform: scale(0.97);
+        }
       </style>
       
       <div class="settingsContent">
@@ -280,6 +320,18 @@ class Settings {
                   </button>
                 </div>
               </div>
+              <div class="settingItem">
+                <label>Leave Game</label>
+                <div class="leaveGameContainer">
+                  <button id="leaveGameButton" class="leaveGameButton">Leave Game</button>
+                </div>
+              </div>
+              <div class="settingItem">
+                <label>Credits</label>
+                <div class="creditsContainer">
+                  <button id="creditsButton" class="creditsButton">Credits</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -380,6 +432,14 @@ class Settings {
     document.addEventListener('click', (e) => {
       if (e.target.id === 'discordButton') {
         this.openDiscord();
+      }
+      // Leave Game button
+      if (e.target.id === 'leaveGameButton') {
+        this.leaveGame();
+      }
+      // Credits button
+      if (e.target.id === 'creditsButton') {
+        this.openCredits();
       }
     });
 
@@ -927,6 +987,26 @@ class Settings {
   openDiscord() {
     // Open Discord invite link in a new tab
     window.open('https://discord.gg/KGfQQCcWkx', '_blank');
+  }
+
+  // Add a method to handle leaving the game
+  leaveGame() {
+    // Show confirmation dialog
+    if (confirm('Are you sure you want to leave the game?')) {
+      window.close();
+      // If window is not closed, show a message
+      setTimeout(() => {
+        if (!window.closed) {
+          alert('Unable to close the window automatically. Please close the tab or window manually.');
+        }
+      }, 300);
+    }
+  }
+
+  // Add a method to handle opening credits
+  openCredits() {
+    // Dispatch a custom event to show credits overlay
+    window.dispatchEvent(new Event('showCreditsOverlay'));
   }
 }
 
