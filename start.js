@@ -170,6 +170,27 @@ function createParticles(container) {
   }
 }
 
+// --- CONTROLLER INPUT FOR STARTUP SCREEN ---
+function pollControllerStartButton() {
+  const startupContainer = document.getElementById('startupContainer');
+  const startButton = startupContainer ? startupContainer.querySelector('button') : null;
+  // Only poll if startup screen is visible and start button is shown
+  if (startupContainer && startButton && startButton.style.display !== 'none') {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (let i = 0; i < gamepads.length; i++) {
+      const gp = gamepads[i];
+      if (!gp || gp.mapping !== 'standard') continue;
+      // If any button is pressed
+      if (gp.buttons.some(btn => btn && btn.pressed)) {
+        startButton.click();
+        return; // Only trigger once
+      }
+    }
+    requestAnimationFrame(pollControllerStartButton);
+  }
+}
+
+// Start polling for controller input when the start button is shown
 function simulateLoading(loadingBar, loadingText, startButton, startupContainer) {
   const loadingSteps = [
     { progress: 20, text: 'Initializing...' },
@@ -187,7 +208,6 @@ function simulateLoading(loadingBar, loadingText, startButton, startupContainer)
       loadingBar.style.width = step.progress + '%';
       loadingText.textContent = step.text;
       currentStep++;
-      
       setTimeout(updateLoading, 800);
     } else {
       // Loading complete
@@ -195,6 +215,8 @@ function simulateLoading(loadingBar, loadingText, startButton, startupContainer)
         loadingText.style.display = 'none';
         startButton.style.display = 'block';
         startButton.style.animation = 'fadeInUp 0.5s ease-out';
+        // Start polling for controller input now that the button is visible
+        requestAnimationFrame(pollControllerStartButton);
       }, 500);
     }
   }
